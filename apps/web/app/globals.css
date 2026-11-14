@@ -1,0 +1,70 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@theme inline {
+  --spacing: 0.25rem;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--secondary);
+  --color-accent-foreground: var(--foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: "Segoe UI Variable", "Segoe UI", Arial, sans-serif;
+  --font-heading: var(--font-sans);
+}
+
+:root {
+  --background: oklch(0.98 0.005 95);
+  --foreground: oklch(0.27 0.025 165);
+  --card: oklch(1 0 0);
+  --primary: oklch(0.39 0.065 165);
+  --primary-foreground: oklch(0.99 0.004 95);
+  --secondary: oklch(0.94 0.018 155);
+  --muted: oklch(0.955 0.005 95);
+  --muted-foreground: oklch(0.47 0.018 165);
+  --border: oklch(0.9 0.009 145);
+  --ring: oklch(0.47 0.105 163);
+  --destructive: oklch(0.5 0.18 25);
+  --radius: 0.875rem;
+  color-scheme: light;
+}
+
+@layer base {
+  * { @apply border-border; }
+  html { scroll-behavior: smooth; scroll-padding-top: 6rem; }
+  body { @apply m-0 bg-background font-sans text-foreground antialiased; }
+  button, a { -webkit-tap-highlight-color: transparent; }
+  button { font: inherit; }
+  button:not(:disabled) { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--ring); outline-offset: 4px; }
+  ::selection { background: var(--secondary); color: var(--foreground); }
+}
+
+@layer components {
+  .action-link {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90;
+  }
+  .action-link-secondary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

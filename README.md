@@ -1,89 +1,255 @@
-# LifeOS — Codex Execution Pack · Stage 1 Foundation
+# LifeOS · Stage 1 Foundation
 
-**Версия:** 1.0 · 2026-11-08  
-**Основание:** `docs/reference/LifeOS_Master_Plan_v0.4.md`  
-**Граница работ:** только **ЭТАП 1** из 8; 9 задач `LFS-101`–`LFS-109`.  
-**Статус:** задачи подготовлены, программная реализация не выполнена.
+LifeOS — модульная платформа целей и развития в сферах Languages, Finance,
+Work, Projects, Skills и Health. Языковой учитель — будущий модуль платформы.
+Сейчас реализован технический Foundation: Web shell, PostgreSQL/Drizzle,
+отдельный demo-worker pg-boss, контракты/env, atomicity tests и CI workflow.
+Auth, цели, реальные измерения прогресса, Telegram SDK и AI ещё не реализованы.
 
-## Что мы строим
+LFS-101–109 проверены по [листу приёмки](docs/tasks/STAGE-01-ACCEPTANCE.md).
+Локальная полная цепочка проходит; hosted GitHub Actions, visual/keyboard/mobile
+и воспроизведение всего Foundation из remote clone пока не подтверждены.
+Stage 2 автоматически не начинается. Продуктовый источник:
+[Master Plan v0.4](docs/reference/LifeOS_Master_Plan_v0.4.md), без изменения его формулировок.
 
-**LifeOS — личная операционная система развития**, а не отдельное приложение для изучения языков. Сферы: `languages`, `finance`, `work`, `projects`, `skills`, `health`. На первом полном MVP языковой модуль автоматизирован, остальные сферы используют общие цели и ручные измерения (Этап 2); далее добавляются специализированные модули и интеграции. В Этапе 1 **не** реализуем сами функциональные модули.
+## Документация
 
-Архитектура: **Next.js + React + TypeScript strict**, одно веб-приложение для Web/Mini App/API, отдельный Node.js worker, PostgreSQL + Drizzle, **pg-boss без Redis**, pnpm + Turborepo. В будущем: Better Auth, grammY, AI SDK, ts-fsrs, Zod, Tailwind + shadcn/ui. Точные совместимые версии устанавливает LFS-102.
+| Документ | Содержание |
+|---|---|
+| [System](docs/architecture/system.md) | Процессы, package/import boundaries, реальные и будущие потоки |
+| [Database](docs/architecture/database-schema.md) | Технические таблицы, test-only schemas и отдельно план Stage 2 |
+| [Worker](docs/architecture/worker.md) | Demo lifecycle, retries/shutdown, atomic enqueue и ограничения |
+| [API contracts](docs/api/contracts.md) | Envelope, errors, IDs, health и env |
+| [CI](docs/CI.md) | Общая verify chain, PostgreSQL service, cache и реальные статусы |
+| [Development workflow](docs/DEVELOPMENT_WORKFLOW.md) | Один LFS-ID, ветки/commits/PR, review и handoff |
 
-## Как передать задачи Codex
+## Каркас LFS-101
 
-1. Создай пустой локальный каталог `lifeos` или открой существующий Git-репозиторий (сначала сохрани его изменения).
-2. Распакуй **содержимое этой папки** в корень репозитория. Файл `AGENTS.md` должен оказаться в корне, а задания — в `docs/tasks/`.
-3. Открой корень репозитория в Codex с разрешением читать файлы проекта и выполнять локальные команды. Если проект уже существует, требуй сначала изучить и сохранить текущие файлы.
-4. Вставь один промпт (см. ниже) и **выполняй только один LFS-ID за раз**.
-5. После каждой задачи проверь вывод Codex, запусти указанные проверки, просмотри `git diff`, затем сделай commit и переходи к следующей задаче.
+pnpm workspaces + Turborepo, strict TypeScript. Один Next.js App Router
+обслуживает Web, будущий Mini App и API; worker — отдельный Node процесс.
+PostgreSQL + Drizzle + pg-boss, без Redis и отдельного backend framework.
 
-### Промпт для первого задания (скопируй в Codex)
+| Путь | Workspace | Сейчас |
+|---|---|---|
+| `apps/web` | @lifeos/web | UI shell, /telegram placeholder, health и HTTP adapters |
+| `apps/worker` | @lifeos/worker | PgBoss demo runtime и producer CLI |
+| `packages/db` | @lifeos/db | Drizzle schema/client/migrator; business repositories позже |
+| `packages/domain` | @lifeos/domain | Пустой framework-independent модуль с lint/typecheck |
+| `packages/contracts` | @lifeos/contracts | Zod DTO, errors, health и request/job context |
+| `packages/config` | @lifeos/config | TS/ESLint и отдельный серверный env export |
 
-```text
-Работаем над проектом LifeOS, Этап 1 — Foundation.
-Сначала изучи AGENTS.md, docs/reference/LifeOS_Master_Plan_v0.4.md и docs/tasks/LFS-101.md.
-Выполни ТОЛЬКО LFS-101 и не переходи к следующим задачам.
-Прежде чем менять файлы, проверь состояние репозитория и сообщи, если там уже есть код или несохранённые изменения.
-После реализации запусти все релевантные проверки из задачи, проверь diff и подготовь короткий отчёт:
-1) что создано/изменено; 2) команды и результаты; 3) ограничения/риски; 4) ручные действия пользователя;
-5) выполненные acceptance criteria. Не заявляй, что тесты прошли, если ты их не запускал.
-Не создавай функциональность этапов 2–8, не используй PHP/Laravel/Vue/Nuxt и не добавляй Redis.
+## Окружение LFS-102
+
+Точные версии: **Node.js 24.22.2**, **pnpm 10.34.9**, PostgreSQL 18.6
+с immutable image digest. Next/React/Drizzle/pg-boss и совместимость:
+[ADR-001](docs/adr/001-stack.md). Не отключайте engine/peer checks и не
+заменяйте версии на latest. `verify` требует точную Node из `.nvmrc`.
+
+### Windows 11 / PowerShell
+
+Установите и запустите [Docker Desktop с WSL2 backend](https://docs.docker.com/desktop/setup/install/windows-install/).
+Если WSL ещё не настроен, выполните `wsl --install` в административном
+PowerShell согласно установщику Windows, затем перезагрузитесь и включите
+нужную дистрибуцию в Docker Desktop WSL integration. Проверьте:
+
+```powershell
+wsl --status
+docker version
+docker compose version
 ```
 
-### Шаблон промпта для остальных задач
+Для Node используйте [официальный 24.22.2 x64 MSI](https://nodejs.org/dist/v24.22.2/node-v24.22.2-x64.msi)
+или уже установленный nvm-windows из корня проекта:
 
-```text
-Продолжаем LifeOS Stage 1. Изучи AGENTS.md и docs/tasks/LFS-XXX.md, а также затронутые части docs/reference/LifeOS_Master_Plan_v0.4.md.
-Проанализируй текущее состояние репозитория и результаты предыдущих задач.
-Выполни только LFS-XXX. Не расширяй scope и не переписывай ранее принятые ADR без объяснения.
-Запусти требуемые проверки; если окружение не позволяет их выполнить, покажи точную причину и инструкцию, как запустить вручную.
-В конце выведи список изменённых файлов, результат тестов, потенциальные проблемы, выполненные acceptance criteria и рекомендуемую следующую задачу.
+```powershell
+$taskNodeVersion = (Get-Content -Raw .nvmrc).Trim()
+nvm install $taskNodeVersion
+nvm use $taskNodeVersion
+node --version
 ```
 
-## Порядок выполнения
+Для ARM64 нужен соответствующий официальный Node binary. Системный Node
+24.22.1 текущего окружения ниже pin и проверками не подменялся; локальный
+portable runtime использовался только для фактической валидации.
 
-| Порядок | ID | Результат | Зависимости |
-|---|---|---|---|
-| 1 | [LFS-101](docs/tasks/LFS-101.md) | Скелет монорепозитория | нет |
-| 2 | [LFS-102](docs/tasks/LFS-102.md) | Стек, совместимость, lockfile, ADR | 101 |
-| 3 | [LFS-103](docs/tasks/LFS-103.md) | Next.js UI-shell, стили и layouts | 102 |
-| 4 | [LFS-104](docs/tasks/LFS-104.md) | PostgreSQL, Drizzle, миграции | 102 |
-| 5 | [LFS-105](docs/tasks/LFS-105.md) | Worker и тестовая задача pg-boss | 104 |
-| 6 | [LFS-106](docs/tasks/LFS-106.md) | Zod контракты, ошибки, env, request ID | 103–105 |
-| 7 | [LFS-107](docs/tasks/LFS-107.md) | Интеграционные тесты транзакции и идемпотентности | 105–106 |
-| 8 | [LFS-108](docs/tasks/LFS-108.md) | CI: lint / typecheck / tests / build | 107 |
-| 9 | [LFS-109](docs/tasks/LFS-109.md) | Architecture docs, ADR, workflow для Codex | 101–108 |
+Если Corepack есть, создайте project-local pnpm shims без изменения глобального PATH:
 
-LFS-103 и LFS-104 можно разрабатывать параллельно **только в отдельных ветках**, но при работе с одним Codex проще соблюдать порядок таблицы.
+```powershell
+New-Item -ItemType Directory -Force .cache/bin | Out-Null
+corepack enable --install-directory .cache/bin pnpm
+$env:Path = (Join-Path (Get-Location) '.cache/bin') + [IO.Path]::PathSeparator + $env:Path
+pnpm.cmd --version
+```
 
-## Граница первого этапа
+В PowerShell с запретом `.ps1` используйте **pnpm.cmd** во всех командах
+ниже. Execution policy менять не нужно. Если Corepack отсутствует,
+установите точную версию: `npm.cmd install --global pnpm@10.34.9`.
 
-**Разрешено:** подготовить инфраструктуру, проектные пакеты, пустой UI-shell, БД, миграции технических тестовых таблиц, worker, CI, документацию.  
-**Запрещено до Этапа 2:** регистрация пользователей, таблица `user`, `goals`, `activity_events`, реальный Dashboard с личными данными.  
-**Запрещено до Этапа 3+:** Telegram linking, webhook, AI runtime, уроки, голос, карточки FSRS. Пакеты/папки можно заготовить без реализации бизнес-функций.
+### WSL2 / Linux
 
-## Definition of Done для Foundation
+В WSL2 используйте Linux Node/pnpm и рабочую копию без Windows node_modules;
+Docker CLI должен видеть Docker Desktop engine. На Linux установите
+[Docker Engine и Compose plugin](https://docs.docker.com/engine/install/ubuntu/)
+для своей поддерживаемой дистрибуции и запустите daemon.
+Установите Node 24.22.2 через [официальный архив](https://nodejs.org/dist/v24.22.2/)
+или [nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+При уже установленном nvm из корня проекта:
 
-- [ ] `pnpm install --frozen-lockfile` работает на зафиксированной Node-версии.
-- [ ] Web запускается локально, отображает каркас LifeOS и отвечает `GET /api/health`.
-- [ ] PostgreSQL поднимается локально через Docker, миграции применяются повторяемо в чистом окружении.
-- [ ] Worker запускается отдельно, выполняет demo-job и корректно останавливается.
-- [ ] Интеграционный тест доказал атомарность транзакции «запись + enqueue» и защиту от повторной операции.
-- [ ] Запускаются `lint`, `typecheck`, unit/integration tests и build.
-- [ ] CI воспроизводит проверки; README содержит команды для Windows 11 / WSL2 и Linux.
-- [ ] В коде отсутствуют секреты и логика будущих модулей; ADR и архитектурные документы соответствуют реализации.
+```sh
+nvm install
+nvm use
+node --version
+mkdir -p .cache/bin
+corepack enable --install-directory .cache/bin pnpm
+export PATH="$PWD/.cache/bin:$PATH"
+pnpm --version
+docker version
+docker compose version
+```
 
-## Что дальше
+Если Corepack нет — `npm install --global pnpm@10.34.9` после установки
+Node 24.22.2. Инструкции package manager: [pnpm 10](https://pnpm.io/10.x/installation).
+Установка Docker/WSL/Node требует действий владельца машины; эти команды не
+выдаются за выполненную здесь установку.
 
-Этап 2 по Master Plan v0.4: Better Auth, реестр 6 сфер, Dashboard, `goals`, `goal_measurements`, ручной прогресс, `activity_events`, ownership-тесты. **Не начинай Этап 2 автоматически** после LFS-109.
+## Получение исходников
 
-## Официальные ссылки для Codex
+В текущем рабочем дереве код Foundation есть, но он пока не опубликован.
+Проверенный remote HEAD `8058a4e6a61a3b90a906ac2874f1cd9d59b2900c` содержит
+только AGENTS.md, README.md и docs — без package.json/CI workflow.
+Полное прохождение следующих инструкций из remote clone станет возможно
+после review и публикации Foundation. Существующее дерево не заменяйте клоном.
 
-- Next.js route groups: https://nextjs.org/docs/app/api-reference/file-conventions/route-groups
-- Drizzle: https://orm.drizzle.team/docs/overview
-- pg-boss transactional adapter: https://pgboss.io/api/adapters
-- Better Auth + Drizzle (этап 2): https://better-auth.com/docs/adapters/drizzle
-- Node.js releases: https://nodejs.org/en/about/previous-releases
-- ts-fsrs (этап 5, проверить рантайм уже на этапе 1): https://github.com/open-spaced-repetition/ts-fsrs
+После публикации, для новой рабочей копии:
+
+```sh
+git clone https://github.com/sasha761/lifeOS.git lifeos
+cd lifeos
+pnpm install --frozen-lockfile
+```
+
+В существующем дереве после проверки Node/pnpm выполните тот же frozen install.
+Зависимости/версии фиксирует pnpm-lock.yaml; `.npmrc` использует ignored
+project-local `.pnpm-store`. `.cache`, node_modules, dist и .next не коммитятся.
+
+## Первый локальный запуск
+
+Из корня, **только если .env ещё нет**, один раз выполните:
+
+```sh
+pnpm db:env
+```
+
+Команда создаёт ignored .env с двумя случайными паролями и никогда не
+перезаписывает существующий файл. Если .env уже есть, сохраните его и
+сверьте настройки с [.env.example](.env.example). Placeholders шаблона не
+являются рабочими credentials. Не публикуйте URL/пароли и NEXT_PUBLIC_* secrets.
+
+```sh
+pnpm db:up
+pnpm db:migrate
+pnpm db:status
+pnpm db:test:up
+pnpm verify
+```
+
+Main DB — 127.0.0.1:15432 / lifeos; test instance — 127.0.0.1:15433 /
+lifeos_test. Это отдельные instances/roles/passwords/volumes. Миграции пока
+создают только техническую fixture и journal; verify применяет миграции к
+явной test DB и не использует main DATABASE_URL как fallback.
+Подробности и безопасная изоляция: [DB README](packages/db/README.md).
+
+### Web
+
+```sh
+pnpm dev
+```
+
+Откройте http://127.0.0.1:3000:
+
+- `/` — shell и шесть будущих сфер без личных данных.
+- `/telegram` — компактная заглушка Mini App, без linking/SDK.
+- `/api/health` — JSON `{ data, meta, errors }`, текущий timestamp и IDs, no-store.
+
+Health — liveness Web; доступность DB/worker он не доказывает.
+Для production smoke сначала остановите dev, затем:
+
+```sh
+pnpm build
+pnpm --filter @lifeos/web start
+```
+
+Dev/start используют один default port; одновременно их не запускайте.
+Используйте package scripts: они проверяют env до Next CLI. Build не требует
+runtime DB/Telegram/AI credentials. [Routing ADR](docs/adr/004-next-routing.md).
+
+### Worker в отдельном терминале
+
+```sh
+pnpm worker:build
+pnpm worker:start
+```
+
+В ещё одном терминале:
+
+```sh
+pnpm worker:ping
+pnpm worker:ping --fail-once
+pnpm worker:ping --always-fail
+```
+
+Для dev — `pnpm worker:dev`. Job modes технические; queued log не заменяет
+проверку completed/failed и output в PostgreSQL. Ctrl+C/SIGTERM запускают
+graceful shutdown; на Windows также Ctrl+Break/SIGBREAK.
+[Worker docs](docs/architecture/worker.md) описывают policy, ограничения и тесты.
+
+## Проверки и остановка
+
+`pnpm verify` повторяет CI: frozen install → lint → typecheck → 94 unit
+tests → test migrations → 18 PostgreSQL integration tests → Web/worker
+build → production build smoke. Нужны точный Node/pnpm, Docker/test DB и
+TEST_DATABASE_URL. Каждый этап возвращает реальный exit code; Turbo cache
+не подменяет проверки. [CI/env/cache](docs/CI.md).
+
+| Команда | Назначение |
+|---|---|
+| `pnpm lint`, `pnpm typecheck` | Все шесть workspace + root tooling |
+| `pnpm test` | Реальные unit suites пяти workspace; domain business code ещё нет |
+| `pnpm db:migrate:test` | Только dedicated TEST_DATABASE_URL, без удаления DB |
+| `pnpm test:db` | Migration/CLI/atomicity/dedupe/replay на PostgreSQL |
+| `pnpm test:worker` | Отдельные worker/CLI, retry и shutdown на PostgreSQL |
+| `pnpm test:integration` | DB, затем worker suites |
+| `pnpm build`, затем `pnpm test:build` | Обе production сборки и smoke |
+| `pnpm db:generate` | Offline Drizzle SQL generation без credentials |
+| `pnpm db:test:down` | Остановить только test instance |
+| `pnpm db:down` | Остановить Compose project/удалить containers/network, сохранив volumes |
+
+Не используйте down -v, удаление database/volume или переписывание применённых
+SQL для исправления окружения. Изменение существующей schema — новая миграция.
+
+## Типичные проблемы
+
+| Симптом | Действие |
+|---|---|
+| Unsupported engine / verify требует другой Node | Сверить node --version с .nvmrc, pnpm --version с packageManager; не отключать engine-strict |
+| pnpm не найден / .ps1 blocked | Проверить локальные shims/PATH; в PowerShell использовать pnpm.cmd |
+| Docker daemon/pipe недоступен | Запустить Docker Desktop/Engine, проверить docker version и WSL integration |
+| Ошибка DATABASE_URL до Ready | Настроить root .env по .env.example; startup validation намеренно ранняя |
+| Integration требует TEST_DATABASE_URL | Запустить db:test:up и задать отдельный test URL; main URL не является fallback |
+| Порт занят | Менять PORT и соответствующий URL вместе в .env; по умолчанию 15432/15433 |
+| Изменён .env, но пароль PG не изменился | POSTGRES_PASSWORD применяется при первой инициализации volume; сохранить исходный .env, не удалять данные ради сброса |
+| Workspace import/dist отсутствует | Запускать root dev/build/verify или worker:build, которые собирают dependencies |
+
+## Handoff и следующий этап
+
+Работать по одному [LFS task](docs/tasks/README.md), начиная с AGENTS.md и
+git status. Сначала контракт/типы → реализация → тесты → docs. Правила
+веток/commits/PR и ADR: [development workflow](docs/DEVELOPMENT_WORKFLOW.md).
+Прежние незакоммиченные изменения не удаляются и не смешиваются с новым scope.
+
+Stage 2 по Master Plan — Better Auth, ownership, реестр сфер, Dashboard,
+goals/goal_measurements/activity_events и ручной прогресс. Эти функции не
+реализованы; нет фиктивного общего процента жизни. Для следующего LFS-ID
+нужна отдельная постановка и решение пользователя после приёмки Foundation.
+Текущие PASS/NOT RUN и необходимые ручные действия —
+[Stage 1 acceptance](docs/tasks/STAGE-01-ACCEPTANCE.md).

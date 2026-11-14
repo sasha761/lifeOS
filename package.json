@@ -1,0 +1,49 @@
+{
+  "name": "lifeos",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=24.22.2 <25",
+    "pnpm": "10.34.9"
+  },
+  "scripts": {
+    "dev": "turbo run dev --filter=@lifeos/web",
+    "build": "turbo run build --filter=@lifeos/web --filter=@lifeos/worker",
+    "lint": "pnpm lint:tooling && turbo run lint --filter=@lifeos/web --filter=@lifeos/config --filter=@lifeos/contracts --filter=@lifeos/db --filter=@lifeos/worker --filter=@lifeos/domain",
+    "lint:tooling": "eslint scripts eslint.config.ts --max-warnings 0",
+    "typecheck": "turbo run typecheck --filter=@lifeos/web --filter=@lifeos/config --filter=@lifeos/contracts --filter=@lifeos/db --filter=@lifeos/worker --filter=@lifeos/domain && pnpm typecheck:tooling",
+    "typecheck:tooling": "tsc --noEmit --project tsconfig.json",
+    "test": "turbo run test --filter=@lifeos/web --filter=@lifeos/config --filter=@lifeos/contracts --filter=@lifeos/db --filter=@lifeos/worker",
+    "worker:dev": "turbo run dev --filter=@lifeos/worker",
+    "worker:build": "turbo run build --filter=@lifeos/worker",
+    "worker:start": "pnpm --filter @lifeos/worker start",
+    "worker:ping": "pnpm --filter @lifeos/worker demo",
+    "test:worker": "pnpm worker:build && pnpm --filter @lifeos/worker test:integration",
+    "db:env": "node scripts/setup-db-env.ts",
+    "db:up": "docker compose --env-file .env -f infra/docker/compose.yaml up -d --wait postgres",
+    "db:down": "docker compose --env-file .env -f infra/docker/compose.yaml --profile test down",
+    "db:test:up": "docker compose --env-file .env -f infra/docker/compose.yaml --profile test up -d --wait postgres-test",
+    "db:test:down": "docker compose --env-file .env -f infra/docker/compose.yaml --profile test stop postgres-test",
+    "db:generate": "pnpm --filter @lifeos/db db:generate",
+    "db:migrate": "pnpm --filter @lifeos/config build && pnpm --filter @lifeos/db db:migrate",
+    "db:status": "pnpm --filter @lifeos/config build && pnpm --filter @lifeos/db db:status",
+    "test:db": "turbo run build --filter=@lifeos/db && pnpm --filter @lifeos/db test:integration",
+    "test:integration": "pnpm test:db && pnpm test:worker",
+    "db:migrate:test": "pnpm --filter @lifeos/config build && pnpm --filter @lifeos/db db:migrate:test",
+    "test:build": "node scripts/build-smoke.ts",
+    "verify": "node --env-file-if-exists=.env scripts/verify.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/node": "24.19.2",
+    "eslint": "10.14.0",
+    "jiti": "2.7.0",
+    "turbo": "2.11.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  }
+}

@@ -1,0 +1,39 @@
+name: lifeos-foundation
+
+x-postgres: &postgres
+  image: postgres:18.6-bookworm@sha256:f1ea2a1a4fb7b68d4836be1fdcb8a6466a89b072158bf9d97663600538c294c5
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+    interval: 3s
+    timeout: 3s
+    retries: 20
+    start_period: 5s
+
+services:
+  postgres:
+    <<: *postgres
+    environment:
+      POSTGRES_USER: lifeos
+      POSTGRES_DB: lifeos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the root .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-15432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+  postgres-test:
+    <<: *postgres
+    profiles: [test]
+    environment:
+      POSTGRES_USER: lifeos_test
+      POSTGRES_DB: lifeos_test
+      POSTGRES_PASSWORD: ${POSTGRES_TEST_PASSWORD:?Set POSTGRES_TEST_PASSWORD in the root .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_TEST_PORT:-15433}:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql
+
+volumes:
+  postgres_data:
+  postgres_test_data:

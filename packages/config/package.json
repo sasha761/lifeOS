@@ -1,0 +1,22 @@
+{
+  "name": "@lifeos/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./env": { "types": "./dist/env.d.ts", "import": "./dist/env.js" },
+    "./eslint/base": "./eslint/base.ts",
+    "./tsconfig/base.json": "./tsconfig/base.json"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "zod": "4.6.7",
+    "eslint": "10.14.0",
+    "typescript-eslint": "8.72.1"
+  }
+}

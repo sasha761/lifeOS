@@ -1,0 +1,22 @@
+{
+  "name": "@lifeos/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=../../.env --watch src/index.ts",
+    "start": "node --env-file-if-exists=../../.env dist/index.js",
+    "demo": "node --env-file-if-exists=../../.env src/producer.ts",
+    "build": "tsc --project tsconfig.build.json",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "node --env-file-if-exists=../../.env ../../node_modules/vitest/vitest.mjs run --config vitest.integration.config.ts"
+  },
+  "dependencies": {
+    "@lifeos/config": "workspace:*",
+    "@lifeos/contracts": "workspace:*",
+    "@lifeos/db": "workspace:*",
+    "pg-boss": "12.38.1"
+  }
+}

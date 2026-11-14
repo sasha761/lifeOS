@@ -1,0 +1,10 @@
+{
+  "extends": "./packages/config/tsconfig/base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "lib": ["es2024"],
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true
+  },
+  "include": ["scripts/**/*.ts", "eslint.config.ts"]
+}
