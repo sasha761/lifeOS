@@ -17,14 +17,14 @@ export default async function SettingsPage() {
   return (
     <>
       <p className="text-sm font-medium text-muted-foreground">Настройки</p>
-      <h1 className="mt-1 text-3xl font-semibold tracking-tight">Часовой пояс и язык</h1>
+      <h1 className="page-title mt-1">Часовой пояс и язык</h1>
       <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
         Настройки аккаунта <span className="font-medium text-foreground">{user.email}</span>. Даты хранятся в UTC
         и показываются по выбранному часовому поясу.
       </p>
       <Card className="mt-8 max-w-xl rounded-2xl shadow-none [--card-spacing:--spacing(6)]">
         <CardContent className="flex flex-col items-start gap-4 sm:flex-row">
-          <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
+          <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-[10px] bg-primary/15 text-primary">
             <Clock className="size-5" strokeWidth={1.7} />
           </span>
           <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
@@ -38,7 +38,7 @@ export default async function SettingsPage() {
         </CardContent>
       </Card>
       <section aria-labelledby="preferences-title" className="mt-10 max-w-md">
-        <h2 id="preferences-title" className="mb-5 text-xl font-semibold tracking-tight">Изменить</h2>
+        <h2 id="preferences-title" className="mb-5 text-[17px] leading-6 font-semibold">Изменить</h2>
         <PreferencesForm initial={preferences} timeZones={timeZoneOptions(preferences.timezone)} locales={localeOptions(preferences.locale)} />
       </section>
     </>

@@ -16,7 +16,7 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-muted-foreground">Мой кабинет</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Здравствуйте, {user.name}</h1>
+          <h1 className="page-title mt-1 wrap-anywhere">Здравствуйте, {user.name}</h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">Вы вошли как <span className="font-medium text-foreground">{user.email}</span>.</p>
           <p className="text-sm leading-6 text-muted-foreground">Часовой пояс: <span className="font-medium text-foreground">{preferences.timezone}</span>.</p>
         </div>
@@ -29,11 +29,11 @@ export default async function DashboardPage() {
       </div>
       <Card className="mt-8 rounded-2xl shadow-none [--card-spacing:--spacing(6)]">
         <CardContent className="flex flex-col items-start gap-4 sm:flex-row">
-          <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
+          <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-[10px] bg-primary/15 text-primary">
             <LayoutGrid className="size-5" strokeWidth={1.7} />
           </span>
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Обзор сфер появится позже</h2>
+            <h2 className="text-[17px] leading-6 font-semibold">Обзор сфер появится позже</h2>
             <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
               Ручные цели и измерения уже доступны в разделе целей. Обзор по всем шести сферам появится в отдельной задаче.
               Здесь пока нет общих показателей — и нет придуманных процентов.

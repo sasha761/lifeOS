@@ -104,8 +104,14 @@ Runner и manual mode: `scripts/test-goals-ui.ts`; артефакты тольк
 
 ## Дизайн и компоненты
 
-Токены цветов, типографики, отступов, скруглений и focus находятся в
-`app/globals.css`. Шрифты системные, внешние font-запросы не требуются.
+Design System v2 ([ADR-011](../../docs/adr/011-design-system-v2.md)):
+тёмная тема по умолчанию, токены цветов (shadcn-переменные, `--surface-2/3`,
+`--border-strong`, `--text-3`, статусные `--st-*`, `--today`), типографики,
+скруглений и focus находятся в `app/globals.css` и проброшены в `@theme inline`
+(`bg-st-green/15`, `text-primary` и т.д.). `--text-3` только для плейсхолдеров.
+Шрифт Inter самохостится из `@fontsource-variable/inter` 5.3.0
+(импорт в `app/layout.tsx`): woff2 попадают в сборку, запросов к Google нет
+ни при `next build`, ни в рантайме.
 Настроены skip-link, семантические landmarks, клавиатурный focus,
 адаптивные grid layouts и `prefers-reduced-motion`.
 
@@ -116,9 +122,13 @@ Card и Skeleton добавлены официальным CLI **4.23.0**:
 pnpm --filter @lifeos/web exec shadcn add card skeleton --yes
 ```
 
-Исходники компонентов хранятся в `components/ui`; EmptyState, Brand и
-навигация — локальные presentation-компоненты. Список ссылок на сферы
-нужен только для UI: доменный registry будет реализован на этапе 2.
+Исходники компонентов хранятся в `components/ui`; там же локальный
+`segmented-tabs.tsx` (pill-переключатель вида на ссылках с `aria-current`).
+EmptyState, Brand и навигация — локальные presentation-компоненты.
+Оболочка `(web)` — верхняя полоса `components/site-nav.tsx`: только
+существующие разделы (`lib/site-sections.ts`), меню «Сферы» из registry
+`LIFE_DOMAINS` и мобильная шторка; закрытие по Escape/клику вне меню
+с возвратом фокуса.
 
 ## Команды
 

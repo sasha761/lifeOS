@@ -45,26 +45,26 @@ export function GoalDetail({ id, preferences, domains }: { id: string; preferenc
   const value = detail.data;
   const active = value?.goal.status === "active";
   return <>
-    <Link href="/goals" className="mb-5 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm text-muted-foreground"><ArrowLeft aria-hidden="true" className="size-4" />Все цели</Link>
-    {(!value || detail.error) && <h1 className="text-3xl font-semibold tracking-tight">Цель и измерения</h1>}
+    <Link href="/goals" className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-full pr-3 text-sm text-muted-foreground transition-colors duration-[120ms] hover:text-foreground"><ArrowLeft aria-hidden="true" className="size-4" />Все цели</Link>
+    {(!value || detail.error) && <h1 className="page-title">Цель и измерения</h1>}
     <LoadState loading={detail.loading} error={detail.error} retry={detail.reload} />
     {value && !detail.error && <>
       <div className="flex flex-wrap items-start justify-between gap-4"><div className="min-w-0"><p className="text-sm text-muted-foreground">{domains.find((domain) => domain.key === value.goal.domain_key)?.label}</p>
-        <h1 className="mt-1 wrap-anywhere text-3xl font-semibold tracking-tight">{value.goal.title}</h1><div className="mt-3"><StatusBadge status={value.goal.status} /></div></div>
+        <h1 className="page-title mt-1 wrap-anywhere">{value.goal.title}</h1><div className="mt-3"><StatusBadge status={value.goal.status} /></div></div>
         {active && <div className="flex flex-wrap gap-2"><button onClick={() => open({ mode: "goal" })} disabled={detail.loading} className="action-link-secondary disabled:opacity-50">Изменить цель</button>
           <button onClick={() => open({ mode: "archive" })} disabled={detail.loading} className="action-link-secondary disabled:opacity-50">В архив</button></div>}</div>
-      {message && <div role="status" className="mt-5 rounded-lg border border-primary/30 bg-secondary p-4 text-sm">{message}</div>}
-      {!active && <p className="mt-5 rounded-lg border bg-muted p-4 text-sm leading-6">Цель в архиве. Измерения и история сохранены и доступны для просмотра. Новые изменения закрыты.</p>}
+      {message && <div role="status" className="mt-5 rounded-[10px] border border-st-green/40 bg-st-green/10 p-4 text-sm">{message}</div>}
+      {!active && <p className="mt-5 rounded-[10px] border bg-surface-2 p-4 text-sm leading-6">Цель в архиве. Измерения и история сохранены и доступны для просмотра. Новые изменения закрыты.</p>}
       <section aria-label="Прогресс цели" aria-busy={detail.loading} className="mt-6 min-w-0 rounded-2xl border bg-card p-5 sm:p-7"><GoalProgressView value={value} preferences={preferences} />
         {value.goal.description && <p className="mt-5 whitespace-pre-wrap wrap-anywhere border-t pt-5 text-sm leading-7 text-muted-foreground">{value.goal.description}</p>}
         {value.goal.due_at && <p className="mt-5 text-sm text-muted-foreground">Срок: <time dateTime={value.goal.due_at}>{formatDateTime(new Date(value.goal.due_at), preferences)}</time></p>}
         {active && <button onClick={() => open({ mode: "add" })} disabled={detail.loading} className="action-link mt-6 disabled:opacity-50"><Plus aria-hidden="true" className="size-4" />Добавить измерение</button>}</section>
-      <section className="mt-9" aria-labelledby="measurements-title"><div className="flex flex-wrap items-center justify-between gap-3"><h2 id="measurements-title" ref={historyTitle} tabIndex={-1} className="rounded text-xl font-semibold">История измерений</h2>
+      <section className="mt-9" aria-labelledby="measurements-title"><div className="flex flex-wrap items-center justify-between gap-3"><h2 id="measurements-title" ref={historyTitle} tabIndex={-1} className="rounded text-[17px] leading-6 font-semibold">История измерений</h2>
         <p className="text-xs text-muted-foreground">Сначала последние по дате измерения · {preferences.timezone}</p></div>
         <LoadState loading={history.loading} error={history.error} retry={history.reload} />
         {records && !history.loading && !history.error && <>
-          {!records.items.length ? <p className="mt-4 rounded-xl border border-dashed p-6 text-sm leading-6 text-muted-foreground">Измерений пока нет. Добавьте первое значение, чтобы увидеть прогресс.</p>
-            : <ol className="mt-4 grid gap-3">{records.items.map((row) => <li key={row.id} className="min-w-0 rounded-xl border bg-card p-5" data-testid="measurement-row">
+          {!records.items.length ? <p className="mt-4 rounded-[10px] border border-dashed border-border-strong p-6 text-sm leading-6 text-muted-foreground">Измерений пока нет. Добавьте первое значение, чтобы увидеть прогресс.</p>
+            : <ol className="mt-4 grid gap-2">{records.items.map((row) => <li key={row.id} className="min-w-0 rounded-[10px] border bg-card p-4 sm:p-5" data-testid="measurement-row">
               <div className="flex flex-wrap items-start justify-between gap-4"><div className="min-w-0"><p className="wrap-anywhere text-lg font-semibold tabular-nums">{formatGoalValue(row.value, value.goal, preferences.locale)}</p>
                 <time dateTime={row.measured_at} className="mt-1 block text-sm text-muted-foreground">{formatDateTime(new Date(row.measured_at), preferences)}</time>
                 <p className="mt-1 text-xs text-muted-foreground">Ручное измерение · самоотчёт{row.updated_at !== row.created_at && " · исправлено"}</p></div>

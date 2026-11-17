@@ -10,7 +10,7 @@ import type { SelectOption } from "@/lib/user-preferences";
 
 type Status = { tone: "success" | "error"; message: ReactNode } | undefined;
 
-const selectClass = "min-h-11 w-full rounded-lg border bg-card px-3 py-2 text-base transition-colors sm:text-sm";
+const selectClass = "field-control";
 
 function SelectField({ id, label, hint, defaultValue, children }: { id: string; label: string; hint: string; defaultValue: string; children: ReactNode }) {
   return (

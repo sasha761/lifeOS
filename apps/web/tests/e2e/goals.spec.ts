@@ -74,8 +74,12 @@ test("create, measure 24%, edit, cancel/delete, metadata and archive keep histor
   await noOverflow(page);
   await page.getByRole("link", { name: "Все цели", exact: true }).click();
   await page.getByLabel("Сфера", { exact: true }).selectOption("finance");
-  await page.getByLabel("Статус", { exact: true }).selectOption("archived");
   await page.getByRole("button", { name: "Показать", exact: true }).click();
+  await expect(page).toHaveURL(/\/goals\?domain_key=finance$/);
+  const statusTabs = page.getByRole("navigation", { name: "Статус целей" });
+  await statusTabs.getByRole("link", { name: "В архиве", exact: true }).click();
+  await expect(page).toHaveURL(/\/goals\?domain_key=finance&status=archived$/);
+  await expect(statusTabs.getByRole("link", { name: "В архиве", exact: true })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("link", { name: `${title} · исправлена`, exact: true })).toBeVisible();
   await noOverflow(page);
   await login(page, "OTHER"); await page.goto(path);

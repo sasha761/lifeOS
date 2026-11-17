@@ -18,7 +18,7 @@ export function Field({ id, label, error, hint, ...input }: FieldProps) {
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        className="min-h-11 w-full rounded-lg border bg-card px-3 py-2 text-base transition-colors aria-invalid:border-destructive sm:text-sm"
+        className="field-control"
         {...input}
       />
       {hint && <p id={hintId} className="text-xs leading-5 text-muted-foreground">{hint}</p>}
@@ -28,9 +28,9 @@ export function Field({ id, label, error, hint, ...input }: FieldProps) {
 }
 
 export function FormAlert({ tone, children }: { tone: "error" | "success"; children: ReactNode }) {
-  const style = tone === "error" ? "border-destructive/40 bg-destructive/5 text-destructive" : "border-primary/30 bg-secondary text-foreground";
+  const style = tone === "error" ? "border-destructive/40 bg-destructive/10 text-foreground" : "border-st-green/40 bg-st-green/10 text-foreground";
   return (
-    <div role={tone === "error" ? "alert" : "status"} className={`rounded-lg border px-4 py-3 text-sm leading-6 ${style}`}>
+    <div role={tone === "error" ? "alert" : "status"} className={`rounded-[10px] border px-4 py-3 text-sm leading-6 ${style}`}>
       {children}
     </div>
   );

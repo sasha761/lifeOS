@@ -30,7 +30,7 @@ export default async function DomainPage({ params }: DomainPageProps) {
   const domain = await resolveDomain(params);
   return (
     <>
-      <Link href="/#areas" className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm text-muted-foreground hover:text-foreground">
+      <Link href="/#areas" className="inline-flex min-h-11 items-center gap-2 rounded-full pr-3 text-sm text-muted-foreground transition-colors duration-[120ms] hover:text-foreground">
         <ArrowLeft aria-hidden="true" className="size-4" /> Все сферы
       </Link>
       <EmptyState icon={domainPresentation[domain.key].icon} title={domain.name.ru} description={domain.description.ru} />
@@ -38,7 +38,7 @@ export default async function DomainPage({ params }: DomainPageProps) {
         <Card className="rounded-2xl shadow-none [--card-spacing:--spacing(6)]">
           <CardContent>
             <Target aria-hidden="true" className="mb-4 size-5 text-primary" strokeWidth={1.7} />
-            <h2 className="text-lg font-semibold tracking-tight">Общие ручные цели</h2>
+            <h2 className="text-[17px] leading-6 font-semibold">Общие ручные цели</h2>
             <p className="mt-2 text-sm leading-7 text-muted-foreground">
               Создайте измеримую цель в этой сфере и отмечайте изменения вручную. Прогресс строится по вашим измерениям.
             </p>
@@ -49,8 +49,8 @@ export default async function DomainPage({ params }: DomainPageProps) {
         </Card>
         <Card className="rounded-2xl shadow-none [--card-spacing:--spacing(6)]">
           <CardContent>
-            <p className="mb-4 text-xs font-medium tracking-widest text-muted-foreground uppercase">Позже</p>
-            <h2 className="text-lg font-semibold tracking-tight">Специализированный модуль появится позже</h2>
+            <p className="mb-4 inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">Позже</p>
+            <h2 className="text-[17px] leading-6 font-semibold">Специализированный модуль появится позже</h2>
             <p className="mt-2 text-sm leading-7 text-muted-foreground">
               Автоматические трекеры и внешние подключения пока недоступны. Здесь будут только данные из явно указанных источников.
             </p>

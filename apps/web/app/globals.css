@@ -20,34 +20,61 @@
   --color-border: var(--border);
   --color-input: var(--border);
   --color-ring: var(--ring);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border-strong: var(--border-strong);
+  --color-text-3: var(--text-3);
+  --color-st-blue: var(--st-blue);
+  --color-st-amber: var(--st-amber);
+  --color-st-orange: var(--st-orange);
+  --color-st-red: var(--st-red);
+  --color-st-green: var(--st-green);
+  --color-st-cyan: var(--st-cyan);
+  --color-st-gray: var(--st-gray);
+  --color-today: var(--today);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: "Segoe UI Variable", "Segoe UI", Arial, sans-serif;
+  --font-sans: "Inter Variable", "Segoe UI Variable", "Segoe UI", Arial, sans-serif;
   --font-heading: var(--font-sans);
 }
 
 :root {
-  --background: oklch(0.98 0.005 95);
-  --foreground: oklch(0.27 0.025 165);
-  --card: oklch(1 0 0);
-  --primary: oklch(0.39 0.065 165);
-  --primary-foreground: oklch(0.99 0.004 95);
-  --secondary: oklch(0.94 0.018 155);
-  --muted: oklch(0.955 0.005 95);
-  --muted-foreground: oklch(0.47 0.018 165);
-  --border: oklch(0.9 0.009 145);
-  --ring: oklch(0.47 0.105 163);
-  --destructive: oklch(0.5 0.18 25);
+  /* Design System v2 (ADR-011): dark is the only theme for now; light values stay in the spec §16.2. */
+  --background: #16131D;
+  --foreground: #F2EDF8;
+  --card: #1F1A2A;
+  --primary: #8B7CF6;
+  --primary-foreground: #16131D;
+  --secondary: #322B42;
+  --muted: #282236;
+  --muted-foreground: #B4A8C8;
+  --border: #372F47;
+  --ring: #9D90F8;
+  --destructive: #E5605E;
+  --surface-2: #282236;
+  --surface-3: #322B42;
+  --border-strong: #4A4060;
+  /* Placeholders and inactive states only: about 3.7:1 on surface-2, below 4.5:1 for small text. */
+  --text-3: #857A99;
+  --st-blue: #5B8DEF;
+  --st-amber: #E8B04A;
+  --st-orange: #EE8A45;
+  --st-red: #E5605E;
+  --st-green: #4FBF83;
+  --st-cyan: #56C2E6;
+  --st-gray: #6E6582;
+  --today: #EE8A45;
   --radius: 0.875rem;
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 @layer base {
   * { @apply border-border; }
   html { scroll-behavior: smooth; scroll-padding-top: 6rem; }
-  body { @apply m-0 bg-background font-sans text-foreground antialiased; }
+  body { @apply m-0 bg-background font-sans text-foreground antialiased; font-feature-settings: "cv11", "ss01"; }
+  ::placeholder { color: var(--text-3); opacity: 1; }
   button, a { -webkit-tap-highlight-color: transparent; }
   button { font: inherit; }
   button:not(:disabled) { cursor: pointer; }
@@ -57,10 +84,17 @@
 
 @layer components {
   .action-link {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors duration-[120ms] hover:bg-ring;
   }
   .action-link-secondary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-colors duration-[120ms] hover:border-border-strong hover:bg-surface-3;
+  }
+  /* Section title: display 26/32 · 700 from the spec §16.3. */
+  .page-title {
+    @apply text-[1.625rem] leading-8 font-bold tracking-[-0.02em];
+  }
+  .field-control {
+    @apply min-h-11 w-full min-w-0 rounded-[10px] border bg-background px-3 py-2 text-base text-foreground transition-colors duration-[120ms] hover:border-border-strong focus-visible:border-border-strong disabled:opacity-60 aria-invalid:border-destructive sm:text-sm;
   }
 }
 

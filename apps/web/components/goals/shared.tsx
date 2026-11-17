@@ -12,7 +12,7 @@ import { formatDateTime } from "../../lib/user-preferences.ts";
 import type { GoalFieldErrors } from "../../lib/goal-form-input.ts";
 
 export type DomainChoice = { key: DomainKey; label: string };
-export const inputClass = "min-h-11 min-w-0 w-full rounded-lg border bg-card px-3 py-2 text-base disabled:opacity-60 sm:text-sm";
+export const inputClass = "field-control";
 function signIn() { window.location.assign(`/auth/sign-in?next=${encodeURIComponent(window.location.pathname + window.location.search)}`); }
 export function useGoalData<T extends z.ZodType>(url: string, schema: T) {
   const [data, setData] = useState<z.infer<T> | null>(null);
@@ -87,11 +87,11 @@ export function GoalProgressView({ value, preferences, compact = false }: { valu
   const { goal, progress } = value;
   const formatted = (amount: string) => formatGoalValue(amount, goal, preferences.locale);
   return <div className="min-w-0">
-    {progress.current === null ? <><p className={`${compact ? "text-lg" : "text-2xl"} font-semibold`}>Недостаточно данных</p>
+    {progress.current === null ? <><p className={`${compact ? "text-[17px] leading-6" : "text-2xl"} font-semibold`}>Недостаточно данных</p>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">Добавьте первое измерение. Начальное значение само по себе не подтверждает прогресс.</p>
       <p className="mt-3 wrap-anywhere text-sm">Целевое значение: <strong>{formatted(goal.target)}</strong></p></>
-      : <><p className={`${compact ? "text-xl" : "text-3xl"} wrap-anywhere font-semibold tracking-tight tabular-nums`} data-testid="goal-values">{formatted(progress.current)} <span className="text-base font-normal text-muted-foreground">/ {formatted(goal.target)}</span></p>
-        <div className="mt-4 flex items-center gap-3"><progress max={100} value={progress.progressPercent ?? 0} aria-label="Прогресс к цели" className="h-2 w-full min-w-0 accent-primary" />
+      : <><p className={`${compact ? "text-xl" : "text-[2rem] leading-9"} wrap-anywhere font-bold tracking-[-0.02em] tabular-nums`} data-testid="goal-values">{formatted(progress.current)} <span className="text-base font-normal text-muted-foreground">/ {formatted(goal.target)}</span></p>
+        <div className="mt-4 flex items-center gap-3"><progress max={100} value={progress.progressPercent ?? 0} aria-label="Прогресс к цели" className="h-2 w-full min-w-0 appearance-none overflow-hidden rounded-full bg-surface-3 [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-surface-3 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-primary" />
           <span className="shrink-0 text-sm font-semibold tabular-nums" data-testid="goal-percent">{progress.progressPercent === null ? "—" : formatGoalPercent(progress.progressPercent, preferences)}</span></div>
         <p className="mt-3 text-xs leading-5 text-muted-foreground">Источник: ручное измерение · самоотчёт{progress.provenance && <> · <time dateTime={progress.provenance.measuredAt}>{formatDateTime(new Date(progress.provenance.measuredAt), preferences)}</time></>}</p></>}
     {!compact && <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-3"><div><dt className="text-muted-foreground">Начальное значение</dt><dd className="mt-1 wrap-anywhere font-medium">{formatted(goal.baseline)}</dd></div>
@@ -117,10 +117,10 @@ export function Modal({ title, children, close, busy = false }: { title: string;
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     }}
-    className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-2xl border bg-card p-5 text-foreground shadow-xl backdrop:bg-black/30 sm:p-7">
+    className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-[14px] border bg-card p-5 text-foreground shadow-[0_8px_24px_rgb(0_0_0/0.35)] backdrop:bg-background/75 sm:p-7">
     <div className="mb-5 flex items-start justify-between gap-4"><h2 id="goal-dialog-title" className="text-xl font-semibold">{title}</h2>
-      <button type="button" disabled={busy} onClick={close} className="min-h-11 shrink-0 rounded-lg px-2 text-sm text-muted-foreground disabled:opacity-50">Закрыть</button></div>{children}</dialog>;
+      <button type="button" disabled={busy} onClick={close} className="min-h-11 shrink-0 rounded-full px-3 text-sm text-muted-foreground transition-colors duration-[120ms] hover:bg-surface-3 hover:text-foreground disabled:opacity-50">Закрыть</button></div>{children}</dialog>;
 }
 export function StatusBadge({ status }: { status: Goal["status"] }) {
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${status === "archived" ? "bg-muted text-muted-foreground" : "bg-secondary text-primary"}`}>{status === "archived" ? "В архиве" : "Активна"}</span>;
+  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${status === "archived" ? "bg-st-gray/20 text-muted-foreground" : "bg-st-green/15 text-st-green"}`}>{status === "archived" ? "В архиве" : "Активна"}</span>;
 }

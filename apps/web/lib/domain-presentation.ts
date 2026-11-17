@@ -2,12 +2,15 @@ import { BookOpen, BriefcaseBusiness, FolderKanban, Heart, Lightbulb, Wallet } f
 import type { LucideIcon } from "lucide-react";
 import type { DomainKey } from "@lifeos/contracts";
 
-/** UI-only metadata. Exhaustive keys keep Web aligned with the framework-independent registry. */
+/**
+ * UI-only metadata. Exhaustive keys keep Web aligned with the framework-independent registry.
+ * Tone (ADR-011, spec §16.2): the icon takes the sphere colour on a 15% tint of the same colour.
+ */
 export const domainPresentation = {
-  languages: { icon: BookOpen, tone: "bg-emerald-50 text-emerald-800" },
-  finance: { icon: Wallet, tone: "bg-amber-50 text-amber-800" },
-  work: { icon: BriefcaseBusiness, tone: "bg-blue-50 text-blue-800" },
-  projects: { icon: FolderKanban, tone: "bg-violet-50 text-violet-800" },
-  skills: { icon: Lightbulb, tone: "bg-orange-50 text-orange-800" },
-  health: { icon: Heart, tone: "bg-rose-50 text-rose-800" },
+  languages: { icon: BookOpen, tone: "bg-primary/15 text-primary" },
+  finance: { icon: Wallet, tone: "bg-st-green/15 text-st-green" },
+  work: { icon: BriefcaseBusiness, tone: "bg-st-blue/15 text-st-blue" },
+  projects: { icon: FolderKanban, tone: "bg-st-amber/15 text-st-amber" },
+  skills: { icon: Lightbulb, tone: "bg-st-cyan/15 text-st-cyan" },
+  health: { icon: Heart, tone: "bg-st-red/15 text-st-red" },
 } satisfies Record<DomainKey, { icon: LucideIcon; tone: string }>;

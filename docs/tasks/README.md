@@ -30,6 +30,7 @@
 | 6 | [LFS-206](LFS-206.md) | Goal measurements |
 | 7 | [LFS-207](LFS-207.md) | Goals API and progress |
 | 8 | [LFS-208](LFS-208.md) | Goals UI |
+| 8a | [LFS-211](LFS-211.md) | Design System v2: dark, Inter, top bar |
 | 9 | [LFS-204](LFS-204.md) | Dashboard of six domains |
 | 10 | [LFS-209](LFS-209.md) | E2E, security, acceptance |
 
@@ -45,4 +46,7 @@ LFS-207 выполнена 2026-11-16: [HTTP API и точный прогрес�
 451 unit + 135 PostgreSQL integration tests; новых миграций нет.
 LFS-208 выполнена 2026-11-16: [UI целей и измерений](LFS-208.md#результат-lfs-208--2026-11-16),
 472 unit + 135 PostgreSQL integration + 10 Playwright desktop/mobile; без новых миграций.
+LFS-211 выполнена 2026-11-17: [Design System v2](LFS-211.md#результат-lfs-211--2026-11-17),
+ADR-011 Accepted, Inter 5.3.0 self-hosted; 477 unit + 135 PostgreSQL integration + 10 Playwright
+desktop/mobile; без миграций и изменений API.
 Следующая задача по очереди — LFS-204; она не начата. Hosted CI отдельно не запускался.

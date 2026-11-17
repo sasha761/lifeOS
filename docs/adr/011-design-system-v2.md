@@ -1,6 +1,6 @@
 # ADR-011 — Design System v2: тёмная тема, Inter, верхняя навигация
 
-- **Статус:** Proposed (ожидает решения владельца проекта)
+- **Статус:** Accepted (владелец проекта, 2026-11-17; реализовано в LFS-211)
 - **Дата:** 2026-11-17
 - **Связанные задачи:** LFS-211; влияет на LFS-204 и будущие модули Tasks / Job Search.
 - **Источник:** [LifeOS_Design_Tasks_Jobs_v0.2.md §16](../reference/LifeOS_Design_Tasks_Jobs_v0.2.md), [макеты](../reference/ui/README.md).
@@ -29,6 +29,14 @@ LFS-103 создал базовую светлую тему (зелёный prim
 3. **Шрифт Inter** самохостится: `next/font` (локальная выдача после сборки) или
    `@fontsource-variable/inter` с точной версией в lockfile. Выбор делает исполнитель LFS-211
    после проверки, что сборка в CI не зависит от сети; выбранный вариант дописывается сюда.
+
+   **Выбрано (LFS-211):** `@fontsource-variable/inter` **5.3.0** (exact, `pnpm-lock.yaml`),
+   импорт `@fontsource-variable/inter` в `apps/web/app/layout.tsx`, семейство `"Inter Variable"`
+   в `--font-sans`, `font-feature-settings: "cv11", "ss01"`. Файлы woff2 приходят с обычной
+   установкой зависимостей и копируются в `.next/static/media` при сборке; браузер загружает
+   только нужные `unicode-range` (кириллица, латиница). `next/font/google` отклонён: он скачивает
+   шрифт с Google во время `next build`, то есть сборка CI зависела бы от сети.
+   `next/font/local` отклонён: потребовал бы хранить woff2 в репозитории.
 4. **Оболочка `(web)`**: левый сайдбар заменяется минимальной верхней полосой
    (логотип + текущий раздел слева, pill-кнопки справа), контент центрирован (~1180px).
    Навигация по шести сферам переносится в выпадающее меню «Сферы» и/или в карточки обзора.
@@ -56,6 +64,22 @@ LFS-103 создал базовую светлую тему (зелёный prim
 
 ## Проверка
 
-Заполняется после LFS-211: `pnpm verify`, Playwright desktop/mobile из LFS-208,
-скриншоты `/`, `/dashboard`, `/goals`, `/goals/new`, `/settings`, `/auth/sign-in` на 1280 и 390 px,
-проверка контраста и фокуса с клавиатуры. До выполнения — NOT RUN.
+Выполнено в LFS-211 (2026-11-17, Windows, локальный Docker PostgreSQL test; hosted CI не запускался):
+
+- `pnpm verify` — PASS: 477 unit, 135 PostgreSQL integration (20 db + 110 web + 5 worker),
+  Web/worker build и build smoke.
+- `pnpm test:ui` — PASS: 10 Playwright-сценариев LFS-208 (desktop 1280 и mobile 390).
+  Единственное изменение теста: фильтр статуса выбирается вкладкой `SegmentedTabs` вместо
+  `<select>`; добавлены проверки URL с сохранением сферы и `aria-current`.
+- Скриншоты `/`, `/dashboard`, `/goals`, `/goals/new`, `/settings`, `/auth/sign-in`
+  (плюс деталь цели, страница сферы, меню «Сферы», мобильная шторка) на 1280 и 390 px — локально в
+  ignored `.cache/lfs211/screens`; горизонтального скролла нет, внешних запросов (включая шрифты) нет,
+  `document.fonts.check("Inter Variable")` = true.
+- Контраст (WCAG): foreground/фон 15.9:1, `muted-foreground` на card/surface-2/surface-3
+  7.6/6.8/6.0:1, текст на primary-кнопке 5.5:1, ссылка primary на card 5.1:1, destructive на card
+  5.0:1, текст статуса green на tint 5.7:1; `--text-3` на surface-2 3.8:1 — только плейсхолдеры;
+  focus ring к фону ≥ 6.3:1.
+- Клавиатура: Tab проходит знак, «Обзор», «Цели», «Сферы», «Telegram», «Кабинет», «Настройки»,
+  у каждого элемента видимый outline 3px; меню «Сферы» открывается Enter, Escape закрывает
+  и возвращает фокус; то же для мобильной шторки.
+- `prefers-reduced-motion: reduce` — `transition-duration` кнопок 0s.

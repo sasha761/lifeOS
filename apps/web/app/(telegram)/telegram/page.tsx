@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Telegram" };
 
 export default function TelegramPage() {
   return (
-    <Card className="w-full rounded-3xl py-0 shadow-none">
+    <Card className="w-full rounded-2xl py-0 shadow-none">
       <EmptyState
         icon={Send}
         title="Telegram Mini App появится позже"
