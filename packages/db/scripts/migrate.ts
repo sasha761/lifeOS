@@ -1,4 +1,5 @@
-import { createDatabase, applyMigrations, parseDatabaseUrl, databaseErrorMessage } from "../src/index.ts";
+import { createDatabase, parseDatabaseUrl, databaseErrorMessage } from "../src/index.ts";
+import { applyMigrations } from "../src/migrations.ts";
 
 async function main(): Promise<void> {
   const client = createDatabase({ connectionString: parseDatabaseUrl(process.env.DATABASE_URL) });

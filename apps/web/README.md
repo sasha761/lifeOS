@@ -9,18 +9,98 @@ route group `(telegram)` сама по себе не добавляет сегм
 
 ## Маршруты и состояния
 
-- `/`: Web layout, навигация якорями к шести будущим сферам и пустые карточки.
+- `/`: Web layout и карточки шести сфер из `LIFE_DOMAINS` (LFS-203).
+  Навигация и карточки ведут на стабильные URL `/domains/<key>`;
+  `/#areas` остаётся обзором, отдельной страницы `/domains` нет.
+- `/domains/languages`, `/domains/finance`, `/domains/work`, `/domains/projects`,
+  `/domains/skills`, `/domains/health`: публичные страницы метаданных с честными
+  описанием общих целей и заглушкой специализированного модуля. Персональных
+  данных нет; ссылки ведут в список и создание с выбранной сферой (LFS-208).
+  Неизвестный/неканонический ключ — 404.
+  Иконки и цвета маппятся только в `lib/domain-presentation.ts`; названия,
+  описания, ключи и URL берутся из domain. `NavigationLink` отмечает текущий URL.
+- `/auth/sign-in`, `/auth/sign-up`, `/auth/forgot-password`, `/auth/reset-password`:
+  формы аккаунта (LFS-201) через Better Auth client, валидация `@lifeos/contracts`,
+  ошибки в `role=alert`, защита от повторной отправки.
+- `/dashboard`, `/goals`, `/settings`: только с сессией — `requirePageSession()`/`requirePageUser()`
+  на странице и оптимистичный `proxy.ts` (307 гостю без cookie). Dashboard пока
+  без сводных данных; `/settings` (LFS-202) показывает и меняет timezone/locale.
+- LFS-208: `/goals` — фильтры по сфере/статусу и cursor pages, `/goals/new` —
+  создание, `/goals/[id]` — прогресс, metadata edit, archive, история и
+  add/edit/delete измерений. Каждая страница проверяет сессию; данные и все
+  мутации целей идут через API LFS-207, не через server actions/прямой SQL.
 - `/telegram`: отдельный компактный layout и явная заглушка Mini App.
 - `GET /api/health`: HTTP 200 с envelope `data/meta/errors`; `data` содержит
   `status`, `service`, `timestamp`, `meta` — request/correlation ID; `no-store`,
   без проверки БД. Другие методы, кроме автоматического HEAD, не добавлены.
+- `/api/auth/*`: Better Auth; `GET /api/v1/me`: текущий пользователь, 401 без сессии.
+- `GET/PATCH /api/v1/me/preferences` (LFS-202): свои timezone/locale; actor только из
+  сессии (`requireApiActor`), body валидирует domain-сервис ([ADR-006](../../docs/adr/006-actor-ownership.md)).
+- LFS-207: `GET/POST /api/v1/goals`, `GET/PATCH /api/v1/goals/:goalId`,
+  `GET/POST /api/v1/goals/:goalId/measurements`,
+  `PATCH/DELETE /api/v1/goal-measurements/:measurementId`. `server/goals.ts`
+  — HTTP adapter; `server/core.ts` — lazy composition; проценты/ownership —
+  в domain, snapshot SQL — в DB. Записи требуют Idempotency-Key,
+  POST/PATCH — JSON; archive отдельным PATCH status. Все успехи 200,
+  ошибки 400/401/404/409/500 в общем envelope, no-store.
+  [Контракт/пагинация](../../docs/api/contracts.md#http-целей-и-прогресс-lfs-207),
+  [ADR-010](../../docs/adr/010-goals-api-progress.md).
 - Неизвестные URL: 404 с возвратом на главную. Предусмотрены loading и
   безопасная error boundary без вывода внутренних ошибок или логирования payload.
 
 Единственный root layout — `app/layout.tsx`. Route groups `(web)` и
 `(telegram)` разделяют UX; публичный сегмент Mini App расположен в
-`app/(telegram)/telegram/page.tsx`. Auth, Telegram SDK, реальные цели,
-метрики, пользовательские данные и интеграции отсутствуют.
+`app/(telegram)/telegram/page.tsx`; страницы аккаунта — в `(auth)`.
+Композиция Better Auth — `server/auth`, отправка писем — `server/mail`
+(outbox для dev/test, SMTP для production); [ADR-005](../../docs/adr/005-auth.md).
+Telegram SDK и внешние интеграции отсутствуют; ручные цели и измерения
+доступны через API и UI целей.
+
+Тесты: `pnpm --filter @lifeos/web test` (unit, без БД) и `pnpm test:web`
+(Better Auth + PostgreSQL, только `TEST_DATABASE_URL`). Для новых owned-ресурсов —
+`tests/integration/support/auth-harness.ts` (изолированная schema, Better Auth,
+пользователи) и `support/ownership-contract.ts` (двухпользовательские 401/404-проверки).
+Композиция domain-сервисов — `server/core.ts`.
+
+## Формы целей · LFS-208
+
+`components/goals` использует общие strict DTO для валидации и API response
+schemas. Процент не пересчитывается в браузере. Без измерений показывается
+«Недостаточно данных», с данными — current/target, процент и ручной источник.
+Archive запрещает редактирование и сохраняет историю. Modal подтверждения
+используют native dialog (focus trap/Escape/возврат фокуса), поля имеют label,
+aria-invalid/описания; ошибки получают focus и role=alert, успех — role=status.
+После мутации detail и history заново читаются через no-store API.
+
+Decimal inputs — text/inputMode=decimal: запятая нормализуется в точку,
+суммы не преобразуются в Number. Integer группируется как BigInt, дробная
+часть сохраняется строкой. Время native datetime-local относится к account
+timezone; offset вычисляется по IANA, nonexistent DST время отклоняется,
+ambiguous требует выбора смещения. Milliseconds сохраняются при edit.
+
+В одной открытой форме синхронный lock блокирует double submit. При network,
+500 или непроверяемом ответе body/key сохраняются в памяти для точного
+повтора; поля и закрытие modal блокируются до результата. Definitive 400/404/
+409 позволяет исправить данные с новым ключом; 401 ведёт на sign-in.
+Ключи и payload не пишутся в local/session storage или логи; перезагрузка
+вкладки сбрасывает локальную незавершённую попытку. После неопределённого
+ответа следует повторить сохранение в той же форме, а не создавать новый запрос.
+
+`pnpm test:ui` собирает приложения и запускает Playwright на отдельной fresh
+schema TEST_DATABASE_URL с реальными Better Auth сессиями (shared fixture
+secret), closed signup и synthetic SMTP URL. Production rate limit не меняется.
+Edge channel используется на Windows, Chromium на Linux (нужен установленный
+браузер, `PLAYWRIGHT_CHANNEL` может выбрать другой доступный channel).
+390×844 и 1280×900: empty/auth/ownership, create→24%, edit/delete/archive,
+точные NOK, потерянный ответ после server commit с тем же key/одной записью,
+блокировка до завершения navigation и Tab/Shift+Tab/Escape с возвратом фокуса.
+Unit/component/form tests включают TSX без нового DOM/testing dependency.
+Runner и manual mode: `scripts/test-goals-ui.ts`; артефакты только в ignored
+`.cache/lfs208`. `--serve` создаёт временную БД-схему и печатает loopback URL
+для визуального QA. Тестовый proxy подставляет только disposable session и
+не меняет cookies пользовательского браузера (Set-Cookie не передаётся).
+Файл `.cache/lfs208/stop-manual` завершает proxy/server и cleanup известных
+таблиц через RESTRICT. Этот режим не является частью production приложения.
 
 ## Дизайн и компоненты
 
@@ -73,7 +153,12 @@ plugin подключён локально. Stable `jiti` загружает Typ
 `instrumentation.ts` дополнительно вызывает server-only validation, пропуская
 build phase. Прямой `next start` может напечатать Ready до окончания hook,
 поэтому используйте workspace scripts. Dev/start загружают root
-`.env` средствами Node и требуют валидный `DATABASE_URL`, не подключаясь к БД.
+`.env` через `process.loadEnvFile` внутри launcher, без `--env-file-if-exists`
+в аргументах Node (иначе Next 16.4.5 переносит его в `NODE_OPTIONS` dev-процесса).
+Launcher задаёт default `NODE_ENV` как Next CLI (`development` для dev,
+`production` для start) до валидации и требует валидный `DATABASE_URL`,
+не подключаясь к БД. Для локального outbox нужен `pnpm dev`; `start` требует SMTP
+и отклоняет outbox до открытия порта.
 Импорт env в client components запрещён. Подробности:
 [API-контракт](../../docs/api/contracts.md).
 

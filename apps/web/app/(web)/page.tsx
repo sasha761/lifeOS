@@ -1,5 +1,5 @@
 import { ArrowDown, Sprout } from "lucide-react";
-import { FutureAreaCards } from "@/components/area-navigation";
+import { DomainCards } from "@/components/area-navigation";
 
 export default function HomePage() {
   return (
@@ -23,9 +23,9 @@ export default function HomePage() {
             <h2 id="areas-title" className="text-xl font-semibold tracking-tight">Сферы развития</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">Шесть направлений для будущих целей и новых привычек.</p>
           </div>
-          <span className="text-xs font-medium text-muted-foreground">Модули ещё не доступны</span>
+          <span className="text-xs font-medium text-muted-foreground">Специализированные модули появятся позже</span>
         </div>
-        <FutureAreaCards />
+        <DomainCards />
       </section>
       <footer className="mt-9 flex items-center gap-2 text-xs leading-6 text-muted-foreground">
         <span aria-hidden="true" className="size-1.5 rounded-full bg-primary/50" />

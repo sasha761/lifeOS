@@ -1,4 +1,5 @@
 {
   "extends": "@lifeos/config/tsconfig/base.json",
-  "include": ["src/**/*.ts"]
+  "compilerOptions": { "module": "NodeNext", "moduleResolution": "NodeNext", "lib": ["es2024"], "types": ["node"], "esModuleInterop": true, "allowImportingTsExtensions": true },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "*.config.ts"]
 }

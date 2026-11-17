@@ -26,7 +26,7 @@ async function main(): Promise<void> {
   };
   const buildEnvironment = { ...environment };
   for (const key of Object.keys(buildEnvironment)) {
-    if (["DATABASE_URL", "TEST_DATABASE_URL", "WORKER_QUEUE_SCHEMA"].includes(key) || /^(TELEGRAM_|AI_|OPENAI_|ANTHROPIC_)/.test(key)) delete buildEnvironment[key];
+    if (["DATABASE_URL", "TEST_DATABASE_URL", "WORKER_QUEUE_SCHEMA"].includes(key) || /^(TELEGRAM_|AI_|OPENAI_|ANTHROPIC_|BETTER_AUTH_|AUTH_|MAIL_|SMTP_)/.test(key)) delete buildEnvironment[key];
   }
   for (const step of steps) {
     console.log(`verify: ${step.name}`);

@@ -1,10 +1,22 @@
-# LifeOS · Stage 1 Foundation
+# LifeOS · Foundation + Stage 2 (в работе)
 
 LifeOS — модульная платформа целей и развития в сферах Languages, Finance,
 Work, Projects, Skills и Health. Языковой учитель — будущий модуль платформы.
-Сейчас реализован технический Foundation: Web shell, PostgreSQL/Drizzle,
-отдельный demo-worker pg-boss, контракты/env, atomicity tests и CI workflow.
-Auth, цели, реальные измерения прогресса, Telegram SDK и AI ещё не реализованы.
+Реализован технический Foundation (Web shell, PostgreSQL/Drizzle, demo-worker
+pg-boss, контракты/env, atomicity tests, CI workflow) и из Stage 2 — аккаунты
+LFS-201: закрытая регистрация по allowlist, вход/выход, восстановление доступа,
+защищённые `/dashboard` и `/goals` ([ADR-005](docs/adr/005-auth.md)).
+LFS-202 добавила настройки профиля и ownership ([ADR-006](docs/adr/006-actor-ownership.md));
+LFS-203 — типизированный реестр шести сфер с навигацией и страницами метаданных.
+LFS-205 добавила таблицу и domain-сервис ручных целей ([ADR-007](docs/adr/007-goals.md)).
+LFS-210 связала изменения целей с транзакционным аудитом и защитой повторов
+([ADR-008](docs/adr/008-transactional-audit.md)).
+LFS-206 добавила ручные измерения, историю и выбор current с аудитом
+([ADR-009](docs/adr/009-goal-measurements.md)).
+LFS-207 открыла защищённый HTTP API целей/измерений и точный расчёт прогресса
+([ADR-010](docs/adr/010-goals-api-progress.md)).
+LFS-208 добавила Web UI целей и ручных измерений: список, создание, детали,
+исправление истории и архив. Telegram SDK и AI ещё не реализованы.
 
 LFS-101–109 проверены по [листу приёмки](docs/tasks/STAGE-01-ACCEPTANCE.md).
 Локальная полная цепочка проходит; hosted GitHub Actions, visual/keyboard/mobile
@@ -34,7 +46,7 @@ PostgreSQL + Drizzle + pg-boss, без Redis и отдельного backend fra
 | `apps/web` | @lifeos/web | UI shell, /telegram placeholder, health и HTTP adapters |
 | `apps/worker` | @lifeos/worker | PgBoss demo runtime и producer CLI |
 | `packages/db` | @lifeos/db | Drizzle schema/client/migrator; business repositories позже |
-| `packages/domain` | @lifeos/domain | Пустой framework-independent модуль с lint/typecheck |
+| `packages/domain` | @lifeos/domain | Framework-independent auth/core, ownership, preferences и реестр шести сфер |
 | `packages/contracts` | @lifeos/contracts | Zod DTO, errors, health и request/job context |
 | `packages/config` | @lifeos/config | TS/ESLint и отдельный серверный env export |
 
@@ -154,10 +166,25 @@ pnpm verify
 ```
 
 Main DB — 127.0.0.1:15432 / lifeos; test instance — 127.0.0.1:15433 /
-lifeos_test. Это отдельные instances/roles/passwords/volumes. Миграции пока
-создают только техническую fixture и journal; verify применяет миграции к
-явной test DB и не использует main DATABASE_URL как fallback.
+lifeos_test. Это отдельные instances/roles/passwords/volumes. Миграции создают
+техническую fixture, journal и таблицы Better Auth (`user`, `session`,
+`account`, `verification`); verify применяет миграции к явной test DB и не
+использует main DATABASE_URL как fallback.
 Подробности и безопасная изоляция: [DB README](packages/db/README.md).
+
+### Аккаунт (LFS-201)
+
+`pnpm db:env` для нового `.env` генерирует и `BETTER_AUTH_SECRET`. Если `.env`
+создан раньше, добавьте ключи из [.env.example](.env.example): секрет 32+
+символов, `BETTER_AUTH_URL`, `MAIL_*`. Регистрация закрыта: впишите свой email в
+`AUTH_SIGNUP_ALLOWLIST` (через запятую, регистр не важен) и выполните
+`pnpm db:migrate`. Затем откройте `/auth/sign-up`.
+
+Письма восстановления доступа в dev/test не отправляются наружу: с
+`MAIL_TRANSPORT=outbox` каждое письмо — JSON-файл в `.cache/dev-mail`
+(путь `MAIL_OUTBOX_DIR` считается от `apps/web`), ссылка — в поле `text`.
+В production обязателен `MAIL_TRANSPORT=smtp` и `SMTP_URL` реального
+провайдера (`smtps://user:password@host:465`); outbox там запрещён валидацией.
 
 ### Web
 
@@ -167,9 +194,25 @@ pnpm dev
 
 Откройте http://127.0.0.1:3000:
 
-- `/` — shell и шесть будущих сфер без личных данных.
+- `/` — обзор и шесть сфер из кодового реестра без личных данных.
+- `/domains/languages`, `/domains/finance`, `/domains/work`, `/domains/projects`, `/domains/skills`, `/domains/health` — страницы сфер: общие ручные цели предусмотрены, редактор и специализированные модули появятся позже. Неизвестный ключ — 404.
+- `/auth/sign-in`, `/auth/sign-up`, `/auth/forgot-password`, `/auth/reset-password` — аккаунт.
+- `/dashboard` — кабинет после входа; сводка сфер появится отдельно.
+- `/goals`, `/goals/new`, `/goals/:id` — защищённый список, создание и детали;
+  ручные измерения, исправление/удаление с подтверждением, metadata и архив.
+- `/settings` — часовой пояс и язык/формат дат текущего пользователя (LFS-202), только после входа.
 - `/telegram` — компактная заглушка Mini App, без linking/SDK.
 - `/api/health` — JSON `{ data, meta, errors }`, текущий timestamp и IDs, no-store.
+- `/api/v1/me` — текущий пользователь; 401 без сессии.
+- `/api/v1/me/preferences` — `GET`/`PATCH` своих `timezone`/`locale`; 401 без сессии, 400 для невалидных значений и `userId` в body.
+- `/api/v1/goals` — `GET` списка с прогрессом, `POST` ручной цели; `/api/v1/goals/:goalId` — `GET`/`PATCH` metadata или archive.
+- `/api/v1/goals/:goalId/measurements` — `GET` истории с cursor/limit, `POST` измерения; `/api/v1/goal-measurements/:measurementId` — `PATCH`/`DELETE`. Все записи требуют `Idempotency-Key`; [DTO и примеры](docs/api/contracts.md#http-целей-и-прогресс-lfs-207).
+
+Для локального `MAIL_TRANSPORT=outbox` используйте `pnpm dev`. Команда `start`
+запускает production и требует `MAIL_TRANSPORT=smtp` с рабочим `SMTP_URL`.
+Несовместимые настройки отклоняются до запуска сервера. Root `.env` загружается
+внутри launcher через Node `process.loadEnvFile`, без CLI-флага, который
+Next 16.4.5 некорректно переносит в `NODE_OPTIONS` дочернего dev-процесса.
 
 Health — liveness Web; доступность DB/worker он не доказывает.
 Для production smoke сначала остановите dev, затем:
@@ -205,20 +248,22 @@ graceful shutdown; на Windows также Ctrl+Break/SIGBREAK.
 
 ## Проверки и остановка
 
-`pnpm verify` повторяет CI: frozen install → lint → typecheck → 94 unit
-tests → test migrations → 18 PostgreSQL integration tests → Web/worker
-build → production build smoke. Нужны точный Node/pnpm, Docker/test DB и
+`pnpm verify` повторяет CI: frozen install → lint → typecheck → unit
+tests → test migrations → PostgreSQL integration tests (DB, Web/Better
+Auth, worker) → Web/worker build → production build smoke (включая auth guards). Нужны точный Node/pnpm, Docker/test DB и
 TEST_DATABASE_URL. Каждый этап возвращает реальный exit code; Turbo cache
 не подменяет проверки. [CI/env/cache](docs/CI.md).
 
 | Команда | Назначение |
 |---|---|
 | `pnpm lint`, `pnpm typecheck` | Все шесть workspace + root tooling |
-| `pnpm test` | Реальные unit suites пяти workspace; domain business code ещё нет |
+| `pnpm test` | Unit suites шести workspace (web, config, contracts, db, domain, worker) |
 | `pnpm db:migrate:test` | Только dedicated TEST_DATABASE_URL, без удаления DB |
 | `pnpm test:db` | Migration/CLI/atomicity/dedupe/replay на PostgreSQL |
+| `pnpm test:web` | Better Auth + PostgreSQL: allowlist, сессии, logout, reset, 401 |
 | `pnpm test:worker` | Отдельные worker/CLI, retry и shutdown на PostgreSQL |
-| `pnpm test:integration` | DB, затем worker suites |
+| `pnpm test:integration` | DB, Web, затем worker suites |
+| `pnpm test:ui` | Сборка + Playwright UI целей в изолированной test schema, desktop/mobile |
 | `pnpm build`, затем `pnpm test:build` | Обе production сборки и smoke |
 | `pnpm db:generate` | Offline Drizzle SQL generation без credentials |
 | `pnpm db:test:down` | Остановить только test instance |
@@ -247,9 +292,12 @@ git status. Сначала контракт/типы → реализация �
 веток/commits/PR и ADR: [development workflow](docs/DEVELOPMENT_WORKFLOW.md).
 Прежние незакоммиченные изменения не удаляются и не смешиваются с новым scope.
 
-Stage 2 по Master Plan — Better Auth, ownership, реестр сфер, Dashboard,
-goals/goal_measurements/activity_events и ручной прогресс. Эти функции не
-реализованы; нет фиктивного общего процента жизни. Для следующего LFS-ID
-нужна отдельная постановка и решение пользователя после приёмки Foundation.
+Stage 2 выполняется по [STAGE-02-README](docs/tasks/STAGE-02-README.md): аккаунты,
+preferences/ownership, реестр сфер, ручные цели, измерения и аудит реализованы.
+Следующая задача — LFS-204 (Dashboard сфер); API, прогресс и UI целей реализованы.
+При обновлении другой локальной копии примените `pnpm db:migrate`
+(актуальная миграция `0005_goal_measurements`). Dashboard сфер ещё не
+реализован; нет фиктивного общего процента жизни. Каждый
+следующий LFS-ID начинается только после решения пользователя.
 Текущие PASS/NOT RUN и необходимые ручные действия —
-[Stage 1 acceptance](docs/tasks/STAGE-01-ACCEPTANCE.md).
+[список задач](docs/tasks/README.md) и отчёты соответствующих LFS-ID.

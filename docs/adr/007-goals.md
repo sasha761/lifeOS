@@ -1,0 +1,112 @@
+# ADR-007 — Ручные цели, точные decimal-значения и неизменяемое определение
+
+- **Статус:** Accepted
+- **Дата:** 2026-11-15
+- **Связанные задачи:** LFS-205; развитие в LFS-210, LFS-206–208; [ADR-006](006-actor-ownership.md), [ADR-001](001-stack.md)
+
+## Контекст
+
+Все шесть сфер требуют одной модели ручной измеримой цели. Суммы NOK должны
+сохраняться точно, в том числе выше `Number.MAX_SAFE_INTEGER`. Базовое значение,
+направление и единицы не должны незаметно менять смысл истории измерений.
+LFS-205 вводит модель и сервис, HTTP, измерения и аудит — следующие задачи.
+Master Plan и выбранный стек сохраняются.
+
+## Решение
+
+`goals` — обычная таблица с FK `user_id → user.id ON DELETE CASCADE`, ключом
+сферы из `DOMAIN_KEYS` и UUID, созданным PostgreSQL. Поля:
+[database schema](../architecture/database-schema.md#goals--lfs-205).
+
+**Числа.** Контракт принимает только неотрицательные decimal-строки: до 22
+цифр целой части и 8 дробной. Нет экспонент, знаков, ведущих нулей, пробелов,
+NaN/Infinity и JSON numbers. Незначащие дробные нули удаляются. Сравнение
+использует `BigInt` в единицах `10^-8`; расчёта прогресса пока нет.
+Драйвер Drizzle `numeric` работает в строковом режиме.
+
+В БД выбран **`numeric` без typmod** плюс CHECK: `0 <= value < 10^22` и
+`value = trunc(value, 8)`. Избыточная значащая точность отклоняется:
+PostgreSQL округляет при присваивании в `numeric(precision, scale)` до CHECK.
+Это поведение описано в
+[PostgreSQL 18 Numeric Types](https://www.postgresql.org/docs/18/datatype-numeric.html).
+Кастов сумм к JS `Number` нет. При чтении display scale из SQL нормализуется:
+незначащие дробные нули (`1.2300000000`) удаляются до строгой DTO-валидации,
+само числовое значение не округляется.
+
+**Единицы.** `NOK` — максимум 2 значащих дробных знака; `count` — целое;
+`minutes`/`custom` — до 8; `percent` — диапазон 0..100. `custom` требует
+`unit_label` (1..40 символов); у остальных единиц label — null. Конвертации
+нет. Отрицательные значения не поддерживаются; долг — положительная сумма
+с направлением `decrease`.
+
+**Определение.** `increase` требует `target > baseline`, `decrease` —
+`target < baseline`. `baseline == target` отклоняется в Stage 2: подтверждённого
+current ещё нет, already-reached семантика не вводится. После создания
+`domain_key`, `unit`, `unit_label`, `baseline`, `target`, `direction`,
+`calculation_mode`, `metric_key` неизменяемы через service/repository.
+Можно править `title`, `description`, `due_at`. Новое определение — новая цель;
+изменение определения с аудитом требует отдельной политики. SQL CHECK
+защищает допустимость числового состояния; strict PATCH и whitelist SQL SET
+защищают от переопределения через приложение.
+
+**Источник и режим.** Baseline/target задаются пользователем вручную;
+`calculation_mode = manual`, `metric_key = null`. `computed` присутствует
+только в зарезервированном словаре и отклоняется contract/SQL. Источник
+будущих измерений и channel provenance добавят LFS-206/LFS-210; baseline
+не превращается в подтверждённое измерение.
+
+**Статусы.** Новая цель — `active`. Архивирование переводит её в `archived`,
+сохраняя данные; повтор не меняет timestamp. Архив терминален, редактирование
+даёт `CONFLICT`; hard delete и автоматического completed нет. SQL UPDATE
+metadata условен по `status = active`, поэтому гонка с архивом его не отменяет.
+Параллельные metadata-правки используют последнее записанное значение.
+
+**Время.** `due_at` — абсолютный момент: ISO с явным offset/Z, максимум
+миллисекунды, годы 0001..9999. Вход приводится к UTC, БД — `timestamptz(3)`,
+DTO — ISO UTC. Прошедший срок допустим; nullable поля очищаются через null.
+`created_at`/`updated_at` создаёт БД, клиент их не задаёт. Отображение в timezone
+пользователя — задача UI.
+
+**Границы.** `GoalsService` в domain валидирует unknown input и получает
+branded `Actor`; repository в DB фильтрует каждый запрос `ownedBy`. Чужой,
+неизвестный и malformed id дают одинаковый `NOT_FOUND`. SQL-адаптер принимает
+также Drizzle transaction; LFS-210 свяжет его с audit в одной транзакции.
+До LFS-210/207 сервис не подключается к публичным write endpoints.
+
+**Пакеты и генератор.** DB использует runtime contracts для общих ключей,
+лимитов и выходного DTO; существующая `workspace:*` dependency переведена
+из devDependencies в dependencies. Новых библиотек и версий нет.
+Drizzle Kit 0.31.11 загружает schema через require: contracts добавляет
+require condition на тот же ESM-файл (Node 24, без TLA). Root DB-команды
+сначала собирают contracts. DDL CHECK вызывает `SQL.inlineParams()` только
+для доверенных констант, иначе Kit выводит `$1` вместо литералов.
+Совместимость проверена фактической генерацией; API сверены с установленными
+types Drizzle 0.45.4 и
+[официальной документацией](https://orm.drizzle.team/docs/indexes-constraints).
+
+## Миграция и откат
+
+`0003_goals.sql` создана `pnpm db:generate --name goals`: одна новая таблица,
+FK, CHECK и два индекса с ведущим user_id (сфера/статус и статус/срок/id).
+FK в новом SQL неквалифицирован, как в `0001`, чтобы изолированные тестовые
+schemas ссылались на своего пользователя через search_path. Старые
+SQL/snapshots не редактируются.
+
+Откат приложения к LFS-203 оставляет таблицу и данные. Откат схемы — отдельная
+forward-миграция после сохранения данных и отката кода; applied journal/SQL
+не удаляются.
+
+## Альтернативы
+
+- JS float / numeric mode:number: теряют значащие цифры; отклонено.
+- `numeric(30,8)`: округляет лишнюю дробную точность до CHECK; отклонено.
+- Изменяемые baseline/direction/target без версии определения: меняют
+  трактовку истории; отложено до отдельной политики и аудита.
+- Фиктивный metric provider / completed на основе baseline: ложный прогресс.
+- Таблицы по каждой сфере или JSON-модули не нужны общей ручной модели.
+
+## Проверка
+
+Команды, результаты и ограничения — [LFS-205](../tasks/LFS-205.md).
+Тесты покрывают precision/validation, двух пользователей через общий ownership
+contract, SQL CHECK/FK, архив, transaction rollback и upgrade чистой/Stage 1/LFS-202 схем.

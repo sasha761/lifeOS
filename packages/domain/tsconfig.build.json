@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false, "declaration": true, "rootDir": "src", "outDir": "dist",
+    "rewriteRelativeImportExtensions": true, "types": [],
+    // Sources still compile without Node/DOM globals; only third-party .d.ts (zod via @lifeos/contracts,
+    // which mentions the URL global) are not re-checked under this deliberately empty environment.
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"]
+}

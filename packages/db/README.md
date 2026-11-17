@@ -6,8 +6,10 @@ PostgreSQL infrastructure на `pg` 8.23.1 и Drizzle ORM 0.45.4 / Kit 0.31.11.
 
 В LFS-106 URL validation делегирована общему Zod-parser `@lifeos/config/env`;
 существующий API ошибок DB и защита test target сохранены. Root `db:migrate`,
-`db:status`, `test:db` сначала собирают runtime config. Для прямого запуска
-workspace DB CLI из чистого checkout сначала выполните `pnpm --filter @lifeos/config build`.
+`db:status`, `test:db` сначала собирают dependencies; с LFS-205 contracts
+используется схемой и repository в runtime. Для прямого запуска workspace
+DB CLI сначала соберите `@lifeos/config` и `@lifeos/contracts`; корневые
+DB-команды делают это автоматически, `db:generate` собирает contracts.
 
 ## Локальное окружение
 
@@ -55,7 +57,44 @@ pnpm db:up
 Публичный ESM export — `dist/index.js`, типы — `dist/index.d.ts`.
 `pnpm --filter @lifeos/db build` компилирует strict TypeScript и declarations.
 Web и worker объявляют `workspace:*` dependency; Turborepo строит DB перед
-Web dev/build/typecheck. Сам Web пока не выполняет запросы к БД.
+Web dev/build/typecheck. Web использует БД для сессии и preferences.
+
+LFS-205 добавила `schema.goals`, `createGoalsRepository(databaseOrTransaction)`
+и `0003_goals.sql`: точный numeric в строковом режиме, CHECK значений/режима,
+FK владельца и индексы с user_id. Каждая выборка/мутация проходит `ownedBy`;
+metadata обновляется только для active, архив повторяем без смены timestamp.
+Сервис и политики — [ADR-007](../../docs/adr/007-goals.md). Audit присоединён
+в LFS-210, публичный HTTP adapter — в LFS-207.
+
+`createGoalsUnitOfWork(db)` — обязательный persistence adapter для
+`createGoalsService`. Он выполняет goal mutation + activity event + command
+receipt в одной Drizzle transaction. Writer доступен как
+`createActivityEventWriter(transaction, actor, options)` и принимает тип
+`LifeosTransaction`, не root client. Обычный goals repository — низкоуровневый
+SQL adapter, не самостоятельный application write entrypoint.
+
+`createActivityEventsRepository` читает только события actor; список по цели
+ограничен 100 записями. Compound FK проверяют владельца и domain родительской
+цели. Advisory key lock и row lock защищают duplicate/replay и before/after;
+для no-op создаётся только receipt. Миграция `0004_activity_events.sql`
+не создаёт фиктивных исторических событий. Схема, scope ключа и семантика
+replay актуального ресурса — [ADR-008](../../docs/adr/008-transactional-audit.md).
+
+`createGoalMeasurementsUnitOfWork(db)` (LFS-206) связывает measurement CRUD,
+аудит и ту же таблицу receipts в одной транзакции. Parent lock предшествует
+child lock и согласован с archive цели. `createGoalMeasurementsRepository`
+фильтрует owner, возвращает current/history по measured_at/created_at/id DESC
+(history до 100). Низкоуровневый repository не является application write API.
+`0005_goal_measurements.sql` добавляет owned/unit FK, точные CHECK и расширяет
+receipts для replay DELETE после удаления child без потери ключа.
+Совместимость старых квитанций и семантика — [ADR-009](../../docs/adr/009-goal-measurements.md).
+
+`createGoalsReadRepository(db)` (LFS-207): owned detail/list/history в READ ONLY
+REPEATABLE READ, согласованные goal/count/latest/audit time. Goal list использует
+пакетные SELECT, а не N+1; history поддерживает полный tuple cursor и limit+1.
+Count включает все существующие замеры, не только страницу. Domain собирает
+progress, SQL не вычисляет проценты. Нового DDL/migration нет;
+[ADR-010](../../docs/adr/010-goals-api-progress.md).
 
 ```ts
 import { createDatabase } from "@lifeos/db";
@@ -95,12 +134,14 @@ strict исходников, schema payload types и tests сохраняетс�
 
 ## Schema и миграции
 
-- `src/schema/` — TypeScript schema; сейчас только техническая
-  `foundation_migration_fixture` (`id uuid`, `label text`).
+- `src/schema/` — TypeScript schema: техническая `foundation_migration_fixture`
+  и core-таблицы Better Auth (`auth.ts`: `user`, `session`, `account`,
+  `verification`; LFS-201, [ADR-005](../../docs/adr/005-auth.md)).
 - `drizzle.config.ts` — offline generation config без credentials.
 - `drizzle/` — сгенерированные SQL, snapshots и journal, хранящиеся в Git.
-- `applyMigrations` — официальный node-postgres migrator; история по
-  умолчанию хранится в `drizzle.__drizzle_migrations`.
+- `applyMigrations` — официальный node-postgres migrator из отдельного entry
+  `@lifeos/db/migrations` (основной `@lifeos/db` — client/schema для runtime и
+  Next.js bundle); история по умолчанию хранится в `drizzle.__drizzle_migrations`.
 
 ```sh
 pnpm db:generate
@@ -111,8 +152,21 @@ Generate не подключается к БД и при неизменной sc
 Migrate применяется к `DATABASE_URL` и безопасно повторяется. Уже
 применённые SQL не редактируются. Когда fixture перестанет быть нужна,
 удаление её schema declaration и отдельная новая SQL-миграция будут
-выполнены в соответствующей будущей задаче. Сейчас пользовательских
-таблиц и Better Auth schema нет. Очередь production worker создаётся отдельно;
+выполнены в соответствующей будущей задаче. `0001_better_auth.sql` создаёт таблицы
+Better Auth; FK в нём намеренно без `public.` (разрешаются через search_path,
+чтобы test schemas были изолированы). Goals, audit и measurements добавлены
+отдельными миграциями 0003–0005.
+
+**LFS-202.** `0002_user_preferences.sql` добавляет `user.timezone` (DEFAULT `UTC`) и
+`user.locale` (DEFAULT `ru`) с CHECK по длине; Better Auth эти колонки не знает.
+Стратегия: миграция только расширяет схему и совместима с кодом LFS-201, поэтому
+откат приложения не требует отката схемы; удаление колонок — только новой
+forward-миграцией через `pnpm db:generate`, применённые SQL/journal не правятся.
+Ownership для repositories — `ownedBy(table.userId, actor, …)` из `src/ownership.ts`
+(`user_id = actor.userId AND …`); первый repository —
+`createUserPreferencesRepository` (`src/repositories`). Порт и branded `Actor` —
+из `@lifeos/domain` (зависимость только по типам). Правило —
+[ADR-006](../../docs/adr/006-actor-ownership.md). Очередь production worker создаётся отдельно;
 fixture LFS-107 использует собственную disposable schema, описанную ниже.
 
 ## Тесты

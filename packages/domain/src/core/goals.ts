@@ -1,0 +1,107 @@
+import { createGoalInputSchema, goalCommandOptionsSchema, goalIdSchema, updateGoalInputSchema } from "@lifeos/contracts";
+import type { CreateGoalInput, Goal, GoalCommandOptions, UpdateGoalInput } from "@lifeos/contracts";
+import type { Actor } from "./actor.ts";
+import { ConflictError, InvalidInputError, NotFoundError } from "./errors.ts";
+import { requireFound, requireOwned } from "./ownership.ts";
+import { goalAuditSnapshot } from "./events.ts";
+import type { ActivityEventWriter } from "./events.ts";
+
+/** Each operation is scoped to the verified actor in SQL; no unscoped resource lookup is allowed. */
+export type GoalsRepository = {
+  create(actor: Actor, input: CreateGoalInput): Promise<Goal>;
+  find(actor: Actor, id: string): Promise<Goal | null>;
+  /** Atomic update conditional on status=active. Null means missing, foreign or concurrently archived. */
+  updateActive(actor: Actor, id: string, input: UpdateGoalInput): Promise<Goal | null>;
+  /** Atomic transition to archived, or the unchanged row if already archived; never hard deletes. */
+  archive(actor: Actor, id: string): Promise<Goal | null>;
+};
+
+export type GoalsService = {
+  create(actor: Actor, input: unknown, options: unknown): Promise<Goal>;
+  get(actor: Actor, id: unknown): Promise<Goal>;
+  update(actor: Actor, id: unknown, input: unknown, options: unknown): Promise<Goal>;
+  archive(actor: Actor, id: unknown, options: unknown): Promise<Goal>;
+};
+
+export type GoalCommand = GoalCommandOptions & {
+  operation: "create" | "update" | "archive";
+  targetId: string | null;
+  input: CreateGoalInput | UpdateGoalInput | null;
+};
+export type GoalCommandOutcome = { kind: "success"; goal: Goal } | { kind: "conflict" | "not_found" };
+export type GoalTransaction = { goals: GoalsRepository; events: ActivityEventWriter };
+export type GoalsUnitOfWork = {
+  goals: Pick<GoalsRepository, "find">;
+  run(actor: Actor, command: GoalCommand, operation: (transaction: GoalTransaction) => Promise<Goal>): Promise<GoalCommandOutcome>;
+};
+function commandOptions(input: unknown): GoalCommandOptions {
+  const parsed = goalCommandOptionsSchema.safeParse(input);
+  if (!parsed.success) throw new InvalidInputError();
+  return parsed.data;
+}
+
+function resourceId(value: unknown): string {
+  const parsed = goalIdSchema.safeParse(value);
+  if (!parsed.success) throw new NotFoundError();
+  return parsed.data.toLowerCase();
+}
+
+function ownedGoal(actor: Actor, value: Goal | null): Goal {
+  const goal = requireFound(value);
+  requireOwned(actor, { userId: goal.user_id });
+  return goal;
+}
+
+export function createGoalsService(unit: GoalsUnitOfWork): GoalsService {
+  async function execute(actor: Actor, command: GoalCommand, operation: (transaction: GoalTransaction) => Promise<Goal>): Promise<Goal> {
+    const result = await unit.run(actor, command, operation);
+    if (result.kind === "conflict") throw new ConflictError();
+    if (result.kind === "not_found") throw new NotFoundError();
+    if (result.kind !== "success") throw new Error("Invalid goal command outcome.");
+    return ownedGoal(actor, result.goal);
+  }
+  return {
+    async create(actor, input, options) {
+      const parsed = createGoalInputSchema.safeParse(input);
+      if (!parsed.success) throw new InvalidInputError();
+      return execute(actor, { ...commandOptions(options), operation: "create", targetId: null, input: parsed.data }, async ({ goals, events }) => {
+        const goal = ownedGoal(actor, await goals.create(actor, parsed.data));
+        await events.append({ goal_id: goal.id, domain_key: goal.domain_key, target_type: "goal", target_id: goal.id, schema_version: 1,
+          event_type: "goal.created", payload: { before: null, after: goalAuditSnapshot(goal) } });
+        return goal;
+      });
+    },
+    async get(actor, id) {
+      return ownedGoal(actor, await unit.goals.find(actor, resourceId(id)));
+    },
+    async update(actor, id, input, options) {
+      const parsed = updateGoalInputSchema.safeParse(input);
+      if (!parsed.success) throw new InvalidInputError();
+      const key = resourceId(id);
+      return execute(actor, { ...commandOptions(options), operation: "update", targetId: key, input: parsed.data }, async ({ goals, events }) => {
+        const current = ownedGoal(actor, await goals.find(actor, key));
+        if (current.status === "archived") throw new ConflictError();
+        const changed_fields = (["title", "description", "due_at"] as const)
+          .filter((field) => parsed.data[field] !== undefined && parsed.data[field] !== current[field]);
+        if (changed_fields.length === 0) return current;
+        const updated = await goals.updateActive(actor, key, parsed.data);
+        if (!updated) throw new ConflictError();
+        ownedGoal(actor, updated);
+        await events.append({ goal_id: key, domain_key: updated.domain_key, target_type: "goal", target_id: key, schema_version: 1,
+          event_type: "goal.updated", payload: { before: goalAuditSnapshot(current), after: goalAuditSnapshot(updated), changed_fields } });
+        return updated;
+      });
+    },
+    async archive(actor, id, options) {
+      const key = resourceId(id);
+      return execute(actor, { ...commandOptions(options), operation: "archive", targetId: key, input: null }, async ({ goals, events }) => {
+        const current = ownedGoal(actor, await goals.find(actor, key));
+        if (current.status === "archived") return current;
+        const archived = ownedGoal(actor, await goals.archive(actor, key));
+        await events.append({ goal_id: key, domain_key: archived.domain_key, target_type: "goal", target_id: key, schema_version: 1,
+          event_type: "goal.archived", payload: { before: goalAuditSnapshot(current), after: goalAuditSnapshot(archived) } });
+        return archived;
+      });
+    },
+  };
+}

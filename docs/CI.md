@@ -28,11 +28,11 @@ pnpm verify
 | Воспроизводимая установка | `pnpm install --frozen-lockfile` |
 | Lint | `pnpm lint` — шесть workspace и root tooling |
 | Types | `pnpm typecheck` — шесть workspace и root tooling |
-| Unit | `pnpm test --force` — пять workspace с реальными suites |
+| Unit | `pnpm test --force` — шесть workspace с реальными suites |
 | Test migrations | `pnpm db:migrate:test` |
-| PostgreSQL integration | `pnpm test:integration` — DB, затем worker |
+| PostgreSQL integration | `pnpm test:integration` — DB, Web (Better Auth), затем worker |
 | Production builds | `pnpm build` — Web, worker и пакетные dependencies |
-| Build smoke | `pnpm test:build` |
+| Build smoke | `pnpm test:build` — health, страницы, auth guards (307/401) и worker startup |
 
 `CI=true` делает frozen install неинтерактивным. `verify` задаёт `TURBO_FORCE=true`,
 поэтому cache не подменяет lint/types/tests/build локально или в CI. Каждый
@@ -81,6 +81,23 @@ Web/worker build не требуют production credentials. Smoke не загр
 Успешную работу worker с PostgreSQL, retries и shutdown проверяет integration
 suite. Все дочерние smoke-процессы завершаются в finally; captured output и
 upstream exception details не печатаются при ошибке.
+
+## Локальные UI проверки · LFS-208
+
+`pnpm test:ui` — отдельная цепочка: build → isolated production Web →
+Playwright desktop/mobile. Требуется TEST_DATABASE_URL и установленный
+Edge (Windows) либо Chromium (Linux; `pnpm exec playwright install chromium`).
+Runner создаёт fresh schema, применяет миграции и seeds реальных Better Auth
+пользователей/сессий; app DATABASE_URL указывает только в эту schema.
+Существующие main data не используются. Shared test secret нужен лишь для
+проверки seeded cookies реальным app; production auth/rate limits не меняются.
+Cleanup завершает собственный server и удаляет только известные таблицы
+новой schema с RESTRICT. Тесты и screenshots/traces: `.cache/lfs208`.
+
+Playwright ещё не добавлен в hosted workflow: это не заменяется локальным
+PASS. `pnpm verify` сохраняет прежнюю общую цепочку с расширенным production
+smoke guards для `/goals/new`/`goals/:id`. Полный Stage 2 E2E/security audit —
+LFS-209; этот focused suite реализует acceptance LFS-208.
 
 ## Actions и cache
 
