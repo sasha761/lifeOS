@@ -300,6 +300,24 @@ describe("goals HTTP and progress", () => {
     expect(await counts()).toEqual(before);
   });
 
+  it("refuses a body user id on goal and measurement edits instead of using it as the actor (LFS-209)", async () => {
+    const parent = await createGoal();
+    const row = await createMeasurement(parent.goal.id);
+    const before = await counts();
+    const forgeries = [{ user_id: other.userId }, { userId: other.userId }, { user_id: owner.userId }];
+    const requests = [owner, other].flatMap((actor) => forgeries.flatMap((forged) => [
+      raw("goal", "PATCH", parent.goal.id, { cookie: actor.cookie, body: { title: "Forged", ...forged } }),
+      raw("goal", "PATCH", parent.goal.id, { cookie: actor.cookie, body: { status: "archived", ...forged } }),
+      raw("measurement", "PATCH", row.id, { cookie: actor.cookie, body: { value: "1", ...forged } }),
+    ]));
+    for (const response of await Promise.all(requests)) {
+      expect(response.status).toBe(400); expect(apiFailureSchema.parse(await response.json()).errors[0]?.code).toBe("VALIDATION_ERROR");
+    }
+    expect(await counts()).toEqual(before);
+    expect(await get(parent.goal.id)).toMatchObject({ goal: { title: definition.title, status: "active", user_id: owner.userId }, progress: { current: measurement.value } });
+    expect((await history(parent.goal.id, new URLSearchParams())).items).toMatchObject([{ id: row.id, value: measurement.value, user_id: owner.userId }]);
+  });
+
   it("rolls back HTTP writes on receipt failure, returns a safe 500 and leaves keys retryable", async () => {
     const parent = await createGoal();
     const row = await createMeasurement(parent.goal.id);

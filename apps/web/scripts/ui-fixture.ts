@@ -50,7 +50,9 @@ export async function startUiFixture({ suite, ownerLocale = "en-GB", onStage = (
     const environment: NodeJS.ProcessEnv = { ...process.env, DATABASE_URL: connection.toString(), NODE_ENV: "production", NEXT_TELEMETRY_DISABLED: "1",
       BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: base, AUTH_SIGNUP_ALLOWLIST: "",
       MAIL_TRANSPORT: "smtp", SMTP_URL: "smtp://127.0.0.1:1", MAIL_FROM: "fixture@lifeos.test",
-      LFS208_E2E_BASE_URL: base, LFS208_E2E_OWNER_COOKIE: owner.cookie, LFS208_E2E_OTHER_COOKIE: other.cookie, LFS208_E2E_EMPTY_COOKIE: empty.cookie };
+      LFS208_E2E_BASE_URL: base, LFS208_E2E_OWNER_COOKIE: owner.cookie, LFS208_E2E_OTHER_COOKIE: other.cookie, LFS208_E2E_EMPTY_COOKIE: empty.cookie,
+      // Disposable credentials of the fixture owner for the sign-in form (LFS-209); the user lives only in this schema.
+      LFS209_E2E_OWNER_EMAIL: owner.email, LFS209_E2E_OWNER_PASSWORD: owner.password };
     onStage("production test server");
     web = spawn(process.execPath, ["scripts/run-next.ts", "start", "--port", String(port)], { cwd: join(root, "apps/web"), env: environment, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
     // Drain server output so the pipes never block; it is not printed (it may contain request details).

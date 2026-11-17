@@ -9,10 +9,17 @@ export async function login(page: Page, user = "OWNER") {
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/dashboard$/);
 }
-export async function create(page: Page, title: string, baseline = "0", target = "50000") {
+/** Signs the fixture owner in through the real form (LFS-209); this creates a separate session from the seeded cookie. */
+export async function signInWithForm(page: Page) {
+  await page.getByLabel("Email", { exact: true }).fill(process.env.LFS209_E2E_OWNER_EMAIL!);
+  await page.getByLabel("Пароль", { exact: true }).fill(process.env.LFS209_E2E_OWNER_PASSWORD!);
+  await page.getByRole("button", { name: "Войти", exact: true }).click();
+}
+export async function create(page: Page, title: string, baseline = "0", target = "50000", { domain = "Финансы", decrease = false } = {}) {
   await page.goto("/goals/new");
-  await page.getByRole("radio", { name: "Финансы", exact: true }).check();
+  await page.getByRole("radio", { name: domain, exact: true }).check();
   await page.getByLabel("Название", { exact: true }).fill(title);
+  if (decrease) await page.getByRole("radio", { name: "Уменьшить до значения", exact: true }).check();
   await page.getByLabel("Старт", { exact: true }).fill(baseline);
   await page.getByLabel("Цель", { exact: true }).fill(target);
   await page.getByRole("button", { name: "Создать цель", exact: true }).click();
@@ -20,10 +27,12 @@ export async function create(page: Page, title: string, baseline = "0", target =
   await expect(page.getByText("Недостаточно данных", { exact: true })).toBeVisible();
   return new URL(page.url()).pathname;
 }
-export async function add(page: Page, value: string, note = "Браузерное измерение") {
+/** `measuredAt` is a `datetime-local` value in the owner's time zone; without it the dialog keeps «now». */
+export async function add(page: Page, value: string, note = "Браузерное измерение", measuredAt?: string) {
   await page.getByRole("button", { name: "Добавить измерение", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Значение (NOK)", { exact: true }).fill(value);
+  if (measuredAt) await dialog.getByLabel("Дата и время измерения", { exact: true }).fill(measuredAt);
   await dialog.getByLabel("Заметка (необязательно)").fill(note);
   await dialog.getByRole("button", { name: "Добавить измерение", exact: true }).click();
 }
