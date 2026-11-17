@@ -42,6 +42,24 @@ export function utcOffsetLabel(instant: Date, timeZone: string): string {
  * Formats a stored UTC instant in the user's zone and locale. Falls back to UTC and Russian if the
  * runtime rejects the stored values, so a page never fails because of an ICU update.
  */
+/** Date only in the user's zone (mockups: «до 31.12.2026», «12.11.2026»). */
+export function formatDate(instant: Date, preferences: UserPreferences): string {
+  const style = { day: "2-digit", month: "2-digit", year: "numeric" } as const;
+  try {
+    return new Intl.DateTimeFormat(preferences.locale, { ...style, timeZone: preferences.timezone }).format(instant);
+  } catch {
+    return new Intl.DateTimeFormat("ru", { ...style, timeZone: "UTC" }).format(instant);
+  }
+}
+/** Compact date and time for list rows (mockup 09 «Замеры»: «12.11.2026»), keeping the time of the record. */
+export function formatShortDateTime(instant: Date, preferences: UserPreferences): string {
+  const style = { dateStyle: "short", timeStyle: "short" } as const;
+  try {
+    return new Intl.DateTimeFormat(preferences.locale, { ...style, timeZone: preferences.timezone }).format(instant);
+  } catch {
+    return new Intl.DateTimeFormat("ru", { ...style, timeZone: "UTC" }).format(instant);
+  }
+}
 export function formatDateTime(instant: Date, preferences: UserPreferences): string {
   const style = { dateStyle: "long", timeStyle: "short" } as const;
   try {

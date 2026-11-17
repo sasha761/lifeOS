@@ -1,8 +1,10 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { DomainIcon } from "../components/ui/domain-icon.tsx";
 import { SegmentedTabs } from "../components/ui/segmented-tabs.tsx";
 import { domainPresentation } from "../lib/domain-presentation.ts";
+import { TONES } from "../lib/tones.ts";
 import { currentSectionLabel, isActivePath, SITE_SECTIONS } from "../lib/site-sections.ts";
 
 const domains = [{ key: "finance", label: "Финансы", url: "/domains/finance" }];
@@ -25,8 +27,15 @@ describe("top bar sections (LFS-211)", () => {
   it("links only to sections that exist in Stage 2", () => {
     expect(SITE_SECTIONS.map((section) => section.href)).toEqual(["/", "/goals", "/telegram", "/dashboard", "/settings"]);
   });
-  it("colours every sphere with a status token tint instead of light-theme palette classes", () => {
-    for (const { tone } of Object.values(domainPresentation)) expect(tone).toMatch(/^bg-(primary|st-[a-z]+)\/15 text-(primary|st-[a-z]+)$/);
+  it("colours every sphere with its own Design System v2 tone, painted only with token tints", () => {
+    const tones = Object.values(domainPresentation).map(({ tone }) => tone);
+    for (const tone of tones) expect(TONES).toContain(tone);
+    expect(new Set(tones).size).toBe(tones.length);
+    for (const key of Object.keys(domainPresentation) as (keyof typeof domainPresentation)[]) {
+      const html = renderToStaticMarkup(createElement(DomainIcon, { domain: key }));
+      expect(html).toMatch(/class="[^"]*\bbg-(primary|st-[a-z]+)\/20 text-(primary|st-[a-z]+)\b/);
+      expect(html).toContain('aria-hidden="true"');
+    }
   });
 });
 

@@ -13,7 +13,7 @@ test("create goal → measurement → dashboard shows the same progress as goal 
   await page.goto("/dashboard");
   const item = page.getByTestId("dashboard-domain-finance").getByTestId("dashboard-goal").filter({ has: page.getByRole("link", { name: title, exact: true }) });
   await expect(item.getByTestId("dashboard-goal-percent")).toHaveText("24%");
-  await expect(item).toContainText(/12[\s,.]?000 NOK \/ 50[\s,.]?000 NOK/);
+  await expect(item).toContainText(/12[\s,.]?000 из 50[\s,.]?000 NOK/);
   const latest = page.getByTestId("dashboard-activity").first();
   await expect(latest).toContainText("Добавлено измерение"); await expect(latest).toContainText(title); await expect(latest).toContainText("веб");
   await expect(page.getByTestId("dashboard-summary")).toBeVisible();

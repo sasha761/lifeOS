@@ -38,6 +38,9 @@
   --radius-xl: calc(var(--radius) + 4px);
   --font-sans: "Inter Variable", "Segoe UI Variable", "Segoe UI", Arial, sans-serif;
   --font-heading: var(--font-sans);
+  /* ADR-011: shadows only on overlays. Values live here so components stay free of colour literals (LFS-212). */
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 0.35);
+  --shadow-dialog: 0 24px 60px rgb(0 0 0 / 0.45);
 }
 
 :root {
@@ -89,12 +92,23 @@
   .action-link-secondary {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-colors duration-[120ms] hover:border-border-strong hover:bg-surface-3;
   }
-  /* Section title: display 26/32 · 700 from the spec §16.3. */
+  /* Mockup sizes (`.btn` 13px, `.btn.s` 12px) for a mouse; touch screens keep the 44px target. Add after action-link*. */
+  .action-compact {
+    @apply px-3.5 py-1.5 text-[13px] font-semibold pointer-fine:min-h-8;
+  }
+  .action-sm {
+    @apply gap-1.5 px-2.5 py-1 text-xs font-semibold pointer-fine:min-h-7;
+  }
+  /* Page title from the mockups (`.h1`): 30/36 · 700 from 768px; display 26/32 on phones (spec §16.3). */
   .page-title {
-    @apply text-[1.625rem] leading-8 font-bold tracking-[-0.02em];
+    @apply text-[1.625rem] leading-8 font-bold tracking-[-0.02em] md:text-[1.875rem] md:leading-9;
+  }
+  /* Field caption from the mockups (`.lbl`: 12px · 600, secondary text). */
+  .field-label {
+    @apply text-xs font-semibold text-muted-foreground;
   }
   .field-control {
-    @apply min-h-11 w-full min-w-0 rounded-[10px] border bg-background px-3 py-2 text-base text-foreground transition-colors duration-[120ms] hover:border-border-strong focus-visible:border-border-strong disabled:opacity-60 aria-invalid:border-destructive sm:text-sm;
+    @apply min-h-11 w-full min-w-0 rounded-[10px] border bg-background px-3 py-2 text-base text-foreground transition-colors duration-[120ms] hover:border-border-strong focus-visible:border-border-strong disabled:opacity-60 aria-invalid:border-destructive sm:text-sm pointer-fine:min-h-[38px] pointer-fine:py-1.5;
   }
 }
 

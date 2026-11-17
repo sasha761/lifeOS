@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { GoalFields } from "../components/goals/goal-form.tsx";
-import { GoalProgressView } from "../components/goals/shared.tsx";
+import { GoalProgressPanel } from "../components/goals/goal-detail.tsx";
 import { goalDetailsSchema } from "@lifeos/contracts";
 import { goalFormInput, measurementFormInput } from "../lib/goal-form-input.ts";
 import { formatGoalValue } from "../lib/goal-presentation.ts";
@@ -45,7 +45,7 @@ describe("goal form boundary and exact presentation", () => {
       progress: { methodology: { version: 1, mode: "manual", formula: "(current-baseline)/(target-baseline)", percentDecimals: 2, rounding: "half_up", clamped: true },
         unit: "NOK", baseline: "0", target: "50000", current: null, progressPercent: null, status: "insufficient_data", explanation: "Недостаточно данных",
         source: "manual", provenance: null, measurementCount: 0, updatedAt: "2026-11-16T10:00:00Z" } });
-    const html = renderToStaticMarkup(createElement(GoalProgressView, { value, preferences }));
+    const html = renderToStaticMarkup(createElement(GoalProgressPanel, { value, preferences }));
     expect(html).toContain("Недостаточно данных"); expect(html).not.toContain("<progress"); expect(html).not.toContain("0%");
   });
 });

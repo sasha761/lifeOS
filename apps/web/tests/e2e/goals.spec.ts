@@ -33,7 +33,7 @@ test("create, measure 24%, edit, cancel/delete, metadata and archive keep histor
   await expect(page.getByTestId("measurement-row")).toHaveCount(1);
   await expect(page.getByTestId("goal-percent")).toHaveText("30%");
   await page.getByRole("button", { name: "Изменить цель", exact: true }).click();
-  await page.getByRole("dialog").getByLabel("Название цели", { exact: true }).fill(`${title} · исправлена`);
+  await page.getByRole("dialog").getByLabel("Название", { exact: true }).fill(`${title} · исправлена`);
   await page.getByRole("button", { name: "Сохранить изменения цели" }).click();
   await expect(page.getByRole("heading", { name: `${title} · исправлена`, exact: true })).toBeVisible();
   await page.getByRole("button", { name: "В архив", exact: true }).click();
@@ -43,9 +43,10 @@ test("create, measure 24%, edit, cancel/delete, metadata and archive keep histor
   await expect(page.getByRole("button", { name: "Добавить измерение", exact: true })).toHaveCount(0);
   await noOverflow(page);
   await page.getByRole("link", { name: "Все цели", exact: true }).click();
-  await page.getByLabel("Сфера", { exact: true }).selectOption("finance");
-  await page.getByRole("button", { name: "Показать", exact: true }).click();
+  const domainTabs = page.getByRole("navigation", { name: "Сфера целей" });
+  await domainTabs.getByRole("link", { name: "Финансы", exact: true }).click();
   await expect(page).toHaveURL(/\/goals\?domain_key=finance$/);
+  await expect(domainTabs.getByRole("link", { name: "Финансы", exact: true })).toHaveAttribute("aria-current", "page");
   const statusTabs = page.getByRole("navigation", { name: "Статус целей" });
   await statusTabs.getByRole("link", { name: "В архиве", exact: true }).click();
   await expect(page).toHaveURL(/\/goals\?domain_key=finance&status=archived$/);
@@ -58,11 +59,40 @@ test("create, measure 24%, edit, cancel/delete, metadata and archive keep histor
   expect(errors).toEqual([]);
 });
 
+test("«Новая цель» opens as a dialog over the current page, closes back to it and creates the goal (LFS-212)", async ({ page }, testInfo) => {
+  const errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
+  await login(page); await page.goto("/domains/finance");
+  const open = page.getByRole("link", { name: "Цель в сфере", exact: true });
+  await open.click();
+  const dialog = page.getByRole("dialog", { name: "Новая цель" });
+  await expect(dialog).toBeVisible();
+  await expect(page).toHaveURL(/\/goals\/new\?domain_key=finance$/);
+  await expect(page.locator("main h1")).toHaveText("Финансы");
+  await expect(dialog.getByRole("radio", { name: "Финансы", exact: true })).toBeChecked();
+  await page.screenshot({ path: testInfo.outputPath("new-goal-dialog.png") });
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(page).toHaveURL(/\/domains\/finance$/);
+  await expect(open).toBeFocused();
+  await open.click();
+  const title = `Диалог новой цели · ${testInfo.project.name}`;
+  await dialog.getByLabel("Название", { exact: true }).fill(title);
+  await dialog.getByLabel("Цель", { exact: true }).fill("1000");
+  await dialog.getByRole("button", { name: "Создать цель", exact: true }).click();
+  await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/goals\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await noOverflow(page);
+  expect(errors).toEqual([]);
+});
+
 test("exact decimals, field validation and ambiguous network retry with the same key", async ({ page }, testInfo) => {
   await login(page); await page.goto("/goals/new");
   await page.getByRole("button", { name: "Создать цель", exact: true }).click();
-  await expect(page.getByLabel("Название цели", { exact: true })).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByLabel("Название цели", { exact: true })).toBeFocused();
+  await expect(page.getByLabel("Название", { exact: true })).toHaveAttribute("aria-invalid", "true");
+  // The first invalid field in form order (mockup 10: the sphere comes first) receives focus.
+  await expect(page.getByRole("radio", { name: "Языки", exact: true })).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByRole("radio", { name: "Языки", exact: true })).toBeFocused();
   const path = await create(page, `Точный NOK · ${testInfo.project.name}`, "9007199254740993.01", "9007199254740993.05");
   const id = path.split("/").at(-1)!;
   const keys: string[] = []; let first = true;
@@ -85,9 +115,9 @@ test("exact decimals, field validation and ambiguous network retry with the same
 
 test("creation remains locked until navigation finishes", async ({ page }, testInfo) => {
   await login(page); await page.goto("/goals/new");
-  await page.getByLabel("Название цели", { exact: true }).fill(`Переход без дубля · ${testInfo.project.name}`);
-  await page.getByLabel("Сфера", { exact: true }).selectOption("finance");
-  await page.getByLabel("Целевое значение", { exact: true }).fill("50000");
+  await page.getByLabel("Название", { exact: true }).fill(`Переход без дубля · ${testInfo.project.name}`);
+  await page.getByRole("radio", { name: "Финансы", exact: true }).check();
+  await page.getByLabel("Цель", { exact: true }).fill("50000");
   const intercepted = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   await page.route((url) => /\/goals\/[a-f0-9-]{36}$/.test(url.pathname), async (route) => {
@@ -97,7 +127,7 @@ test("creation remains locked until navigation finishes", async ({ page }, testI
   try {
     await intercepted.promise;
     await expect(page.getByRole("button", { name: "Открываем цель…", exact: true })).toBeDisabled();
-    await expect(page.getByLabel("Название цели", { exact: true })).toBeDisabled();
+    await expect(page.getByLabel("Название", { exact: true })).toBeDisabled();
   } finally { release.resolve(); }
   await expect(page.getByText("Недостаточно данных", { exact: true })).toBeVisible();
 });

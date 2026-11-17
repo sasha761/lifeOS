@@ -28,7 +28,7 @@ export function SignOutButton() {
 
   return (
     <div className="grid gap-2">
-      <button type="button" onClick={signOut} disabled={pending} className="action-link-secondary disabled:cursor-wait disabled:opacity-70">
+      <button type="button" onClick={signOut} disabled={pending} className="action-link-secondary action-compact disabled:cursor-wait disabled:opacity-70">
         <LogOut aria-hidden="true" className="size-4" /> {pending ? "Выходим…" : "Выйти"}
       </button>
       {failed && <p role="alert" className="text-sm text-destructive">Не удалось выйти. Попробуйте ещё раз.</p>}

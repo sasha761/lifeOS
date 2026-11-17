@@ -5,15 +5,17 @@ type FieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "className"
   label: string;
   error?: string;
   hint?: string;
+  /** Goal and settings forms use the mockup caption `field-label`; auth forms keep the default. */
+  labelClassName?: string;
 };
 
-export function Field({ id, label, error, hint, ...input }: FieldProps) {
+export function Field({ id, label, error, hint, labelClassName = "text-sm font-medium", ...input }: FieldProps) {
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
   return (
     <div className="grid gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium">{label}</label>
+      <label htmlFor={id} className={labelClassName}>{label}</label>
       <input
         id={id}
         aria-invalid={error ? true : undefined}
@@ -36,9 +38,9 @@ export function FormAlert({ tone, children }: { tone: "error" | "success"; child
   );
 }
 
-export function SubmitButton({ pending, children, pendingLabel }: { pending: boolean; children: ReactNode; pendingLabel: string }) {
+export function SubmitButton({ pending, children, pendingLabel, className = "w-full" }: { pending: boolean; children: ReactNode; pendingLabel: string; className?: string }) {
   return (
-    <button type="submit" disabled={pending} className="action-link w-full disabled:cursor-wait disabled:opacity-70">
+    <button type="submit" disabled={pending} className={`action-link ${className} disabled:cursor-wait disabled:opacity-70`}>
       {pending ? pendingLabel : children}
     </button>
   );

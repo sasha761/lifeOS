@@ -99,6 +99,11 @@ PASS. `pnpm verify` сохраняет прежнюю общую цепочку 
 smoke guards для `/goals/new`/`goals/:id`. Полный Stage 2 E2E/security audit —
 LFS-209; этот focused suite реализует acceptance LFS-208.
 
+`pnpm ui:shots` (LFS-212) использует ту же изолированную фикстуру
+(`apps/web/scripts/ui-fixture.ts`) и снимает страницы Stage 2 рядом с макетами
+в ignored `.cache/ui-shots` для визуальной проверки по UI_GUIDELINES §5. Это
+локальный инструмент ревью, а не CI gate; пиксельного сравнения нет.
+
 ## Actions и cache
 
 Actions закреплены полными commit SHA: checkout **6.1.0**, setup-node **6.5.0**,

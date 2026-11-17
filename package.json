@@ -35,6 +35,7 @@
     "db:migrate:test": "pnpm --filter @lifeos/config build && pnpm --filter @lifeos/contracts build && pnpm --filter @lifeos/db db:migrate:test",
     "test:build": "node scripts/build-smoke.ts",
     "test:ui": "pnpm build && node --env-file-if-exists=.env apps/web/scripts/test-goals-ui.ts",
+    "ui:shots": "pnpm build && node --env-file-if-exists=.env apps/web/scripts/ui-shots.ts",
     "verify": "node --env-file-if-exists=.env scripts/verify.ts"
   },
   "devDependencies": {

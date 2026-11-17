@@ -14,8 +14,8 @@ const selectClass = "field-control";
 
 function SelectField({ id, label, hint, defaultValue, children }: { id: string; label: string; hint: string; defaultValue: string; children: ReactNode }) {
   return (
-    <div className="grid gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium">{label}</label>
+    <div className="grid min-w-0 gap-1.5">
+      <label htmlFor={id} className="field-label">{label}</label>
       <select id={id} name={id} defaultValue={defaultValue} aria-describedby={`${id}-hint`} className={selectClass}>
         {children}
       </select>
@@ -70,15 +70,17 @@ export function PreferencesForm({ initial, timeZones, locales }: { initial: User
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-5" aria-busy={pending}>
+    <form onSubmit={onSubmit} className="grid gap-3.5" aria-busy={pending}>
       {status && <FormAlert tone={status.tone}>{status.message}</FormAlert>}
-      <SelectField id="timezone" label="Часовой пояс" hint="Даты хранятся в UTC и показываются в этом часовом поясе." defaultValue={initial.timezone}>
-        {timeZones.map((zone) => <option key={zone} value={zone}>{zone}</option>)}
-      </SelectField>
-      <SelectField id="locale" label="Язык и формат дат" hint="Определяет формат дат и чисел. Интерфейс пока на русском." defaultValue={initial.locale}>
-        {locales.map((locale) => <option key={locale.value} value={locale.value}>{locale.label}</option>)}
-      </SelectField>
-      <SubmitButton pending={pending} pendingLabel="Сохраняем…">Сохранить</SubmitButton>
+      <div className="grid gap-3.5 sm:grid-cols-2">
+        <SelectField id="timezone" label="Часовой пояс" hint="Даты хранятся в UTC и показываются в этом часовом поясе." defaultValue={initial.timezone}>
+          {timeZones.map((zone) => <option key={zone} value={zone}>{zone}</option>)}
+        </SelectField>
+        <SelectField id="locale" label="Язык и формат дат" hint="Определяет формат дат и чисел. Интерфейс пока на русском." defaultValue={initial.locale}>
+          {locales.map((locale) => <option key={locale.value} value={locale.value}>{locale.label}</option>)}
+        </SelectField>
+      </div>
+      <div><SubmitButton className="action-compact" pending={pending} pendingLabel="Сохраняем…">Сохранить</SubmitButton></div>
     </form>
   );
 }
