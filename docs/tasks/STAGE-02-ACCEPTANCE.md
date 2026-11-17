@@ -79,7 +79,7 @@
   - `web/api.test.ts` «HTTP boundary»; `auth.test.ts` — 401 в общем envelope.
 - [x] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` (или задокументированные скрипты) завершены успешно; отказ не замаскирован.
   - `pnpm verify` и `pnpm test:ui` — PASS, числа в разделе «Отчёт».
-  - Hosted CI на PR не завершён на момент записи (см. «Open issues»).
+  - Hosted CI (`pnpm verify` на Linux с PostgreSQL 18.6): PASS на PR #2 (LFS-212) и PR #3 (LFS-209), ссылки в разделе «Отчёт».
 - [x] Миграции применяются к чистой БД и upgrade существующей Stage 1 базы не стирает данные.
   - `packages/db/tests/integration/migrations.test.ts`: чистая схема и повторное применение; upgrade Stage 1 → 0005 с сохранением данных; поэтапные upgrade LFS-201, 202, 205, 210 с сохранением пользователей, сессий, целей, receipts и событий.
   - `test-migrations-cli.test.ts`.
@@ -97,16 +97,17 @@
 
 ## Отчёт / решение
 
-- Date / commit: 2026-11-17, ветка `lfs-209-stage2-acceptance` от `26b5b7c` (LFS-212); коммит LFS-209 делается после проверки владельцем.
+- Date / commit: 2026-11-17, ветка `lfs-209-stage2-acceptance`: `95317f4` (LFS-209) поверх `26b5b7c` (LFS-212), PR #3 и PR #2.
 - Test commands and results:
   - `pnpm db:test:up` — PASS.
   - `pnpm verify` — PASS: frozen install, lint, typecheck, 524 unit, test migrations, 140 PostgreSQL integration (20 db + 115 web + 5 worker; было 139), сборки Web/worker, build smoke.
   - `pnpm test:ui` — PASS: 22 Playwright (11 сценариев × desktop/mobile), было 16.
   - `git diff --check` — PASS.
+  - Hosted CI: PR #2 (LFS-212) — PASS, [run 44170722668](https://github.com/sasha761/lifeOS/actions/runs/44170722668); PR #3 (LFS-209, коммит `95317f4`) — PASS, [run 44172942107](https://github.com/sasha761/lifeOS/actions/runs/44172942107).
 - Open issues:
-  - Hosted CI: на PR #2 (LFS-212) — PASS, [run 44170722668](https://github.com/sasha761/lifeOS/actions/runs/44170722668); PR для LFS-209 ещё не открыт. Playwright в hosted workflow не входит, `test:ui` проверяется только локально.
+  - Playwright в hosted workflow не входит, `test:ui` проверяется только локально.
   - Сброс пароля в браузере не прогоняется: production-сборка запрещает outbox, а фикстура использует недоступный SMTP. Сброс покрыт integration-тестами через outbox и SMTP-тестом транспорта; реальная доставка — Stage 8.
   - Лимит попыток входа (rate limit) в e2e не проверяется: production-значения Better Auth, логика — LFS-201.
   - Цели и действия на странице сферы — отдельная задача (из LFS-212).
 - Migration notes: в LFS-209 миграций нет; история `0000`–`0005` без изменений. Main DB в этой задаче не трогалась; тестовые схемы создаются и удаляются раннерами.
-- Ready for Stage 3: **yes — рекомендация исполнителя, окончательное решение за владельцем.** Все пункты чек-листа подтверждены тестами в текущем окружении. До старта Stage 3 нужно дождаться зелёного hosted CI на PR LFS-212 и LFS-209 и влить их в `main`.
+- Ready for Stage 3: **yes — рекомендация исполнителя, окончательное решение за владельцем.** Все пункты чек-листа подтверждены тестами локально и hosted CI. До старта Stage 3 нужно влить PR #2 (LFS-212) и PR #3 (LFS-209) в `main`.
