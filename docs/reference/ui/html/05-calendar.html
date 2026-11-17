@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ru"><head>
+<!-- Эталон вёрстки LifeOS (Design System v2). Данные на макете примерные, в код их не переносить. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"><meta charset="utf-8">
+
+
+<style>
+body{margin:0;background:#16131D}
+a{color:#9D90F8}a:hover{color:#B8AEFA}
+</style>
+<style>body{margin:0;font-family:Inter,sans-serif}</style></head><body data-done="1"><div id="root">
+
+<div style="width: 1440px; height: 900px; box-sizing: border-box; background: #16131D; color: #F2EDF8; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column;">
+  <header style="height: 56px; box-sizing: border-box; padding: 0 28px; display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
+    <span style="width: 26px; height: 26px; border-radius: 8px; background: #8B7CF6; color: #16131D; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800;">L</span>
+    <span style="font-size: 14px; font-weight: 700;">LifeOS</span>
+    <span style="font-size: 13px; color: #857A99;">· Работа</span>
+    <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+      <a href="#" style="padding: 6px 12px; border-radius: 999px; border: 1px solid #4A4060; background: #282236; color: #F2EDF8; text-decoration: none; font-size: 13px; font-weight: 600;">☰ Задачи</a>
+      <a href="#" style="padding: 6px 12px; border-radius: 999px; border: 1px solid #372F47; color: #B4A8C8; text-decoration: none; font-size: 13px; font-weight: 500;">▭ Проекты</a>
+      <a href="#" style="padding: 6px 12px; border-radius: 999px; border: 1px solid #8B7CF6; background: rgba(139,124,246,0.14); color: #F2EDF8; text-decoration: none; font-size: 13px; font-weight: 600;">✦ Ассистент</a>
+      <button type="button" aria-label="Настройки" style="width: 32px; height: 32px; border-radius: 999px; border: 1px solid #372F47; background: transparent; color: #B4A8C8; font: 600 14px Inter, sans-serif;">⚙</button>
+    </div>
+  </header>
+
+  <div style="flex-grow: 1; display: flex; min-height: 0;">
+    <main style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 8px 28px 24px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <h1 style="margin: 0; font-size: 30px; line-height: 36px; font-weight: 700; letter-spacing: -0.02em;">Задачи</h1>
+        <button type="button" style="margin-left: auto; border: 1px solid #4A4060; padding: 7px 14px; border-radius: 999px; background: #282236; color: #F2EDF8; font: 600 13px Inter, sans-serif;">✦ Задача с ассистентом</button>
+      </div>
+      <div style="display: inline-flex; align-self: flex-start; padding: 3px; gap: 2px; border-radius: 999px; background: #1F1A2A; border: 1px solid #372F47;">
+        <button type="button" style="border: 0; padding: 6px 14px; border-radius: 999px; background: transparent; color: #B4A8C8; font: 500 13px Inter, sans-serif;">Сегодня</button>
+        <button type="button" style="border: 0; padding: 6px 14px; border-radius: 999px; background: #322B42; color: #F2EDF8; font: 600 13px Inter, sans-serif;">Календарь</button>
+        <button type="button" style="border: 0; padding: 6px 14px; border-radius: 999px; background: transparent; color: #B4A8C8; font: 500 13px Inter, sans-serif;">Все задачи</button>
+        <button type="button" style="border: 0; padding: 6px 14px; border-radius: 999px; background: transparent; color: #B4A8C8; font: 500 13px Inter, sans-serif;">Корзина <span style="color: #857A99;">27</span></button>
+      </div>
+
+      <div style="flex-grow: 1; border-radius: 16px; background: #1F1A2A; border: 1px solid #372F47; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #372F47;">
+          <button type="button" aria-label="Мини-календарь" style="width: 30px; height: 30px; border-radius: 8px; border: 1px solid #372F47; background: #282236; color: #B4A8C8; font: 600 12px Inter, sans-serif;">▦</button>
+          <div style="display: flex; flex-direction: column;"><span style="font-size: 15px; font-weight: 700;">16 – 22 ноября</span><span style="font-size: 11px; color: #857A99;">2026</span></div>
+          <div style="margin-left: auto; display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: #16131D; border: 1px solid #372F47;">
+            <button type="button" style="border: 0; padding: 5px 12px; border-radius: 999px; background: #322B42; color: #F2EDF8; font: 600 12px Inter, sans-serif;">Неделя</button>
+            <button type="button" style="border: 0; padding: 5px 12px; border-radius: 999px; background: transparent; color: #B4A8C8; font: 500 12px Inter, sans-serif;">Месяц</button>
+          </div>
+          <button type="button" aria-label="Назад" style="width: 30px; height: 30px; border-radius: 999px; border: 1px solid #372F47; background: transparent; color: #B4A8C8; font: 600 14px Inter, sans-serif;">‹</button>
+          <button type="button" aria-label="Вперёд" style="width: 30px; height: 30px; border-radius: 999px; border: 1px solid #372F47; background: transparent; color: #B4A8C8; font: 600 14px Inter, sans-serif;">›</button>
+        </div>
+        <div style="display: flex; border-bottom: 1px solid #372F47;">
+          <div style="width: 56px; flex-shrink: 0;"></div>
+          
+            <div style="flex: 1 1 0; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-left: 1px solid #2E2740;">
+              <span style="width: 34px; height: 34px; border-radius: 50%; background: #EE8A45; color: #16131D; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700;">16</span>
+              <span style="font-size: 10px; color: #857A99;">пн</span>
+              <span style="min-height: 18px; padding: 1px 7px; border-radius: 6px; background: rgba(232,176,74,0.18); color: #F0C878; font-size: 10px; font-weight: 600;">2 дедлайна</span>
+            </div>
+          
+            <div style="flex: 1 1 0; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-left: 1px solid #2E2740;">
+              <span style="width: 34px; height: 34px; border-radius: 50%; background: transparent; color: #F2EDF8; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700;">17</span>
+              <span style="font-size: 10px; color: #857A99;">вт</span>
+              <span style="min-height: 18px; padding: 1px 7px; border-radius: 6px; background: transparent; color: #F0C878; font-size: 10px; font-weight: 600;"></span>
+            </div>
+          
+            <div style="flex: 1 1 0; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-left: 1px solid #2E2740;">
+              <span style="width: 34px; height: 34px; border-radius: 50%; background: transparent; color: #F2EDF8; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700;">18</span>
+              <span style="font-size: 10px; color: #857A99;">ср</span>
+              <span style="min-height: 18px; padding: 1px 7px; border-radius: 6px; background: rgba(232,176,74,0.18); color: #F0C878; font-size: 10px; font-weight: 600;">1 дедлайн</span>
+            </div>
+          
+            <div style="flex: 1 1 0; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-left: 1px solid #2E2740;">
+              <span style="width: 34px; height: 34px; border-radius: 50%; background: transparent; color: #F2EDF8; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700;">19</span>
+              <span style="font-size: 10px; color: #857A99;">чт</span>
+              <span style="min-height: 18px; padding: 1px 7px; border-radius: 6px; background: transparent; color: #F0C878; font-size: 10px; font-weight: 600;"></span>
+            </div>
+          
+            <div style="flex: 1 1 0; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-left: 1px solid #2E2740;">
+              <span style="width: 34px; height: 34px; border-radius: 50%; background: transparent; color: #F2EDF8; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700;">20</span>
+              <span style="font-size: 10px; color: #857A99;">пт</span>
+              <span style="min-height: 18px; padding: 1px 7px; border-radius: 6px; background: transparent; color: #F0C878; font-size: 10px; font-weight: 600;"></span>
+            </div>
+          
+            <div style="flex: 1 1 0; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-left: 1px solid #2E2740;">
+              <span style="width: 34px; height: 34px; border-radius: 50%; background: transparent; color: #857A99; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700;">21</span>
+              <span style="font-size: 10px; color: #857A99;">сб</span>
+              <span style="min-height: 18px; padding: 1px 7px; border-radius: 6px; background: transparent; color: #F0C878; font-size: 10px; font-weight: 600;"></span>
+            </div>
+          
+            <div style="flex: 1 1 0; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-left: 1px solid #2E2740;">
+              <span style="width: 34px; height: 34px; border-radius: 50%; background: transparent; color: #857A99; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700;">22</span>
+              <span style="font-size: 10px; color: #857A99;">вс</span>
+              <span style="min-height: 18px; padding: 1px 7px; border-radius: 6px; background: transparent; color: #F0C878; font-size: 10px; font-weight: 600;"></span>
+            </div>
+          
+        </div>
+        <div style="display: flex; border-bottom: 1px solid #372F47; min-height: 28px;">
+          <div style="width: 56px; flex-shrink: 0; box-sizing: border-box; padding: 6px 8px 0 0; text-align: right; font-size: 10px; color: #857A99;">весь день</div>
+          <div style="flex: 1 1 0; border-left: 1px solid #2E2740; padding: 3px;"><span style="display: block; padding: 2px 6px; border-radius: 4px; background: rgba(79,191,131,0.25); font-size: 10px; font-weight: 600;">День рождения мамы</span></div>
+          <div style="flex: 6 1 0; border-left: 1px solid #2E2740;"></div>
+        </div>
+        <div style="flex-grow: 1; display: flex; position: relative; overflow: hidden;">
+          <div style="width: 56px; flex-shrink: 0; display: flex; flex-direction: column;">
+            
+              <div style="height: 54px; box-sizing: border-box; padding: 2px 8px 0 0; text-align: right; font-size: 10px; color: #857A99; font-variant-numeric: tabular-nums;">08:00</div>
+            
+              <div style="height: 54px; box-sizing: border-box; padding: 2px 8px 0 0; text-align: right; font-size: 10px; color: #857A99; font-variant-numeric: tabular-nums;">09:00</div>
+            
+              <div style="height: 54px; box-sizing: border-box; padding: 2px 8px 0 0; text-align: right; font-size: 10px; color: #857A99; font-variant-numeric: tabular-nums;">10:00</div>
+            
+              <div style="height: 54px; box-sizing: border-box; padding: 2px 8px 0 0; text-align: right; font-size: 10px; color: #857A99; font-variant-numeric: tabular-nums;">11:00</div>
+            
+              <div style="height: 54px; box-sizing: border-box; padding: 2px 8px 0 0; text-align: right; font-size: 10px; color: #857A99; font-variant-numeric: tabular-nums;">12:00</div>
+            
+              <div style="height: 54px; box-sizing: border-box; padding: 2px 8px 0 0; text-align: right; font-size: 10px; color: #857A99; font-variant-numeric: tabular-nums;">13:00</div>
+            
+              <div style="height: 54px; box-sizing: border-box; padding: 2px 8px 0 0; text-align: right; font-size: 10px; color: #857A99; font-variant-numeric: tabular-nums;">14:00</div>
+            
+              <div style="height: 54px; box-sizing: border-box; padding: 2px 8px 0 0; text-align: right; font-size: 10px; color: #857A99; font-variant-numeric: tabular-nums;">15:00</div>
+            
+              <div style="height: 54px; box-sizing: border-box; padding: 2px 8px 0 0; text-align: right; font-size: 10px; color: #857A99; font-variant-numeric: tabular-nums;">16:00</div>
+            
+              <div style="height: 54px; box-sizing: border-box; padding: 2px 8px 0 0; text-align: right; font-size: 10px; color: #857A99; font-variant-numeric: tabular-nums;">17:00</div>
+            
+          </div>
+          
+            <div style="flex: 1 1 0; position: relative; border-left: 1px solid #2E2740; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 53px, #2B2438 53px, #2B2438 54px);">
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 108px; height: 52px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: repeating-linear-gradient(135deg, #3E5E9E 0 4px, #2A3550 4px 8px); border: 1px solid #4E6CB0; display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">Созвон с командой</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">10:00–11:00</span>
+                </div>
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 162px; height: 38.5px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: #2C2540; border: 1px solid #4A4060; display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">Заметки созвона</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">11:00–11:45</span>
+                </div>
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 270px; height: 25px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: rgba(139,124,246,0.22); border: 1px solid rgba(139,124,246,0.5); display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">Норвежский</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">13:00–13:30</span>
+                </div>
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 324px; height: 160px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: #2C2540; border: 1px solid #4A4060; display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">Схема БД Tasks</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">14:00–17:00</span>
+                </div>
+              
+            </div>
+          
+            <div style="flex: 1 1 0; position: relative; border-left: 1px solid #2E2740; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 53px, #2B2438 53px, #2B2438 54px);">
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 54px; height: 160px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: rgba(229,96,94,0.14); border: 1px solid #E5605E; display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">Фикс оплаты</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">09:00–12:00</span>
+                </div>
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 270px; height: 25px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: rgba(139,124,246,0.22); border: 1px solid rgba(139,124,246,0.5); display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">Норвежский</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">13:00–13:30</span>
+                </div>
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 216px; height: 25px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: repeating-linear-gradient(135deg, #3E5E9E 0 4px, #2A3550 4px 8px); border: 1px solid #4E6CB0; display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">Стендап</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">12:00–12:30</span>
+                </div>
+              
+            </div>
+          
+            <div style="flex: 1 1 0; position: relative; border-left: 1px solid #2E2740; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 53px, #2B2438 53px, #2B2438 54px);">
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 54px; height: 160px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: rgba(229,96,94,0.14); border: 1px solid #E5605E; display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">Фикс оплаты</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">09:00–12:00</span>
+                </div>
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 324px; height: 52px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: repeating-linear-gradient(135deg, #3E5E9E 0 4px, #2A3550 4px 8px); border: 1px solid #4E6CB0; display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">1:1 с ментором</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">14:00–15:00</span>
+                </div>
+              
+            </div>
+          
+            <div style="flex: 1 1 0; position: relative; border-left: 1px solid #2E2740; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 53px, #2B2438 53px, #2B2438 54px);">
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 108px; height: 79px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: #2C2540; border: 1px solid #4A4060; display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">Подготовка к интервью</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">10:00–11:30</span>
+                </div>
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 324px; height: 52px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: repeating-linear-gradient(135deg, #3E5E9E 0 4px, #2A3550 4px 8px); border: 1px solid #4E6CB0; display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">Интервью</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">14:00–15:00</span>
+                </div>
+              
+            </div>
+          
+            <div style="flex: 1 1 0; position: relative; border-left: 1px solid #2E2740; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 53px, #2B2438 53px, #2B2438 54px);">
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 270px; height: 25px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: rgba(139,124,246,0.22); border: 1px solid rgba(139,124,246,0.5); display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">Норвежский</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">13:00–13:30</span>
+                </div>
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 432px; height: 38.5px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: #2C2540; border: 1px solid #4A4060; display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">Планирование недели</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">16:00–16:45</span>
+                </div>
+              
+            </div>
+          
+            <div style="flex: 1 1 0; position: relative; border-left: 1px solid #2E2740; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 53px, #2B2438 53px, #2B2438 54px);">
+              
+                <div style="position: absolute; left: 3px; right: 3px; top: 162px; height: 52px; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; background: #2C2540; border: 1px solid #4A4060; display: flex; flex-direction: column; gap: 1px; overflow: hidden;">
+                  <span style="font-size: 11px; font-weight: 600; line-height: 14px;">Тренировка</span>
+                  <span style="font-size: 10px; color: #B4A8C8;">11:00–12:00</span>
+                </div>
+              
+            </div>
+          
+            <div style="flex: 1 1 0; position: relative; border-left: 1px solid #2E2740; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 53px, #2B2438 53px, #2B2438 54px);">
+              
+            </div>
+          
+        </div>
+        <div style="display: flex; gap: 16px; padding: 8px 16px; border-top: 1px solid #372F47; font-size: 11px; color: #B4A8C8;">
+          <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: repeating-linear-gradient(135deg, #3E5E9E 0 3px, #2A3550 3px 6px); vertical-align: middle;"></span> встречи из Google Calendar</span>
+          <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: #2C2540; border: 1px solid #4A4060; vertical-align: middle;"></span> задачи</span>
+          <span><span style="display: inline-block; width: 10px; height: 10px; border-radius: 3px; border: 1px dashed #E5605E; vertical-align: middle;"></span> предложение ассистента</span>
+        </div>
+      </div>
+    </main>
+
+    <aside style="width: 400px; flex-shrink: 0; box-sizing: border-box; border-left: 1px solid #372F47; background: #1F1A2A; display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid #372F47;">
+        <span style="font-size: 14px; font-weight: 600;">Ассистент</span>
+        <button type="button" style="border: 1px solid #372F47; padding: 3px 10px; border-radius: 999px; background: transparent; color: #B4A8C8; font: 600 11px Inter, sans-serif;">Новый диалог</button>
+        <button type="button" aria-label="Закрыть" style="margin-left: auto; border: 0; background: transparent; color: #B4A8C8; font: 500 16px Inter, sans-serif;">×</button>
+      </div>
+      <div style="flex-grow: 1; padding: 18px; display: flex; flex-direction: column; gap: 12px; overflow: hidden;">
+        <div style="align-self: flex-end; max-width: 300px; padding: 10px 12px; border-radius: 12px 12px 4px 12px; background: #322B42; font-size: 13px; line-height: 19px;">Срочно нужен фикс оплаты, он важнее всего на этой неделе.</div>
+        <div style="font-size: 13px; line-height: 20px; display: flex; flex-direction: column; gap: 6px;">
+          <span style="font-weight: 700;">Перестраиваю неделю</span>
+          <span style="color: #B4A8C8;"><b style="color: #F2EDF8;">Приоритет:</b> фикс оплаты, около 6 ч, ставлю на утро вт и ср.</span>
+          <span style="color: #B4A8C8;"><b style="color: #F2EDF8;">Перенос:</b> две задачи без жёсткого срока уходят на 2 недели, чтобы не было перегруза.</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="padding: 10px 12px; border-radius: 10px; background: #282236; border: 1px solid #4A4060; display: flex; flex-direction: column; gap: 6px;">
+            <label style="display: flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 600;"><input type="checkbox" checked="" style="accent-color: #8B7CF6;">Фикс оплаты</label>
+            <div style="display: flex; gap: 6px;"><span style="padding: 3px 8px; border-radius: 6px; background: #1F1A2A; border: 1px solid #372F47; font-size: 11px;">вт, 17 нояб ▾</span><span style="padding: 3px 8px; border-radius: 6px; background: #1F1A2A; border: 1px solid #372F47; font-size: 11px;">09:00–12:00 ▾</span></div>
+          </div>
+          <div style="padding: 10px 12px; border-radius: 10px; background: #282236; border: 1px solid #4A4060; display: flex; flex-direction: column; gap: 6px;">
+            <label style="display: flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 600;"><input type="checkbox" checked="" style="accent-color: #8B7CF6;">Презентация для клиента</label>
+            <div style="display: flex; gap: 6px; align-items: center;"><span style="font-size: 11px; color: #857A99; text-decoration: line-through;">вт, 17 нояб</span><span style="font-size: 11px; color: #857A99;">→</span><span style="padding: 3px 8px; border-radius: 6px; background: #1F1A2A; border: 1px solid #372F47; font-size: 11px;">пн, 30 нояб ▾</span></div>
+          </div>
+          <div style="padding: 10px 12px; border-radius: 10px; background: #282236; border: 1px solid #4A4060; display: flex; flex-direction: column; gap: 6px;">
+            <label style="display: flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 600;"><input type="checkbox" checked="" style="accent-color: #8B7CF6;">Онбординг пользователей</label>
+            <div style="display: flex; gap: 6px; align-items: center;"><span style="font-size: 11px; color: #857A99; text-decoration: line-through;">ср, 18 нояб</span><span style="font-size: 11px; color: #857A99;">→</span><span style="padding: 3px 8px; border-radius: 6px; background: #1F1A2A; border: 1px solid #372F47; font-size: 11px;">ср, 2 дек ▾</span></div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" style="border: 0; padding: 8px 14px; border-radius: 999px; background: #8B7CF6; color: #16131D; font: 600 13px Inter, sans-serif;">Применить 3</button>
+          <button type="button" style="border: 1px solid #4A4060; padding: 8px 12px; border-radius: 999px; background: transparent; color: #F2EDF8; font: 600 13px Inter, sans-serif;">Отклонить</button>
+        </div>
+      </div>
+      <div style="padding: 14px 18px; border-top: 1px solid #372F47;">
+        <label style="display: flex;"><span style="position: absolute; left: -9999px;">Сообщение ассистенту</span><input type="text" placeholder="Спросите или попросите изменить план…" style="flex-grow: 1; box-sizing: border-box; padding: 10px 12px; border-radius: 12px; border: 1px solid #372F47; background: #16131D; color: #F2EDF8; font: 400 13px Inter, sans-serif;"></label>
+      </div>
+    </aside>
+  </div>
+</div>
+</div></body></html>

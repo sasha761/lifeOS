@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ru"><head>
+<!-- Эталон вёрстки LifeOS (Design System v2). Данные на макете примерные, в код их не переносить. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"><meta charset="utf-8">
+
+
+<style>
+body{margin:0;background:#16131D}
+a{color:#9D90F8}a:hover{color:#B8AEFA}
+</style>
+<style>body{margin:0;font-family:Inter,sans-serif}</style></head><body data-done="1"><div id="root">
+
+<div style="width: 1440px; height: 900px; box-sizing: border-box; background: #16131D; color: #F2EDF8; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column;">
+  <header style="height: 56px; box-sizing: border-box; padding: 0 28px; display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
+    <span style="width: 26px; height: 26px; border-radius: 8px; background: #8B7CF6; color: #16131D; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800;">L</span>
+    <span style="font-size: 14px; font-weight: 700;">LifeOS</span>
+    <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+      <a href="#" style="padding: 6px 12px; border-radius: 999px; border: 1px solid #372F47; color: #B4A8C8; text-decoration: none; font-size: 13px; font-weight: 500;">☰ Задачи</a>
+      <a href="#" style="padding: 6px 12px; border-radius: 999px; border: 1px solid #4A4060; background: #282236; color: #F2EDF8; text-decoration: none; font-size: 13px; font-weight: 600;">▭ Проекты</a>
+      <a href="#" style="padding: 6px 12px; border-radius: 999px; border: 1px solid #372F47; color: #B4A8C8; text-decoration: none; font-size: 13px; font-weight: 500;">✦ Ассистент</a>
+      <button type="button" aria-label="Настройки" style="width: 32px; height: 32px; border-radius: 999px; border: 1px solid #372F47; background: transparent; color: #B4A8C8; font: 600 14px Inter, sans-serif;">⚙</button>
+    </div>
+  </header>
+
+  <main style="width: 1180px; margin: 0 auto; box-sizing: border-box; padding: 16px 0 32px; display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <h1 style="margin: 0; font-size: 30px; line-height: 36px; font-weight: 700; letter-spacing: -0.02em;">Проекты</h1>
+      <span style="width: 18px; height: 18px; border-radius: 50%; border: 1px solid #4A4060; color: #857A99; font-size: 11px; display: flex; align-items: center; justify-content: center;">i</span>
+      <button type="button" style="margin-left: auto; border: 1px solid #4A4060; padding: 7px 14px; border-radius: 999px; background: #282236; color: #F2EDF8; font: 600 13px Inter, sans-serif;">✦ Проект с ассистентом</button>
+      <button type="button" aria-label="Новый проект" style="width: 34px; height: 34px; border: 0; border-radius: 999px; background: #8B7CF6; color: #16131D; font: 700 16px Inter, sans-serif;">+</button>
+    </div>
+
+    <span style="font-size: 12px; font-weight: 600; color: #B4A8C8;">⚲ Закреплённые</span>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px;">
+      
+        <div style="display: flex; flex-direction: column;">
+          <div style="width: 46%; height: 12px; border-radius: 10px 10px 0 0; background: #E8B04A55;"></div>
+          <div style="box-sizing: border-box; height: 158px; padding: 16px; border-radius: 0 14px 14px 14px; background: linear-gradient(165deg,#E8B04A3A 0%,#E8B04A14 70%); border: 1px solid #E8B04A55; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="width: 22px; height: 22px; border-radius: 6px; background: #E8B04A; color: #16131D; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;">L</span>
+              <span style="font-size: 14px; font-weight: 700;">LifeOS</span>
+              <span style="margin-left: auto; font-size: 12px; color: #E8B04A;">⚲</span>
+            </div>
+            <span style="font-size: 12px; line-height: 17px; color: #CFC5DD;">Персональная платформа развития. Этап 1: Foundation, затем Core и Tutor.</span>
+            <div style="margin-top: auto; display: flex; align-items: center; gap: 6px;">
+              <span style="padding: 2px 7px; border-radius: 6px; background: rgba(238,138,69,0.22); color: #F5B48A; font-size: 11px; font-weight: 600;">2 срочно</span>
+              <span style="font-size: 11px; color: #B4A8C8;">9 задач</span>
+              <span style="margin-left: auto; font-size: 11px; color: #857A99;">2 ч назад</span>
+            </div>
+          </div>
+        </div>
+      
+        <div style="display: flex; flex-direction: column;">
+          <div style="width: 46%; height: 12px; border-radius: 10px 10px 0 0; background: #5B8DEF55;"></div>
+          <div style="box-sizing: border-box; height: 158px; padding: 16px; border-radius: 0 14px 14px 14px; background: linear-gradient(165deg,#5B8DEF3A 0%,#5B8DEF14 70%); border: 1px solid #5B8DEF55; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="width: 22px; height: 22px; border-radius: 6px; background: #5B8DEF; color: #16131D; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;">J</span>
+              <span style="font-size: 14px; font-weight: 700;">Поиск работы</span>
+              <span style="margin-left: auto; font-size: 12px; color: #5B8DEF;">⚲</span>
+            </div>
+            <span style="font-size: 12px; line-height: 17px; color: #CFC5DD;">Воронка откликов: Норвегия и remote EU, письма с ассистентом.</span>
+            <div style="margin-top: auto; display: flex; align-items: center; gap: 6px;">
+              <span style="padding: 2px 7px; border-radius: 6px; background: rgba(238,138,69,0.22); color: #F5B48A; font-size: 11px; font-weight: 600;">1 срочно</span>
+              <span style="font-size: 11px; color: #B4A8C8;">16 задач</span>
+              <span style="margin-left: auto; font-size: 11px; color: #857A99;">сегодня</span>
+            </div>
+          </div>
+        </div>
+      
+        <div style="display: flex; flex-direction: column;">
+          <div style="width: 46%; height: 12px; border-radius: 10px 10px 0 0; background: #8B7CF655;"></div>
+          <div style="box-sizing: border-box; height: 158px; padding: 16px; border-radius: 0 14px 14px 14px; background: linear-gradient(165deg,#8B7CF63A 0%,#8B7CF614 70%); border: 1px solid #8B7CF655; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="width: 22px; height: 22px; border-radius: 6px; background: #8B7CF6; color: #16131D; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;">N</span>
+              <span style="font-size: 14px; font-weight: 700;">Norwegian B1</span>
+              <span style="margin-left: auto; font-size: 12px; color: #8B7CF6;">⚲</span>
+            </div>
+            <span style="font-size: 12px; line-height: 17px; color: #CFC5DD;">Уроки, словарь и разговорная практика с Tutor.</span>
+            <div style="margin-top: auto; display: flex; align-items: center; gap: 6px;">
+              
+              <span style="font-size: 11px; color: #B4A8C8;">4 задачи</span>
+              <span style="margin-left: auto; font-size: 11px; color: #857A99;">вчера</span>
+            </div>
+          </div>
+        </div>
+      
+    </div>
+
+    <span style="font-size: 12px; font-weight: 600; color: #B4A8C8; padding-top: 6px;">Все проекты</span>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px;">
+      
+        <div style="display: flex; flex-direction: column;">
+          <div style="width: 46%; height: 12px; border-radius: 10px 10px 0 0; background: #4FBF8355;"></div>
+          <div style="box-sizing: border-box; height: 158px; padding: 16px; border-radius: 0 14px 14px 14px; background: linear-gradient(165deg,#4FBF833A 0%,#4FBF8314 70%); border: 1px solid #4FBF8355; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="width: 22px; height: 22px; border-radius: 6px; background: #4FBF83; color: #16131D; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;">Ф</span>
+              <span style="font-size: 14px; font-weight: 700;">Подушка 50 000 NOK</span>
+            </div>
+            <span style="font-size: 12px; line-height: 17px; color: #CFC5DD;">Финансовая цель, ручные замеры и бюджет.</span>
+            <div style="margin-top: auto; display: flex; align-items: center; gap: 6px;">
+              
+              <span style="font-size: 11px; color: #B4A8C8;">4 задачи</span>
+              <span style="margin-left: auto; font-size: 11px; color: #857A99;">3 дня назад</span>
+            </div>
+          </div>
+        </div>
+      
+        <div style="display: flex; flex-direction: column;">
+          <div style="width: 46%; height: 12px; border-radius: 10px 10px 0 0; background: #E5605E55;"></div>
+          <div style="box-sizing: border-box; height: 158px; padding: 16px; border-radius: 0 14px 14px 14px; background: linear-gradient(165deg,#E5605E3A 0%,#E5605E14 70%); border: 1px solid #E5605E55; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="width: 22px; height: 22px; border-radius: 6px; background: #E5605E; color: #16131D; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;">З</span>
+              <span style="font-size: 14px; font-weight: 700;">Зал 3 раза в неделю</span>
+            </div>
+            <span style="font-size: 12px; line-height: 17px; color: #CFC5DD;">Тренировки, привычки и сон.</span>
+            <div style="margin-top: auto; display: flex; align-items: center; gap: 6px;">
+              
+              <span style="font-size: 11px; color: #B4A8C8;">2 задачи</span>
+              <span style="margin-left: auto; font-size: 11px; color: #857A99;">неделю назад</span>
+            </div>
+          </div>
+        </div>
+      
+        <div style="display: flex; flex-direction: column;">
+          <div style="width: 46%; height: 12px; border-radius: 10px 10px 0 0; background: #56C2E655;"></div>
+          <div style="box-sizing: border-box; height: 158px; padding: 16px; border-radius: 0 14px 14px 14px; background: linear-gradient(165deg,#56C2E63A 0%,#56C2E614 70%); border: 1px solid #56C2E655; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="width: 22px; height: 22px; border-radius: 6px; background: #56C2E6; color: #16131D; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;">Ш</span>
+              <span style="font-size: 14px; font-weight: 700;">Шахматы 1500</span>
+            </div>
+            <span style="font-size: 12px; line-height: 17px; color: #CFC5DD;">Тактика каждый день и разбор партий.</span>
+            <div style="margin-top: auto; display: flex; align-items: center; gap: 6px;">
+              
+              <span style="font-size: 11px; color: #B4A8C8;">3 задачи</span>
+              <span style="margin-left: auto; font-size: 11px; color: #857A99;">5 дней назад</span>
+            </div>
+          </div>
+        </div>
+      
+        <div style="display: flex; flex-direction: column;">
+          <div style="width: 46%; height: 12px; border-radius: 10px 10px 0 0; background: #EE8A4555;"></div>
+          <div style="box-sizing: border-box; height: 158px; padding: 16px; border-radius: 0 14px 14px 14px; background: linear-gradient(165deg,#EE8A453A 0%,#EE8A4514 70%); border: 1px solid #EE8A4555; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="width: 22px; height: 22px; border-radius: 6px; background: #EE8A45; color: #16131D; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800;">Д</span>
+              <span style="font-size: 14px; font-weight: 700;">Переезд в новую квартиру</span>
+            </div>
+            <span style="font-size: 12px; line-height: 17px; color: #CFC5DD;">Договор, вещи, интернет, адрес в NAV.</span>
+            <div style="margin-top: auto; display: flex; align-items: center; gap: 6px;">
+              <span style="padding: 2px 7px; border-radius: 6px; background: rgba(238,138,69,0.22); color: #F5B48A; font-size: 11px; font-weight: 600;">3 срочно</span>
+              <span style="font-size: 11px; color: #B4A8C8;">11 задач</span>
+              <span style="margin-left: auto; font-size: 11px; color: #857A99;">2 дня назад</span>
+            </div>
+          </div>
+        </div>
+      
+      <a href="#" style="display: flex; flex-direction: column; text-decoration: none;">
+        <div style="height: 12px;"></div>
+        <div style="box-sizing: border-box; height: 158px; border-radius: 14px; border: 1.5px dashed #4A4060; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #B4A8C8; text-align: center; padding: 0 20px;">
+          <span style="font-size: 22px; line-height: 22px;">+</span>
+          <span style="font-size: 13px; font-weight: 600; color: #F2EDF8;">Новый проект</span>
+          <span style="font-size: 11px; color: #857A99;">Пустой или с ассистентом: опишите идею, он разобьёт её на этапы и задачи</span>
+        </div>
+      </a>
+    </div>
+  </main>
+</div>
+</div></body></html>

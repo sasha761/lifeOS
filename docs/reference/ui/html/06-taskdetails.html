@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru"><head>
+<!-- Эталон вёрстки LifeOS (Design System v2). Данные на макете примерные, в код их не переносить. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"><meta charset="utf-8">
+
+
+<style>
+body{margin:0;background:#16131D}
+a{color:#9D90F8}a:hover{color:#B8AEFA}
+</style>
+<style>body{margin:0;font-family:Inter,sans-serif}</style></head><body data-done="1"><div id="root">
+
+<div style="width: 1440px; height: 900px; box-sizing: border-box; background: #0F0D14; color: #F2EDF8; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; position: relative;">
+  <div style="position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: #16131D; opacity: 0.55;"></div>
+  <div style="position: relative; margin: 40px auto; width: 1160px; height: 820px; box-sizing: border-box; border-radius: 14px; background: #1F1A2A; border: 1px solid #4A4060; box-shadow: 0 24px 64px rgba(0,0,0,0.5); display: flex; flex-direction: column; overflow: hidden;">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #372F47;">
+      <span style="font-size: 12px; color: #B4A8C8;">LifeOS › Этап 1 · Foundation</span>
+      <div style="margin-left: auto; display: flex; gap: 4px; align-items: center;">
+        <button type="button" style="display: flex; align-items: center; gap: 6px; border: 1px solid rgba(79,191,131,0.5); padding: 6px 12px; border-radius: 999px; background: rgba(79,191,131,0.12); color: #8FDDB2; font: 600 13px Inter, sans-serif; margin-right: 6px;">✓ Выполнено</button>
+        <button type="button" aria-label="Закрепить" style="border: 0; width: 32px; height: 32px; border-radius: 8px; background: transparent; color: #B4A8C8; font: 600 14px Inter, sans-serif;">☆</button>
+        <button type="button" aria-label="Ещё" style="border: 0; width: 32px; height: 32px; border-radius: 8px; background: transparent; color: #B4A8C8; font: 600 14px Inter, sans-serif;">⋯</button>
+        <button type="button" aria-label="Закрыть" style="border: 0; width: 32px; height: 32px; border-radius: 8px; background: transparent; color: #B4A8C8; font: 500 18px Inter, sans-serif;">×</button>
+      </div>
+    </div>
+
+    <div style="flex-grow: 1; display: flex; min-height: 0;">
+      <section style="flex: 1.35 1 0; box-sizing: border-box; padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; border-right: 1px solid #372F47;">
+        <h1 style="margin: 0; font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.02em;">Схема БД модуля Tasks: projects, tasks, notes</h1>
+
+        <div style="display: grid; grid-template-columns: 130px minmax(0, 1fr); row-gap: 12px; column-gap: 16px; font-size: 13px; align-items: center;">
+          <span style="color: #B4A8C8;">Статус</span>
+          <span style="display: flex; gap: 6px; align-items: center;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #5B8DEF;"></span>В работе</span>
+          <span style="color: #B4A8C8;">Проект</span>
+          <span style="display: flex; gap: 6px; align-items: center;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #E8B04A;"></span>LifeOS</span>
+          <span style="color: #B4A8C8;">Срок</span>
+          <span>пт, 20 ноября</span>
+          <span style="color: #B4A8C8;">Запланировано</span>
+          <span>пн, 16 нояб · 14:00–17:00</span>
+          <span style="color: #B4A8C8;">Оценка</span>
+          <span>3 ч <span style="color: #857A99;">· факт 1 ч 10 мин</span></span>
+          <span style="color: #B4A8C8;">Приоритет</span>
+          <span style="color: #EE8A45; font-weight: 600;">Высокий</span>
+          <span style="color: #B4A8C8;">Метки</span>
+          <span style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <span style="padding: 3px 8px; border-radius: 6px; background: rgba(139,124,246,0.16); color: #C9C0FB; font-size: 12px; font-weight: 600;">backend</span>
+            <span style="padding: 3px 8px; border-radius: 6px; background: rgba(86,194,230,0.16); color: #9EDDF2; font-size: 12px; font-weight: 600;">drizzle</span>
+            <span style="padding: 3px 8px; border-radius: 6px; border: 1px dashed #4A4060; color: #857A99; font-size: 12px;">+ метка</span>
+          </span>
+        </div>
+
+        <div style="height: 1px; background: #372F47;"></div>
+        <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 12px; border: 1px solid #372F47; background: #1B1724;">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 600;">Описание</h2>
+          <p style="margin: 0; font-size: 14px; line-height: 22px; color: #DCD4E8;">Спроектировать таблицы модуля задач по §17.4 спеки. Все записи привязаны к user_id, удаление мягкое через deleted_at.</p>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px;">
+            <label style="display: flex; gap: 10px; align-items: center;"><input type="checkbox" checked="" style="accent-color: #4FBF83;"><span style="color: #857A99; text-decoration: line-through;">projects и tasks</span></label>
+            <label style="display: flex; gap: 10px; align-items: center;"><input type="checkbox" checked="" style="accent-color: #4FBF83;"><span style="color: #857A99; text-decoration: line-through;">labels и связи</span></label>
+            <label style="display: flex; gap: 10px; align-items: center;"><input type="checkbox" style="accent-color: #4FBF83;"><span>task_notes и task_resources</span></label>
+            <label style="display: flex; gap: 10px; align-items: center;"><input type="checkbox" style="accent-color: #4FBF83;"><span>тесты ownership</span></label>
+          </div>
+        </div>
+        <div style="margin-top: auto; font-size: 12px; color: #857A99;">Создано ассистентом из заметок созвона 16 нояб · изменено вами 2 ч назад</div>
+      </section>
+
+      <section style="flex: 1 1 0; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; background: #1B1724;">
+        <div style="display: flex; padding: 3px; gap: 2px; border-radius: 999px; background: #16131D; border: 1px solid #372F47;">
+          <button type="button" style="flex: 1 1 0; border: 0; padding: 7px 0; border-radius: 999px; background: #322B42; color: #F2EDF8; font: 600 13px Inter, sans-serif;">Заметки 3</button>
+          <button type="button" style="flex: 1 1 0; border: 0; padding: 7px 0; border-radius: 999px; background: transparent; color: #B4A8C8; font: 500 13px Inter, sans-serif;">Ресурсы 2</button>
+        </div>
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 12px; overflow: hidden;">
+          <div style="padding: 12px 14px; border-radius: 10px; background: #282236; border: 1px solid #372F47; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; gap: 8px; align-items: baseline;"><span style="font-size: 12px; font-weight: 600; color: #C9C0FB;">Ассистент</span><span style="font-size: 11px; color: #857A99;">16 нояб, 11:42</span></div>
+            <p style="margin: 0; font-size: 13px; line-height: 19px;">Из созвона: «оценку времени хранить в минутах, факт считать отдельно». Добавил в описание.</p>
+          </div>
+          <div style="padding: 12px 14px; border-radius: 10px; background: #282236; border: 1px solid #372F47; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; gap: 8px; align-items: baseline;"><span style="font-size: 12px; font-weight: 600;">Вы</span><span style="font-size: 11px; color: #857A99;">16 нояб, 14:20</span></div>
+            <p style="margin: 0; font-size: 13px; line-height: 19px;">sort_order делаем через fractional index, чтобы drag-and-drop не переписывал все строки.</p>
+          </div>
+          <div style="padding: 12px 14px; border-radius: 10px; background: #282236; border: 1px solid #372F47; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; gap: 8px; align-items: baseline;"><span style="font-size: 12px; font-weight: 600;">Вы</span><span style="font-size: 11px; color: #857A99;">16 нояб, 15:05</span></div>
+            <div style="display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: #1F1A2A; border: 1px solid #372F47;">
+              <span style="width: 28px; height: 28px; border-radius: 6px; background: rgba(91,141,239,0.16); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #5B8DEF;">MD</span>
+              <span style="display: flex; flex-direction: column;"><span style="font-size: 13px; font-weight: 600;">database-schema.md</span><span style="font-size: 11px; color: #857A99;">docs/architecture</span></span>
+            </div>
+          </div>
+        </div>
+        <label style="display: flex; flex-direction: column; gap: 8px;">
+          <span style="position: absolute; left: -9999px;">Новая заметка</span>
+          <textarea rows="3" placeholder="Новая заметка… (Markdown, перетащите файл)" style="box-sizing: border-box; resize: none; padding: 10px 12px; border-radius: 10px; border: 1px solid #372F47; background: #16131D; color: #F2EDF8; font: 400 13px Inter, sans-serif;"></textarea>
+        </label>
+        <button type="button" style="display: flex; align-items: center; gap: 8px; border: 1px solid #372F47; padding: 8px 12px; border-radius: 10px; background: #282236; color: #F2EDF8; font: 600 12px Inter, sans-serif;">+ Общие сведения<span style="margin-left: auto; color: #857A99; font-weight: 500;">ассистент соберёт контекст</span></button>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" style="border: 1px solid #4A4060; padding: 8px 12px; border-radius: 999px; background: transparent; color: #F2EDF8; font: 600 13px Inter, sans-serif;">✦ Ассистент</button>
+          <button type="button" style="margin-left: auto; border: 0; padding: 8px 14px; border-radius: 999px; background: #8B7CF6; color: #16131D; font: 600 13px Inter, sans-serif;">Добавить</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+</div></body></html>

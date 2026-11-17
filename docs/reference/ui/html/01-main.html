@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru"><head>
+<!-- Эталон вёрстки LifeOS (Design System v2). Данные на макете примерные, в код их не переносить. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"><meta charset="utf-8">
+
+
+<style>
+body{margin:0;background:#16131D}
+a{color:#9D90F8}a:hover{color:#B8AEFA}
+</style>
+<style>body{margin:0;font-family:Inter,sans-serif}</style></head><body data-done="1"><div id="root">
+
+<div style="width: 1440px; height: 1000px; box-sizing: border-box; padding: 56px 64px; background: #16131D; color: #F2EDF8; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; gap: 40px;">
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div style="font-size: 12px; font-weight: 600; color: #B4A8C8; letter-spacing: 0.02em;">LifeOS · Design tokens v0.1</div>
+    <h1 style="margin: 0; font-size: 40px; line-height: 48px; font-weight: 700; letter-spacing: -0.02em;">Тёмный рабочий интерфейс</h1>
+    <p style="margin: 0; font-size: 15px; line-height: 22px; color: #B4A8C8; max-width: 760px;">Почти чёрный фон с фиолетовым подтоном, поверхности на несколько тонов светлее, тонкие границы. Цвет только для смысла: статус, сфера, нагрузка.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px;">
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <h2 style="margin: 0; font-size: 17px; font-weight: 600;">Поверхности и текст</h2>
+      <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 72px; border-radius: 10px; background: #16131D; border: 1px solid #372F47;"></div><div style="font-size: 12px; font-weight: 600;">bg</div><div style="font-size: 12px; color: #B4A8C8;">#16131D</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 72px; border-radius: 10px; background: #1F1A2A; border: 1px solid #372F47;"></div><div style="font-size: 12px; font-weight: 600;">surface-1</div><div style="font-size: 12px; color: #B4A8C8;">#1F1A2A</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 72px; border-radius: 10px; background: #282236; border: 1px solid #372F47;"></div><div style="font-size: 12px; font-weight: 600;">surface-2</div><div style="font-size: 12px; color: #B4A8C8;">#282236</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 72px; border-radius: 10px; background: #322B42; border: 1px solid #372F47;"></div><div style="font-size: 12px; font-weight: 600;">surface-3</div><div style="font-size: 12px; color: #B4A8C8;">#322B42</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 72px; border-radius: 10px; background: #8B7CF6;"></div><div style="font-size: 12px; font-weight: 600;">accent</div><div style="font-size: 12px; color: #B4A8C8;">#8B7CF6</div></div>
+      </div>
+      <div style="display: flex; gap: 24px; align-items: baseline; padding: 16px; border-radius: 10px; background: #1F1A2A; border: 1px solid #372F47;">
+        <span style="font-size: 14px; font-weight: 600; color: #F2EDF8;">text #F2EDF8</span>
+        <span style="font-size: 14px; color: #B4A8C8;">text-2 #B4A8C8</span>
+        <span style="font-size: 14px; color: #857A99;">text-3 #857A99</span>
+        <span style="font-size: 14px; color: #B4A8C8;">border #372F47</span>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <h2 style="margin: 0; font-size: 17px; font-weight: 600;">Статусы воронки и нагрузки</h2>
+      <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px;">
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 72px; border-radius: 10px; background: #5B8DEF;"></div><div style="font-size: 12px; font-weight: 600;">blue</div><div style="font-size: 11px; color: #B4A8C8;">Найдено</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 72px; border-radius: 10px; background: #E8B04A;"></div><div style="font-size: 12px; font-weight: 600;">amber</div><div style="font-size: 11px; color: #B4A8C8;">Письмо готово</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 72px; border-radius: 10px; background: #EE8A45;"></div><div style="font-size: 12px; font-weight: 600;">orange</div><div style="font-size: 11px; color: #B4A8C8;">Отправлено</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 72px; border-radius: 10px; background: #E5605E;"></div><div style="font-size: 12px; font-weight: 600;">red</div><div style="font-size: 11px; color: #B4A8C8;">Ответили</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 72px; border-radius: 10px; background: #4FBF83;"></div><div style="font-size: 12px; font-weight: 600;">green</div><div style="font-size: 11px; color: #B4A8C8;">Интервью</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 72px; border-radius: 10px; background: #56C2E6;"></div><div style="font-size: 12px; font-weight: 600;">cyan</div><div style="font-size: 11px; color: #B4A8C8;">Встречи</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 72px; border-radius: 10px; background: #6E6582;"></div><div style="font-size: 12px; font-weight: 600;">gray</div><div style="font-size: 11px; color: #B4A8C8;">Архив</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px;">
+    <div style="display: flex; flex-direction: column; gap: 14px; padding: 24px; border-radius: 14px; background: #1F1A2A; border: 1px solid #372F47;">
+      <h2 style="margin: 0 0 4px; font-size: 17px; font-weight: 600;">Типографика · Inter</h2>
+      <div style="font-size: 26px; line-height: 32px; font-weight: 700; letter-spacing: -0.02em;">Задачи <span style="font-size: 12px; font-weight: 500; color: #B4A8C8; letter-spacing: 0;">display 26/32 · 700</span></div>
+      <div style="font-size: 17px; line-height: 24px; font-weight: 600;">План дня <span style="font-size: 12px; font-weight: 500; color: #B4A8C8;">h2 17/24 · 600</span></div>
+      <div style="font-size: 32px; line-height: 36px; font-weight: 700; font-variant-numeric: tabular-nums;">1 из 7 <span style="font-size: 12px; font-weight: 500; color: #B4A8C8;">metric 32/36 · tabular</span></div>
+      <div style="font-size: 14px; line-height: 20px; font-weight: 600;">Подготовить презентацию для онбординга <span style="font-size: 12px; font-weight: 500; color: #B4A8C8;">body 14/20</span></div>
+      <div style="font-size: 12px; line-height: 16px; font-weight: 500; color: #B4A8C8;">LifeOS · 1 ч 30 мин · до 18:00 — meta 12/16</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px; padding: 24px; border-radius: 14px; background: #1F1A2A; border: 1px solid #372F47;">
+      <h2 style="margin: 0 0 4px; font-size: 17px; font-weight: 600;">Компоненты</h2>
+      <div style="display: inline-flex; align-self: flex-start; padding: 3px; gap: 2px; border-radius: 999px; background: #16131D; border: 1px solid #372F47;">
+        <button type="button" style="border: 0; padding: 6px 14px; border-radius: 999px; background: #322B42; color: #F2EDF8; font: 600 13px Inter, sans-serif;">Сегодня</button>
+        <button type="button" style="border: 0; padding: 6px 14px; border-radius: 999px; background: transparent; color: #B4A8C8; font: 500 13px Inter, sans-serif;">Календарь</button>
+        <button type="button" style="border: 0; padding: 6px 14px; border-radius: 999px; background: transparent; color: #B4A8C8; font: 500 13px Inter, sans-serif;">Все задачи</button>
+        <button type="button" style="border: 0; padding: 6px 14px; border-radius: 999px; background: transparent; color: #B4A8C8; font: 500 13px Inter, sans-serif;">Корзина</button>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; background: #282236; border: 1px solid #372F47;">
+        <span style="width: 16px; height: 16px; border-radius: 50%; border: 2px solid #857A99; flex-shrink: 0;"></span>
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1;"><span style="font-size: 14px; font-weight: 600;">Разобрать заметки созвона</span><span style="font-size: 12px; color: #B4A8C8;">Работа · ~45 мин</span></div>
+        <span style="font-size: 12px; color: #B4A8C8; font-variant-numeric: tabular-nums;">11:00</span>
+      </div>
+      <div style="display: flex; gap: 16px; align-items: center;">
+        <div style="display: flex; gap: 3px;">
+          <span style="width: 14px; height: 8px; border-radius: 2px; background: #4FBF83;"></span><span style="width: 14px; height: 8px; border-radius: 2px; background: #4FBF83;"></span><span style="width: 14px; height: 8px; border-radius: 2px; background: #4FBF83;"></span><span style="width: 14px; height: 8px; border-radius: 2px; background: #4FBF83;"></span><span style="width: 14px; height: 8px; border-radius: 2px; background: #E8B04A;"></span><span style="width: 14px; height: 8px; border-radius: 2px; background: #E8B04A;"></span><span style="width: 14px; height: 8px; border-radius: 2px; background: #E8B04A;"></span><span style="width: 14px; height: 8px; border-radius: 2px; background: #E5605E;"></span><span style="width: 14px; height: 8px; border-radius: 2px; background: #E5605E;"></span><span style="width: 14px; height: 8px; border-radius: 2px; background: #E5605E;"></span>
+        </div>
+        <span style="font-size: 12px; color: #B4A8C8;">LoadMeter · 10 делений</span>
+        <button type="button" style="margin-left: auto; border: 1px solid #4A4060; padding: 6px 12px; border-radius: 8px; background: #282236; color: #F2EDF8; font: 600 13px Inter, sans-serif;">Разгрузить</button>
+        <button type="button" style="border: 0; padding: 7px 14px; border-radius: 8px; background: #8B7CF6; color: #16131D; font: 600 13px Inter, sans-serif;">Применить</button>
+      </div>
+      <div style="font-size: 12px; color: #B4A8C8;">Радиусы 6 / 10 / 14 / pill · отступы кратны 4 · motion 120 / 180 / 240 мс</div>
+    </div>
+  </div>
+</div>
+</div></body></html>

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru"><head>
+<!-- Эталон вёрстки LifeOS (Design System v2). Данные на макете примерные, в код их не переносить. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"><meta charset="utf-8">
+
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#16131D}
+a{color:#9D90F8;text-decoration:none}
+.app{position:relative;background:#16131D;color:#F2EDF8;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden;font-size:13px;line-height:1.45}
+.top{height:56px;padding:0 28px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.logo{width:26px;height:26px;border-radius:8px;background:#8B7CF6;color:#16131D;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.brand{font-size:14px;font-weight:700}
+.crumb{font-size:13px;color:#B4A8C8}
+.nav{margin-left:auto;display:flex;gap:8px;align-items:center}
+.pill{padding:6px 12px;border-radius:999px;border:1px solid #372F47;color:#B4A8C8;font-size:13px;font-weight:500;white-space:nowrap}
+.pill.on{border-color:#4A4060;background:#282236;color:#F2EDF8;font-weight:600}
+.ib{width:32px;height:32px;border-radius:999px;border:1px solid #372F47;color:#B4A8C8;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.ib.on{border-color:#4A4060;background:#282236;color:#F2EDF8}
+.wrap{width:1180px;margin:0 auto;padding:16px 0 32px;display:flex;flex-direction:column;gap:16px}
+.h1{margin:0;font-size:30px;line-height:36px;font-weight:700;letter-spacing:-0.02em}
+.h2{margin:0;font-size:16px;line-height:22px;font-weight:700}
+.h3{margin:0;font-size:14px;font-weight:700}
+.sub{font-size:14px;color:#B4A8C8}
+.sub b{color:#F2EDF8}
+.mut{color:#B4A8C8}.t3{color:#857A99}.fg{color:#F2EDF8}
+.sm{font-size:12px}.xs{font-size:11px}.b{font-weight:600}.bb{font-weight:700}
+.num{font-variant-numeric:tabular-nums}
+.big{font-size:30px;line-height:34px;font-weight:800;font-variant-numeric:tabular-nums}
+.card{background:#1F1A2A;border:1px solid #372F47;border-radius:16px;padding:18px 20px}
+.card.tight{padding:12px 14px;border-radius:12px}
+.s2{background:#282236}.s3{background:#322B42}
+.row{display:flex;align-items:center;gap:10px}
+.col{display:flex;flex-direction:column;gap:10px}
+.gap4{gap:4px}.gap6{gap:6px}.gap14{gap:14px}.gap18{gap:18px}
+.grow{flex:1 1 0;min-width:0}
+.ml{margin-left:auto}
+.wrapx{flex-wrap:wrap}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.seg{display:inline-flex;padding:3px;gap:2px;border-radius:999px;background:#16131D;border:1px solid #372F47;flex-shrink:0}
+.seg span{padding:4px 11px;border-radius:999px;color:#B4A8C8;font-size:12px;font-weight:500;white-space:nowrap}
+.seg .on{background:#322B42;color:#F2EDF8;font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;border:1px solid #4A4060;background:#282236;color:#F2EDF8;font-size:13px;font-weight:600;white-space:nowrap}
+.btn.p{background:#8B7CF6;border-color:#8B7CF6;color:#16131D}
+.btn.g{background:transparent;border-color:#372F47;color:#B4A8C8}
+.btn.d{background:transparent;border-color:rgba(229,96,94,.55);color:#F09896}
+.btn.s{padding:4px 10px;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#322B42;color:#CFC5DD;white-space:nowrap}
+.c-v{background:rgba(139,124,246,.18);color:#C3B9FB}.c-g{background:rgba(79,191,131,.16);color:#8FDDB2}.c-b{background:rgba(91,141,239,.18);color:#A9C3F6}.c-a{background:rgba(232,176,74,.18);color:#F0CD8A}.c-o{background:rgba(238,138,69,.2);color:#F5B48A}.c-r{background:rgba(229,96,94,.18);color:#F09896}.c-c{background:rgba(86,194,230,.16);color:#9DDCF1}.c-x{background:transparent;border:1px solid #4A4060;color:#B4A8C8}
+.src{font-size:11px;color:#B4A8C8}
+.src:before{content:"◉ ";color:#857A99}
+.bar{height:6px;border-radius:999px;background:#322B42;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:#8B7CF6}
+.dom{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.dom.sm{width:22px;height:22px;border-radius:7px;font-size:11px}
+.d-lang{background:rgba(139,124,246,.2);color:#B5AAFA}.d-fin{background:rgba(79,191,131,.18);color:#8FDDB2}.d-work{background:rgba(91,141,239,.2);color:#A9C3F6}.d-proj{background:rgba(232,176,74,.2);color:#F0CD8A}.d-skill{background:rgba(86,194,230,.18);color:#9DDCF1}.d-health{background:rgba(229,96,94,.2);color:#F09896}
+.inp{min-height:38px;border-radius:10px;border:1px solid #372F47;background:#16131D;padding:9px 12px;display:flex;align-items:center;color:#F2EDF8;font-size:13px}
+.inp.ph{color:#857A99}
+.inp.focus{border-color:#9D90F8;box-shadow:0 0 0 3px rgba(157,144,248,.25)}
+.lbl{font-size:12px;font-weight:600;color:#B4A8C8}
+.kbd{padding:1px 6px;border-radius:6px;border:1px solid #4A4060;background:#282236;font-size:11px;color:#CFC5DD;font-family:ui-monospace,monospace}
+.hr{height:1px;background:#372F47;flex-shrink:0}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.chk{width:18px;height:18px;border-radius:50%;border:1.5px solid #4A4060;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#16131D}
+.chk.done{background:#4FBF83;border-color:#4FBF83}
+.chk.half{background:linear-gradient(90deg,#E8B04A 50%,transparent 50%);border-color:#E8B04A}
+.sel{border-color:#8B7CF6!important;background:#241E33!important}
+.dash{border:1.5px dashed #4A4060;border-radius:14px;background:transparent}
+.note{padding:10px 12px;border-radius:10px;background:#282236;border:1px solid #372F47;font-size:12px;color:#CFC5DD}
+.warn{padding:10px 12px;border-radius:10px;background:rgba(232,176,74,.10);border:1px solid rgba(232,176,74,.35);font-size:12px;color:#F0CD8A}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:11px;font-weight:600;color:#B4A8C8;padding:8px 10px;border-bottom:1px solid #372F47}
+.tbl td{padding:10px;border-bottom:1px solid #2C2539;vertical-align:middle}
+.bubble{padding:10px 14px;border-radius:14px;max-width:560px;font-size:13px;line-height:1.5}
+.me{align-self:flex-end;background:#322B42;border-bottom-right-radius:4px}
+.bot{align-self:flex-start;background:#1F1A2A;border:1px solid #372F47;border-bottom-left-radius:4px}
+.cap{font-size:11px;font-weight:600;color:#B4A8C8;letter-spacing:.02em}
+</style>
+<style>body{margin:0;font-family:Inter,sans-serif}</style></head><body data-done="1"><div id="root">
+
+<div class="app" style="width: 1440px; height: 900px;">
+<header class="top"><span class="logo">L</span><span class="brand">LifeOS</span><span class="crumb">/ Ассистент</span><nav class="nav"><a href="#" class="pill">◎ Обзор</a><a href="#" class="pill">◇ Цели</a><a href="#" class="pill">Сферы ▾</a><a href="#" class="pill">Aa Языки</a><a href="#" class="pill on">✦ Ассистент</a><a href="#" class="ib" aria-label="Настройки">⚙</a></nav></header>
+<main class="wrap" style="height:844px">
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;height:100%">
+    <section class="card col" style="padding:0;overflow:hidden">
+      <div class="row" style="padding:14px 18px;border-bottom:1px solid #372F47">
+        <span class="dom sm" style="background:rgba(139,124,246,.2);color:#B5AAFA">✦</span><span class="h3">Ассистент LifeOS</span>
+        <span class="sm mut">знает цели, активность и прогресс по языкам</span>
+        <div class="ml seg"><span class="on">Ассистент</span><span>Tutor</span></div>
+      </div>
+      <div class="col gap14" style="padding:18px;flex:1;overflow:hidden">
+        <div class="bubble me">Сколько я занимался норвежским за неделю?</div>
+        <div class="bubble bot col gap6">
+          <span>За 11–17 ноября: <b>2 ч 40 мин</b> активной практики в 5 из 7 дней, 2 завершённых урока, 38 новых слов.</span>
+          <span class="src">данные: get_learning_progress · Norwegian · 11–17.11</span>
+        </div>
+        <div class="bubble me">Создай финансовую цель 50 000 NOK и добавь замер 12 000</div>
+        <div class="bubble bot col gap14" style="max-width:600px">
+          <span>Вот что я предлагаю сделать. Ничего не изменится, пока вы не подтвердите.</span>
+          <div class="card tight s2 col gap6">
+            <div class="row"><span class="chip c-g">Создать цель</span><span class="b">Накопить 50 000 NOK</span></div>
+            <span class="sm mut">Финансы · увеличить до значения · старт 0 NOK · цель 50 000 NOK · срок не указан</span>
+          </div>
+          <div class="card tight s2 col gap6">
+            <div class="row"><span class="chip c-b">Добавить замер</span><span class="b">12 000 NOK</span></div>
+            <span class="sm mut">к цели «Накопить 50 000 NOK» · 17.11.2026 · источник: ручной ввод</span>
+          </div>
+          <div class="row"><a href="#" class="btn p">Подтвердить</a><a href="#" class="btn">Изменить</a><a href="#" class="btn g">Отклонить</a></div>
+        </div>
+        <div class="row xs mut" style="justify-content:center">✓ Подтверждено 17.11 в 19:42 · записано в журнал действий</div>
+        <div class="bubble bot">Готово. Цель создана, прогресс 24%: 12 000 из 50 000 NOK. Хотите поставить срок?</div>
+      </div>
+      <div class="row" style="padding:12px 14px;border-top:1px solid #372F47">
+        <div class="inp ph grow">Спросите о целях и прогрессе или попросите что-то изменить…</div><a href="#" class="btn p">Отправить</a>
+      </div>
+    </section>
+    <aside class="col gap14">
+      <div class="card col">
+        <span class="h3">Что умеет ассистент</span>
+        <div class="col gap6 sm">
+          <span>✓ Отвечать о целях и прогрессе только по данным LifeOS</span>
+          <span>✓ Создавать и менять цели и замеры после вашего подтверждения</span>
+          <span>✓ Переключать на Tutor для практики языка</span>
+          <span class="mut">✕ Не оценивает уроки, это делает Tutor</span>
+          <span class="mut">✕ Не меняет данные без подтверждения</span>
+        </div>
+      </div>
+      <div class="card col">
+        <div class="row"><span class="h3">Последние действия</span><span class="ml src">журнал</span></div>
+        <div class="row sm"><span class="mut num" style="width:48px">19:42</span><span class="grow">Цель и замер 12 000 NOK</span><span class="chip c-g">подтверждено</span></div>
+        <div class="hr"></div>
+        <div class="row sm"><span class="mut num" style="width:48px">вчера</span><span class="grow">Срок цели «20 занятий»</span><span class="chip">отклонено</span></div>
+        <div class="hr"></div>
+        <div class="row sm"><span class="mut num" style="width:48px">14.11</span><span class="grow">Замер «Зал»: 2 из 3</span><span class="chip c-g">подтверждено</span></div>
+      </div>
+      <div class="card col">
+        <span class="h3">Примеры</span>
+        <div class="col gap6"><span class="chip c-x">Что мне сделать сегодня по целям?</span><span class="chip c-x">Покажи цели без замеров больше месяца</span><span class="chip c-x">Перенеси срок цели по шахматам на март</span></div>
+      </div>
+    </aside>
+  </div>
+</main>
+</div>
+</div></body></html>
