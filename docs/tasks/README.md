@@ -34,6 +34,7 @@
 | 9 | [LFS-204](LFS-204.md) | Dashboard of six domains |
 | 9a | [LFS-212](LFS-212.md) | UI-kit and mockup comparison |
 | 10 | [LFS-209](LFS-209.md) | E2E, security, acceptance |
+| 10a | [LFS-213](LFS-213.md) | Stage 2 page layout per mockups |
 
 Локальный статус 2026-11-15: LFS-202 проверена повторно (36 Web integration
 tests); LFS-203 выполнена, evidence — в [её отчёте](LFS-203.md#результат-lfs-203--2026-11-15).
@@ -59,4 +60,6 @@ integration + 16 Playwright desktop/mobile; без миграций и изме�
 Hosted CI: LFS-212 — PASS на PR #2, LFS-209 — PASS на PR #3.
 LFS-209 выполнена 2026-11-17: [E2E, security и приёмка Stage 2](LFS-209.md#результат-lfs-209--2026-11-17),
 [чек-лист приёмки](STAGE-02-ACCEPTANCE.md) заполнен; 524 unit + 140 PostgreSQL integration + 22 Playwright desktop/mobile; без миграций и изменений API/UI.
-Очередь Stage 2 закрыта. Stage 3 начинается только после решения владельца по чек-листу приёмки.
+2026-11-17 по сравнению с макетами добавлена LFS-213 (компоновка страниц Stage 2); она вставлена перед Stage 3.
+Следующая задача по очереди — LFS-213; она не начата. Stage 3 начинается только после решения владельца по
+чек-листу приёмки.
