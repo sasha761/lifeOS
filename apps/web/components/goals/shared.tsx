@@ -13,6 +13,8 @@ import type { GoalFieldErrors } from "../../lib/goal-form-input.ts";
 
 export type DomainChoice = { key: DomainKey; label: string };
 export const inputClass = "field-control";
+/** Native <progress> painted with Design System v2 tokens (Chromium ignores accent-color here). */
+export const progressClass = "h-2 w-full min-w-0 appearance-none overflow-hidden rounded-full bg-surface-3 [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-surface-3 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-primary";
 function signIn() { window.location.assign(`/auth/sign-in?next=${encodeURIComponent(window.location.pathname + window.location.search)}`); }
 export function useGoalData<T extends z.ZodType>(url: string, schema: T) {
   const [data, setData] = useState<z.infer<T> | null>(null);
@@ -91,7 +93,7 @@ export function GoalProgressView({ value, preferences, compact = false }: { valu
       <p className="mt-2 text-sm leading-6 text-muted-foreground">Добавьте первое измерение. Начальное значение само по себе не подтверждает прогресс.</p>
       <p className="mt-3 wrap-anywhere text-sm">Целевое значение: <strong>{formatted(goal.target)}</strong></p></>
       : <><p className={`${compact ? "text-xl" : "text-[2rem] leading-9"} wrap-anywhere font-bold tracking-[-0.02em] tabular-nums`} data-testid="goal-values">{formatted(progress.current)} <span className="text-base font-normal text-muted-foreground">/ {formatted(goal.target)}</span></p>
-        <div className="mt-4 flex items-center gap-3"><progress max={100} value={progress.progressPercent ?? 0} aria-label="Прогресс к цели" className="h-2 w-full min-w-0 appearance-none overflow-hidden rounded-full bg-surface-3 [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-surface-3 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-primary" />
+        <div className="mt-4 flex items-center gap-3"><progress max={100} value={progress.progressPercent ?? 0} aria-label="Прогресс к цели" className={progressClass} />
           <span className="shrink-0 text-sm font-semibold tabular-nums" data-testid="goal-percent">{progress.progressPercent === null ? "—" : formatGoalPercent(progress.progressPercent, preferences)}</span></div>
         <p className="mt-3 text-xs leading-5 text-muted-foreground">Источник: ручное измерение · самоотчёт{progress.provenance && <> · <time dateTime={progress.provenance.measuredAt}>{formatDateTime(new Date(progress.provenance.measuredAt), preferences)}</time></>}</p></>}
     {!compact && <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-3"><div><dt className="text-muted-foreground">Начальное значение</dt><dd className="mt-1 wrap-anywhere font-medium">{formatted(goal.baseline)}</dd></div>

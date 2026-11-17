@@ -23,8 +23,13 @@ route group `(telegram)` сама по себе не добавляет сегм
   формы аккаунта (LFS-201) через Better Auth client, валидация `@lifeos/contracts`,
   ошибки в `role=alert`, защита от повторной отправки.
 - `/dashboard`, `/goals`, `/settings`: только с сессией — `requirePageSession()`/`requirePageUser()`
-  на странице и оптимистичный `proxy.ts` (307 гостю без cookie). Dashboard пока
-  без сводных данных; `/settings` (LFS-202) показывает и меняет timezone/locale.
+  на странице и оптимистичный `proxy.ts` (307 гостю без cookie). `/settings`
+  (LFS-202) показывает и меняет timezone/locale.
+- LFS-204: `/dashboard` — приветствие (RSC) и `components/dashboard/dashboard-view.tsx`,
+  который читает `GET /api/v1/dashboard`: «Сегодня» (активные цели со сроком,
+  просрочено/сегодня/дата в timezone пользователя), «Последние действия» из аудита и
+  шесть карточек сфер с точными счётчиками и до 5 целями. Пустая сфера — «Нет целей»
+  и CTA, без 0%. Подписи и классификация сроков — `lib/dashboard-presentation.ts`.
 - LFS-208: `/goals` — фильтры по сфере/статусу и cursor pages, `/goals/new` —
   создание, `/goals/[id]` — прогресс, metadata edit, archive, история и
   add/edit/delete измерений. Каждая страница проверяет сессию; данные и все

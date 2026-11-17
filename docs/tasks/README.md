@@ -32,6 +32,7 @@
 | 8 | [LFS-208](LFS-208.md) | Goals UI |
 | 8a | [LFS-211](LFS-211.md) | Design System v2: dark, Inter, top bar |
 | 9 | [LFS-204](LFS-204.md) | Dashboard of six domains |
+| 9a | [LFS-212](LFS-212.md) | UI-kit and mockup comparison |
 | 10 | [LFS-209](LFS-209.md) | E2E, security, acceptance |
 
 Локальный статус 2026-11-15: LFS-202 проверена повторно (36 Web integration
@@ -49,4 +50,7 @@ LFS-208 выполнена 2026-11-16: [UI целей и измерений](LFS
 LFS-211 выполнена 2026-11-17: [Design System v2](LFS-211.md#результат-lfs-211--2026-11-17),
 ADR-011 Accepted, Inter 5.3.0 self-hosted; 477 unit + 135 PostgreSQL integration + 10 Playwright
 desktop/mobile; без миграций и изменений API.
-Следующая задача по очереди — LFS-204; она не начата. Hosted CI отдельно не запускался.
+LFS-204 выполнена 2026-11-17: [Dashboard шести сфер](LFS-204.md#результат-lfs-204--2026-11-17),
+`GET /api/v1/dashboard`; 497 unit + 139 PostgreSQL integration + 14 Playwright desktop/mobile;
+без миграций.
+Следующая задача по очереди — LFS-212 (вставлена перед LFS-209); она не начата. Hosted CI отдельно не запускался.

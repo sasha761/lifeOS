@@ -117,12 +117,13 @@ async function main(): Promise<void> {
       assert.equal(preferences.status, 401);
       assert.deepEqual(userPreferencesResponseSchema.parse(await preferences.json()).errors.map((error) => error.code), ["UNAUTHORIZED"]);
     }
-    stage = "production goals API auth guards";
+    stage = "production goals and dashboard API auth guards";
     const resourceId = "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc";
     for (const [method, path] of [["GET", "/api/v1/goals"], ["POST", "/api/v1/goals"],
       ["GET", `/api/v1/goals/${resourceId}`], ["PATCH", `/api/v1/goals/${resourceId}`],
       ["GET", `/api/v1/goals/${resourceId}/measurements`], ["POST", `/api/v1/goals/${resourceId}/measurements`],
-      ["PATCH", `/api/v1/goal-measurements/${resourceId}`], ["DELETE", `/api/v1/goal-measurements/${resourceId}`]]) {
+      ["PATCH", `/api/v1/goal-measurements/${resourceId}`], ["DELETE", `/api/v1/goal-measurements/${resourceId}`],
+      ["GET", "/api/v1/dashboard"]]) {
       const denied = await fetch(base + path, { method, signal: AbortSignal.timeout(5_000) });
       assert.equal(denied.status, 401);
       assert.equal(denied.headers.get("cache-control"), "no-store");

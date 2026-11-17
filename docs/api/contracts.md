@@ -393,6 +393,27 @@ timezone/locale и существующий `formatDateTime` (IANA/DST, fallback
 Решения и ограничения — [ADR-010](../adr/010-goals-api-progress.md), результаты —
 [LFS-207](../tasks/LFS-207.md).
 
+## Dashboard сфер (LFS-204)
+
+`GET /api/v1/dashboard` — read model владельца сессии. Гость и поддельная
+сессия — 401; любой query (включая `user_id`) — 400 VALIDATION_ERROR; ответ
+no-store в общем envelope. Владелец берётся только из verified Actor.
+
+`Dashboard` (`dashboardSchema`, strict):
+
+| Поле | Содержимое |
+|---|---|
+| `domains` | ровно 6 сфер в порядке `DOMAIN_KEYS`: `{ key, activeCount, archivedCount, goals }`. `goals` — до 5 (`DASHBOARD_GOALS_PER_DOMAIN`) новейших **активных** целей сферы в формате `GoalDetails`, тот же DTO и расчёт, что `GET /api/v1/goals/:goalId`. Счётчики точные, даже если целей больше лимита. Процента сферы, Life Score или «уровня» нет |
+| `today.dueGoals` | до 8 (`DASHBOARD_DUE_GOALS_LIMIT`) активных целей со сроком, ближайшие первыми (включая просроченные), `GoalDetails` |
+| `activity` | до 10 (`DASHBOARD_ACTIVITY_LIMIT`) новейших событий `activity_events` владельца: `{ id, type, occurredAt, source, domainKey, goal: { id, title, status }, measurement }`. `measurement` — `{ value, unit, unitLabel }` только у `goal_measurement.*` (для удаления — значение до удаления), иначе null. Title — текущий из goals: audit не хранит названия (ADR-008); заметки и before/after цели не выдаются |
+
+Пустая сфера: `activeCount=0`, `goals=[]`; UI показывает «Нет целей» и CTA,
+без 0%. Цель без измерений сохраняет `progressPercent=null` и
+«Недостаточно данных». Чтение — один READ ONLY REPEATABLE READ snapshot с
+фиксированным числом owner-scoped SQL-запросов (без запроса на цель), как
+GoalsReader ([ADR-010](../adr/010-goals-api-progress.md)); snapshots,
+materialized views и background projections не используются.
+
 ## Официальные API
 
 Использованы [Zod 4 schemas](https://zod.dev/api),

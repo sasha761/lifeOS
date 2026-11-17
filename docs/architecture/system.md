@@ -73,7 +73,8 @@ NestJS/Prisma, микросервисы или другой стек требу�
 | `/api/auth/*` | `apps/web/app/api/auth/[...all]/route.ts` | Better Auth: sign-up/sign-in/sign-out/session/password reset |
 | `/api/v1/me` | `apps/web/app/api/v1/me/route.ts` | Текущий пользователь в envelope; 401 без сессии |
 | `/auth/sign-in`, `/auth/sign-up`, `/auth/forgot-password`, `/auth/reset-password` | `apps/web/app/(auth)/auth/*` | Формы через Better Auth client; валидация `@lifeos/contracts` |
-| `/dashboard`, `/goals` | `apps/web/app/(web)/dashboard`, `goals` | Только с сессией: `requirePageUser()` на странице + оптимистичный `proxy.ts` (307 гостю); честные заглушки без данных |
+| `/dashboard`, `/goals` | `apps/web/app/(web)/dashboard`, `goals` | Только с сессией: `requirePageUser()`/`requirePageSession()` на странице + оптимистичный `proxy.ts` (307 гостю). `/dashboard` — шесть сфер, сроки и последние действия (LFS-204) |
+| `/api/v1/dashboard` | `apps/web/app/api/v1/dashboard/route.ts` | Read model Dashboard владельца; 401 без сессии, 400 на любой query |
 | Неизвестный URL | `apps/web/app/not-found.tsx` | HTML 404 |
 
 Единственный root layout — `app/layout.tsx`; `(web)` и `(telegram)` выбирают
@@ -151,6 +152,17 @@ LFS-208: RSC pages `/goals`, `/goals/new`, `/goals/[id]` проверяют се
 progress; exact decimal и account-timezone представление отделены от domain.
 Mutation state удерживает один key/body при неопределённом ответе, не создаёт
 browser persistence личных payload. Новый backend/runtime/DDL не вводится.
+
+LFS-204: `createDashboardReader` (domain) строит Dashboard из реестра
+`LIFE_DOMAINS`, общего `goalDetailsFromRecord` (тот же GoalDetails, что у
+GoalsReader) и нормализованных `activity_events`; чужие события скрываются,
+чужая цель от адаптера — NOT_FOUND. DB `createDashboardReadRepository` читает
+один repeatable-read snapshot: counts по сфере/статусу, до 5 новейших активных
+целей на сферу (`row_number() over (partition by domain_key)`), ближайшие сроки,
+общий трёхзапросный summary целей и события с JOIN на цель владельца. Число
+запросов фиксировано и не зависит от числа целей. `/dashboard` — RSC с
+проверкой сессии и Client Component, читающий `GET /api/v1/dashboard`
+(loading/error/retry/empty). Миграций, projection и очереди нет.
 
 ## Проверка и handoff
 

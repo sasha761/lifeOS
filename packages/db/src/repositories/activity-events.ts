@@ -6,7 +6,7 @@ import type { LifeosDatabase } from "../client.ts";
 import { ownedBy } from "../ownership.ts";
 import { activityEvents } from "../schema/activity-events.ts";
 
-function fromRow(row: typeof activityEvents.$inferSelect): ActivityEvent {
+export function toActivityEvent(row: typeof activityEvents.$inferSelect): ActivityEvent {
   const draft = activityEventDraftSchema.safeParse({ goal_id: row.goalId, domain_key: row.domainKey,
     target_id: row.targetId, target_type: row.targetType, event_type: row.eventType, schema_version: row.schemaVersion, payload: row.payload });
   const metadata = activityEventMetadataSchema.safeParse({ id: row.id, user_id: row.userId, source: row.source,
@@ -19,13 +19,13 @@ export function createActivityEventsRepository(database: Pick<LifeosDatabase, "s
     async find(actor, id) {
       if (!goalIdSchema.safeParse(id).success) return null;
       const [row] = await database.select().from(activityEvents).where(ownedBy(activityEvents.userId, actor, eq(activityEvents.id, id))).limit(1);
-      return row ? fromRow(row) : null;
+      return row ? toActivityEvent(row) : null;
     },
     async listForGoal(actor, goalId) {
       if (!goalIdSchema.safeParse(goalId).success) return [];
       const rows = await database.select().from(activityEvents).where(ownedBy(activityEvents.userId, actor, eq(activityEvents.goalId, goalId)))
         .orderBy(desc(activityEvents.occurredAt), desc(activityEvents.id)).limit(100);
-      return rows.map(fromRow);
+      return rows.map(toActivityEvent);
     },
   };
 }

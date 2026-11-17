@@ -16,7 +16,10 @@ LFS-206 добавила ручные измерения, историю и вы
 LFS-207 открыла защищённый HTTP API целей/измерений и точный расчёт прогресса
 ([ADR-010](docs/adr/010-goals-api-progress.md)).
 LFS-208 добавила Web UI целей и ручных измерений: список, создание, детали,
-исправление истории и архив. Telegram SDK и AI ещё не реализованы.
+исправление истории и архив. LFS-211 перевела UI на Design System v2
+([ADR-011](docs/adr/011-design-system-v2.md)). LFS-204 добавила Dashboard шести
+сфер: точные счётчики, прогресс конкретных целей, сроки и последние действия
+из аудита — без общего процента. Telegram SDK и AI ещё не реализованы.
 
 LFS-101–109 проверены по [листу приёмки](docs/tasks/STAGE-01-ACCEPTANCE.md).
 Локальная полная цепочка проходит; hosted GitHub Actions, visual/keyboard/mobile
@@ -197,7 +200,7 @@ pnpm dev
 - `/` — обзор и шесть сфер из кодового реестра без личных данных.
 - `/domains/languages`, `/domains/finance`, `/domains/work`, `/domains/projects`, `/domains/skills`, `/domains/health` — страницы сфер: общие ручные цели предусмотрены, редактор и специализированные модули появятся позже. Неизвестный ключ — 404.
 - `/auth/sign-in`, `/auth/sign-up`, `/auth/forgot-password`, `/auth/reset-password` — аккаунт.
-- `/dashboard` — кабинет после входа; сводка сфер появится отдельно.
+- `/dashboard` — кабинет после входа: шесть сфер с целями и прогрессом, сроки и последние действия (LFS-204).
 - `/goals`, `/goals/new`, `/goals/:id` — защищённый список, создание и детали;
   ручные измерения, исправление/удаление с подтверждением, metadata и архив.
 - `/settings` — часовой пояс и язык/формат дат текущего пользователя (LFS-202), только после входа.
@@ -206,6 +209,7 @@ pnpm dev
 - `/api/v1/me` — текущий пользователь; 401 без сессии.
 - `/api/v1/me/preferences` — `GET`/`PATCH` своих `timezone`/`locale`; 401 без сессии, 400 для невалидных значений и `userId` в body.
 - `/api/v1/goals` — `GET` списка с прогрессом, `POST` ручной цели; `/api/v1/goals/:goalId` — `GET`/`PATCH` metadata или archive.
+- `/api/v1/dashboard` — `GET` read model Dashboard владельца; [DTO](docs/api/contracts.md#dashboard-сфер-lfs-204).
 - `/api/v1/goals/:goalId/measurements` — `GET` истории с cursor/limit, `POST` измерения; `/api/v1/goal-measurements/:measurementId` — `PATCH`/`DELETE`. Все записи требуют `Idempotency-Key`; [DTO и примеры](docs/api/contracts.md#http-целей-и-прогресс-lfs-207).
 
 Для локального `MAIL_TRANSPORT=outbox` используйте `pnpm dev`. Команда `start`
@@ -294,10 +298,10 @@ git status. Сначала контракт/типы → реализация �
 
 Stage 2 выполняется по [STAGE-02-README](docs/tasks/STAGE-02-README.md): аккаунты,
 preferences/ownership, реестр сфер, ручные цели, измерения и аудит реализованы.
-Следующая задача — LFS-204 (Dashboard сфер); API, прогресс и UI целей реализованы.
+API, прогресс, UI целей и Dashboard сфер реализованы; следующая задача — LFS-209 (E2E, security, приёмка).
 При обновлении другой локальной копии примените `pnpm db:migrate`
-(актуальная миграция `0005_goal_measurements`). Dashboard сфер ещё не
-реализован; нет фиктивного общего процента жизни. Каждый
+(актуальная миграция `0005_goal_measurements`). Dashboard показывает только
+реальные цели и измерения; фиктивного общего процента жизни нет. Каждый
 следующий LFS-ID начинается только после решения пользователя.
 Текущие PASS/NOT RUN и необходимые ручные действия —
 [список задач](docs/tasks/README.md) и отчёты соответствующих LFS-ID.

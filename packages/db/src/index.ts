@@ -13,3 +13,4 @@ export * as schema from "./schema/index.ts";
 // Migrations are a separate entry point (@lifeos/db/migrations): runtime consumers such as the
 // Next.js bundle must not pull in the migrator or the SQL folder.
 export { createGoalsReadRepository } from "./repositories/goals-reader.ts";
+export { createDashboardReadRepository } from "./repositories/dashboard-reader.ts";

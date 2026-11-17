@@ -30,7 +30,8 @@ function identifier(value: unknown) {
   return parsed.data.toLowerCase();
 }
 function owned(actor: Actor, goal: Goal): void { requireOwned(actor, { userId: goal.user_id }); }
-function details(actor: Actor, record: GoalReadRecord): GoalDetails {
+/** Shared by the goals reader and the dashboard, so both expose identical progress for a goal. */
+export function goalDetailsFromRecord(actor: Actor, record: GoalReadRecord): GoalDetails {
   const { goal, latest, measurementCount, updatedAt } = record;
   owned(actor, goal);
   if (latest) {
@@ -49,7 +50,7 @@ function details(actor: Actor, record: GoalReadRecord): GoalDetails {
 }
 export function createGoalsReader(repository: GoalsReadRepository): GoalsReader {
   return {
-    async get(actor, id) { return details(actor, requireFound(await repository.find(actor, identifier(id)))); },
+    async get(actor, id) { return goalDetailsFromRecord(actor, requireFound(await repository.find(actor, identifier(id)))); },
     async list(actor, input) {
       const parsed = goalsListQuerySchema.safeParse(input);
       if (!parsed.success) throw new InvalidInputError();
@@ -57,7 +58,7 @@ export function createGoalsReader(repository: GoalsReadRepository): GoalsReader 
       const after = query.cursor ? decodeGoalsCursor(query.cursor) : null;
       if (after && (after.domain_key !== (query.domain_key ?? null) || after.status !== (query.status ?? null))) throw new InvalidInputError();
       const rows = await repository.list(actor, { limit: query.limit, domain_key: query.domain_key, status: query.status, after: after ?? undefined });
-      const page = rows.slice(0, query.limit).map((record) => details(actor, record));
+      const page = rows.slice(0, query.limit).map((record) => goalDetailsFromRecord(actor, record));
       const last = page.at(-1)?.goal;
       return { items: page, nextCursor: rows.length > query.limit && last ? encodeGoalsCursor({ created_at: last.created_at, id: last.id,
         domain_key: query.domain_key ?? null, status: query.status ?? null }) : null };

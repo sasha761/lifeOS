@@ -17,7 +17,7 @@ function count(value: string): number {
   return result;
 }
 /** Bounded batched queries under one snapshot; never an unscoped lookup or an N+1 per goal. */
-async function summarize(transaction: LifeosTransaction, actor: Actor, rows: Goal[]): Promise<GoalReadRecord[]> {
+export async function summarizeGoals(transaction: LifeosTransaction, actor: Actor, rows: Goal[]): Promise<GoalReadRecord[]> {
   if (!rows.length) return [];
   const ids = rows.map((row) => row.id);
   const counts = await transaction.select({ goalId: goalMeasurements.goalId, total: sql<string>`count(*)::text` })
@@ -38,7 +38,7 @@ export function createGoalsReadRepository(database: LifeosDatabase): GoalsReadRe
     find(actor, id) {
       return database.transaction(async (transaction) => {
         const [row] = await transaction.select().from(goals).where(ownedBy(goals.userId, actor, eq(goals.id, id))).limit(1);
-        return row ? (await summarize(transaction, actor, [toGoal(row)]))[0]! : null;
+        return row ? (await summarizeGoals(transaction, actor, [toGoal(row)]))[0]! : null;
       }, readSnapshot);
     },
     list(actor, query) {
@@ -49,7 +49,7 @@ export function createGoalsReadRepository(database: LifeosDatabase): GoalsReadRe
         if (query.after) filters.push(sql`(${goals.createdAt}, ${goals.id}) < (${new Date(query.after.created_at)}, ${query.after.id}::uuid)`);
         const rows = await transaction.select().from(goals).where(ownedBy(goals.userId, actor, ...filters))
           .orderBy(desc(goals.createdAt), desc(goals.id)).limit(query.limit + 1);
-        return summarize(transaction, actor, rows.map(toGoal));
+        return summarizeGoals(transaction, actor, rows.map(toGoal));
       }, readSnapshot);
     },
     history(actor, goalId, query) {

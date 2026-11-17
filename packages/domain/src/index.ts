@@ -21,5 +21,9 @@ export type {
   MeasurementCommandOutcome, MeasurementMutationResult, MeasurementTransaction,
 } from "./core/goal-measurements.ts";
 export { calculateGoalProgress } from "./core/goal-progress.ts";
-export { createGoalsReader } from "./core/goals-reader.ts";
+export { createGoalsReader, goalDetailsFromRecord } from "./core/goals-reader.ts";
 export type { GoalReadRecord, GoalsReadQuery, MeasurementsReadQuery, GoalsReadRepository, GoalsReader } from "./core/goals-reader.ts";
+export { createDashboardReader, DASHBOARD_LIMITS } from "./core/dashboard.ts";
+export type {
+  DashboardActivityRecord, DashboardCountRecord, DashboardLimits, DashboardReader, DashboardReadRecord, DashboardReadRepository,
+} from "./core/dashboard.ts";
