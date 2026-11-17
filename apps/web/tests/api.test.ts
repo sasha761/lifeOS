@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createDemoPayload, ERROR_MESSAGES, errorCodeSchema, healthDataSchema, healthResponseSchema, HTTP_HEADERS } from "@lifeos/contracts";
+import { DomainError, InvalidInputError, NotFoundError } from "@lifeos/domain";
 import { GET } from "../app/api/health/route.ts";
 import { ApiError, mapApiError } from "../server/api-error.ts";
 import { apiRoute, parseJsonBody, writeHttpLog } from "../server/api-route.ts";
@@ -88,5 +89,22 @@ describe("error mapping", () => {
   });
   it("does not trust arbitrary Error messages", () => {
     expect(mapApiError(new Error("private_table"))).toEqual({ status: 500, error: { code: "INTERNAL_ERROR", message: "Internal server error." } });
+  });
+  it("maps domain rule violations to their envelope codes with the fixed public message", () => {
+    expect(mapApiError(new NotFoundError())).toEqual({ status: 404, error: { code: "NOT_FOUND", message: "Resource not found." } });
+    expect(mapApiError(new InvalidInputError())).toEqual({ status: 400, error: { code: "VALIDATION_ERROR", message: "Invalid request." } });
+    expect(mapApiError(new DomainError("CONFLICT", "goal title_42 already exists"))).toEqual({ status: 409, error: { code: "CONFLICT", message: "Resource conflict." } });
+  });
+  it("maps a domain error created by another bundle layer's copy of @lifeos/domain (regression: was 500)", () => {
+    const brand = Symbol.for("@lifeos/domain/DomainError");
+    const fromOtherLayer = Object.assign(new Error("Invalid input."), { name: "InvalidInputError", code: "VALIDATION_ERROR", [brand]: true });
+    expect(mapApiError(fromOtherLayer)).toEqual({ status: 400, error: { code: "VALIDATION_ERROR", message: "Invalid request." } });
+    const forged = Object.assign(new Error("x"), { code: "BUDGET_EXCEEDED", [brand]: true });
+    expect(mapApiError(forged)).toEqual({ status: 500, error: { code: "INTERNAL_ERROR", message: "Internal server error." } });
+  });
+  it("answers a domain NOT_FOUND through apiRoute as a 404 envelope", async () => {
+    const response = await apiRoute(z.unknown(), () => { throw new NotFoundError(); }, () => {})(new Request(url));
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ data: null, errors: [{ code: "NOT_FOUND", message: "Resource not found." }] });
   });
 });

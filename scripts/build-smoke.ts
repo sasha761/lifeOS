@@ -7,7 +7,9 @@ import { createServer } from "node:net";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { healthResponseSchema } from "../packages/contracts/dist/index.js";
+import { randomBytes } from "node:crypto";
+import { apiFailureSchema, currentUserResponseSchema, healthResponseSchema, userPreferencesResponseSchema } from "../packages/contracts/dist/index.js";
+import { LIFE_DOMAINS } from "../packages/domain/dist/index.js";
 
 type CapturedProcess = { child: ChildProcess; output: string; exitCode?: number | null; closed: Promise<number | null> };
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -49,8 +51,11 @@ async function main(): Promise<void> {
   delete environment.TEST_DATABASE_URL;
   stage = "production Web health";
   const port = await unusedPort();
+  // Synthetic, unreachable services: guests must be turned away without touching the database or SMTP.
   const web = launch(["scripts/run-next.ts", "start", "--hostname", "127.0.0.1", "--port", String(port)], join(root, "apps/web"), {
     ...environment, DATABASE_URL: "postgresql://smoke@127.0.0.1:1/lifeos_smoke",
+    BETTER_AUTH_SECRET: randomBytes(32).toString("base64url"), BETTER_AUTH_URL: `http://127.0.0.1:${port}`,
+    AUTH_SIGNUP_ALLOWLIST: "", MAIL_TRANSPORT: "smtp", SMTP_URL: "smtp://127.0.0.1:1", MAIL_FROM: "smoke@lifeos.invalid",
   });
   try {
     const base = `http://127.0.0.1:${port}`;
@@ -72,7 +77,59 @@ async function main(): Promise<void> {
     assert.equal(response.headers.get("x-request-id"), body.meta.request_id);
     assert.equal(response.headers.get("x-correlation-id"), correlation);
     assert.equal(response.headers.get("cache-control"), "no-store");
-    for (const path of ["/", "/telegram"]) assert.equal((await fetch(base + path, { signal: AbortSignal.timeout(5_000) })).status, 200);
+    for (const path of ["/", "/telegram", "/auth/forgot-password"]) assert.equal((await fetch(base + path, { signal: AbortSignal.timeout(5_000) })).status, 200);
+    stage = "production LifeOS sphere routes";
+    const home = await (await fetch(base, { signal: AbortSignal.timeout(5_000) })).text();
+    for (const domain of LIFE_DOMAINS) {
+      assert(home.includes(`href="${domain.url}"`));
+      const page = await fetch(base + domain.url, { signal: AbortSignal.timeout(5_000) });
+      assert.equal(page.status, 200);
+      const html = await page.text();
+      assert.equal(html.match(/<h1\b[^>]*>(.*?)<\/h1>/)?.[1], domain.name.ru);
+      assert(html.includes(domain.description.ru));
+      assert(html.includes("Прогресс строится по вашим измерениям."));
+      assert(html.includes("Специализированный модуль появится позже"));
+      assert(html.includes(`href="/goals?domain_key=${domain.key}"`));
+      assert(html.includes(`href="/goals/new?domain_key=${domain.key}"`));
+    }
+    for (const path of ["/domains/seventh", "/domains/Languages", "/domains/constructor", "/domains", "/domains/finance/unknown"]) {
+      assert.equal((await fetch(base + path, { signal: AbortSignal.timeout(5_000) })).status, 404);
+    }
+    stage = "production Web auth guards";
+    for (const path of ["/dashboard", "/goals", "/goals/new", "/goals/4fe63a56-7a7f-4905-bdc3-c9dff1d439dc", "/settings"]) {
+      const guarded = await fetch(base + path, { redirect: "manual", signal: AbortSignal.timeout(5_000) });
+      assert.equal(guarded.status, 307);
+      assert.equal(new URL(guarded.headers.get("location") ?? "", base).pathname, "/auth/sign-in");
+      assert.equal(new URL(guarded.headers.get("location") ?? "", base).searchParams.get("next"), path);
+    }
+    // A forged cookie passes the optimistic proxy check; the page itself must still refuse it.
+    const forged = await fetch(`${base}/dashboard`, { redirect: "manual", headers: { cookie: "lifeos.session_token=forged.value" }, signal: AbortSignal.timeout(5_000) });
+    const forgedBody = await forged.text();
+    assert([200, 307].includes(forged.status));
+    assert(!forgedBody.includes("Вы вошли как"));
+    assert(forged.status === 307 || forgedBody.includes("/auth/sign-in?next=%2Fdashboard"));
+    const me = await fetch(`${base}/api/v1/me`, { signal: AbortSignal.timeout(5_000) });
+    assert.equal(me.status, 401);
+    assert.deepEqual(currentUserResponseSchema.parse(await me.json()).errors.map((error) => error.code), ["UNAUTHORIZED"]);
+    // LFS-202 preferences: guests get 401 for reads and writes, even with a forged userId in the body.
+    for (const init of [{ method: "GET" }, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ timezone: "UTC", userId: "smoke" }) }]) {
+      const preferences = await fetch(`${base}/api/v1/me/preferences`, { ...init, signal: AbortSignal.timeout(5_000) });
+      assert.equal(preferences.status, 401);
+      assert.deepEqual(userPreferencesResponseSchema.parse(await preferences.json()).errors.map((error) => error.code), ["UNAUTHORIZED"]);
+    }
+    stage = "production goals and dashboard API auth guards";
+    const resourceId = "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc";
+    for (const [method, path] of [["GET", "/api/v1/goals"], ["POST", "/api/v1/goals"],
+      ["GET", `/api/v1/goals/${resourceId}`], ["PATCH", `/api/v1/goals/${resourceId}`],
+      ["GET", `/api/v1/goals/${resourceId}/measurements`], ["POST", `/api/v1/goals/${resourceId}/measurements`],
+      ["PATCH", `/api/v1/goal-measurements/${resourceId}`], ["DELETE", `/api/v1/goal-measurements/${resourceId}`],
+      ["GET", "/api/v1/dashboard"]]) {
+      const denied = await fetch(base + path, { method, signal: AbortSignal.timeout(5_000) });
+      assert.equal(denied.status, 401);
+      assert.equal(denied.headers.get("cache-control"), "no-store");
+      assert.deepEqual(apiFailureSchema.parse(await denied.json()).errors.map((error) => error.code), ["UNAUTHORIZED"]);
+    }
+    assert.equal((await fetch(`${base}/api/v1/goals/${resourceId}`, { method: "DELETE", signal: AbortSignal.timeout(5_000) })).status, 405);
   } finally { await stop(web); }
 
   stage = "compiled worker startup";
@@ -89,7 +146,7 @@ async function main(): Promise<void> {
     assert.deepEqual(event.invalid_settings, ["DATABASE_URL"]);
     assert(!worker.output.includes("invalid-smoke-configuration"));
   } finally { await stop(worker); }
-  console.log("Build smoke passed: production Web routes/health and compiled worker startup.");
+  console.log("Build smoke passed: production Web routes/health, six LifeOS spheres and unknown-key 404, auth guards and compiled worker startup.");
 }
 
 main().catch(() => {

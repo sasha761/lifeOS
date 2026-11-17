@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru"><head>
+<!-- Эталон вёрстки LifeOS (Design System v2). Данные на макете примерные, в код их не переносить. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"><meta charset="utf-8">
+
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#16131D}
+a{color:#9D90F8;text-decoration:none}
+.app{position:relative;background:#16131D;color:#F2EDF8;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden;font-size:13px;line-height:1.45}
+.top{height:56px;padding:0 28px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.logo{width:26px;height:26px;border-radius:8px;background:#8B7CF6;color:#16131D;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.brand{font-size:14px;font-weight:700}
+.crumb{font-size:13px;color:#B4A8C8}
+.nav{margin-left:auto;display:flex;gap:8px;align-items:center}
+.pill{padding:6px 12px;border-radius:999px;border:1px solid #372F47;color:#B4A8C8;font-size:13px;font-weight:500;white-space:nowrap}
+.pill.on{border-color:#4A4060;background:#282236;color:#F2EDF8;font-weight:600}
+.ib{width:32px;height:32px;border-radius:999px;border:1px solid #372F47;color:#B4A8C8;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.ib.on{border-color:#4A4060;background:#282236;color:#F2EDF8}
+.wrap{width:1180px;margin:0 auto;padding:16px 0 32px;display:flex;flex-direction:column;gap:16px}
+.h1{margin:0;font-size:30px;line-height:36px;font-weight:700;letter-spacing:-0.02em}
+.h2{margin:0;font-size:16px;line-height:22px;font-weight:700}
+.h3{margin:0;font-size:14px;font-weight:700}
+.sub{font-size:14px;color:#B4A8C8}
+.sub b{color:#F2EDF8}
+.mut{color:#B4A8C8}.t3{color:#857A99}.fg{color:#F2EDF8}
+.sm{font-size:12px}.xs{font-size:11px}.b{font-weight:600}.bb{font-weight:700}
+.num{font-variant-numeric:tabular-nums}
+.big{font-size:30px;line-height:34px;font-weight:800;font-variant-numeric:tabular-nums}
+.card{background:#1F1A2A;border:1px solid #372F47;border-radius:16px;padding:18px 20px}
+.card.tight{padding:12px 14px;border-radius:12px}
+.s2{background:#282236}.s3{background:#322B42}
+.row{display:flex;align-items:center;gap:10px}
+.col{display:flex;flex-direction:column;gap:10px}
+.gap4{gap:4px}.gap6{gap:6px}.gap14{gap:14px}.gap18{gap:18px}
+.grow{flex:1 1 0;min-width:0}
+.ml{margin-left:auto}
+.wrapx{flex-wrap:wrap}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.seg{display:inline-flex;padding:3px;gap:2px;border-radius:999px;background:#16131D;border:1px solid #372F47;flex-shrink:0}
+.seg span{padding:4px 11px;border-radius:999px;color:#B4A8C8;font-size:12px;font-weight:500;white-space:nowrap}
+.seg .on{background:#322B42;color:#F2EDF8;font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;border:1px solid #4A4060;background:#282236;color:#F2EDF8;font-size:13px;font-weight:600;white-space:nowrap}
+.btn.p{background:#8B7CF6;border-color:#8B7CF6;color:#16131D}
+.btn.g{background:transparent;border-color:#372F47;color:#B4A8C8}
+.btn.d{background:transparent;border-color:rgba(229,96,94,.55);color:#F09896}
+.btn.s{padding:4px 10px;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#322B42;color:#CFC5DD;white-space:nowrap}
+.c-v{background:rgba(139,124,246,.18);color:#C3B9FB}.c-g{background:rgba(79,191,131,.16);color:#8FDDB2}.c-b{background:rgba(91,141,239,.18);color:#A9C3F6}.c-a{background:rgba(232,176,74,.18);color:#F0CD8A}.c-o{background:rgba(238,138,69,.2);color:#F5B48A}.c-r{background:rgba(229,96,94,.18);color:#F09896}.c-c{background:rgba(86,194,230,.16);color:#9DDCF1}.c-x{background:transparent;border:1px solid #4A4060;color:#B4A8C8}
+.src{font-size:11px;color:#B4A8C8}
+.src:before{content:"◉ ";color:#857A99}
+.bar{height:6px;border-radius:999px;background:#322B42;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:#8B7CF6}
+.dom{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.dom.sm{width:22px;height:22px;border-radius:7px;font-size:11px}
+.d-lang{background:rgba(139,124,246,.2);color:#B5AAFA}.d-fin{background:rgba(79,191,131,.18);color:#8FDDB2}.d-work{background:rgba(91,141,239,.2);color:#A9C3F6}.d-proj{background:rgba(232,176,74,.2);color:#F0CD8A}.d-skill{background:rgba(86,194,230,.18);color:#9DDCF1}.d-health{background:rgba(229,96,94,.2);color:#F09896}
+.inp{min-height:38px;border-radius:10px;border:1px solid #372F47;background:#16131D;padding:9px 12px;display:flex;align-items:center;color:#F2EDF8;font-size:13px}
+.inp.ph{color:#857A99}
+.inp.focus{border-color:#9D90F8;box-shadow:0 0 0 3px rgba(157,144,248,.25)}
+.lbl{font-size:12px;font-weight:600;color:#B4A8C8}
+.kbd{padding:1px 6px;border-radius:6px;border:1px solid #4A4060;background:#282236;font-size:11px;color:#CFC5DD;font-family:ui-monospace,monospace}
+.hr{height:1px;background:#372F47;flex-shrink:0}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.chk{width:18px;height:18px;border-radius:50%;border:1.5px solid #4A4060;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#16131D}
+.chk.done{background:#4FBF83;border-color:#4FBF83}
+.chk.half{background:linear-gradient(90deg,#E8B04A 50%,transparent 50%);border-color:#E8B04A}
+.sel{border-color:#8B7CF6!important;background:#241E33!important}
+.dash{border:1.5px dashed #4A4060;border-radius:14px;background:transparent}
+.note{padding:10px 12px;border-radius:10px;background:#282236;border:1px solid #372F47;font-size:12px;color:#CFC5DD}
+.warn{padding:10px 12px;border-radius:10px;background:rgba(232,176,74,.10);border:1px solid rgba(232,176,74,.35);font-size:12px;color:#F0CD8A}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:11px;font-weight:600;color:#B4A8C8;padding:8px 10px;border-bottom:1px solid #372F47}
+.tbl td{padding:10px;border-bottom:1px solid #2C2539;vertical-align:middle}
+.bubble{padding:10px 14px;border-radius:14px;max-width:560px;font-size:13px;line-height:1.5}
+.me{align-self:flex-end;background:#322B42;border-bottom-right-radius:4px}
+.bot{align-self:flex-start;background:#1F1A2A;border:1px solid #372F47;border-bottom-left-radius:4px}
+.cap{font-size:11px;font-weight:600;color:#B4A8C8;letter-spacing:.02em}
+</style>
+<style>body{margin:0;font-family:Inter,sans-serif}</style></head><body data-done="1"><div id="root">
+
+<div class="app" style="width: 1440px; height: 900px;">
+<header class="top"><span class="logo">L</span><span class="brand">LifeOS</span><span class="crumb">/ Задачи</span><nav class="nav"><a href="#" class="pill">◎ Мой прогресс</a><a href="#" class="pill on">☰ Задачи</a><a href="#" class="pill">▭ Проекты</a><a href="#" class="pill">✦ Ассистент</a><a href="#" class="ib" aria-label="Настройки">⚙</a></nav></header>
+<main class="wrap">
+  <div class="row">
+    <h1 class="h1">Все задачи</h1>
+    <div class="ml seg"><span>Сегодня</span><span>Неделя</span><span class="on">Все задачи</span><span>Корзина</span></div>
+    <a href="#" class="btn p">+ Задача</a>
+  </div>
+  <div class="inp ph">Добавить задачу… например «завтра 15:00 отправить CV #поиск-работы ~30м» и Enter</div>
+  <div class="row">
+    <span class="chip c-x">Проект: все ▾</span><span class="chip c-x">Срок: любой ▾</span><span class="chip c-x">Статус: открытые ▾</span><span class="chip c-x">Без оценки времени</span>
+    <span class="ml sm mut">Группировка</span><div class="seg"><span class="on">по проекту</span><span>по сроку</span><span>по статусу</span></div>
+  </div>
+  <div class="card col gap6" style="padding:12px 16px">
+    <div class="row"><span class="dom sm" style="background:rgba(232,176,74,.2);color:#F0CD8A">L</span><span class="h3">LifeOS</span><span class="sm mut">4 задачи · 5 ч 30 мин</span></div>
+    <div class="row sm" style="padding:6px 0"><span class="chk half"></span><span class="grow b">LFS-204: Dashboard в новом стиле</span><span class="chip c-a">в процессе</span><span class="mut num" style="width:90px">сегодня</span><span class="mut num" style="width:60px">3 ч</span></div><div class="hr"></div>
+    <div class="row sm" style="padding:6px 0"><span class="chk"></span><span class="grow">Ревью LFS-211 через Codex</span><span class="chip c-x">ждёт</span><span class="mut num" style="width:90px">сегодня</span><span class="mut num" style="width:60px">30 мин</span></div><div class="hr"></div>
+    <div class="row sm" style="padding:6px 0;background:#241E33;border-radius:8px"><span class="chk" style="border-radius:5px;border-color:#8B7CF6;background:#8B7CF6">✓</span><span class="grow">Написать задачи Stage 3</span><span class="chip c-o">перенос</span><span class="mut num" style="width:90px">завтра</span><span class="mut num" style="width:60px">2 ч</span></div><div class="hr"></div>
+    <div class="row sm" style="padding:6px 0"><span class="chk"></span><span class="grow">Запушить ветку на GitHub</span><span class="mut num" style="margin-left:auto;width:90px">18.11</span><span class="t3 num" style="width:60px">—</span></div>
+  </div>
+  <div class="card col gap6" style="padding:12px 16px">
+    <div class="row"><span class="dom sm" style="background:rgba(91,141,239,.2);color:#A9C3F6">J</span><span class="h3">Поиск работы</span><span class="sm mut">3 задачи · 2 ч 15 мин</span></div>
+    <div class="row sm" style="padding:6px 0;background:#241E33;border-radius:8px"><span class="chk" style="border-radius:5px;border-color:#8B7CF6;background:#8B7CF6">✓</span><span class="grow">Одобрить письма в пакетном ревью</span><span class="chip c-r">срочно</span><span class="mut num" style="width:90px">сегодня</span><span class="mut num" style="width:60px">45 мин</span></div><div class="hr"></div>
+    <div class="row sm" style="padding:6px 0"><span class="chk"></span><span class="grow">Обновить резюме на норвежском</span><span class="mut num" style="margin-left:auto;width:90px">20.11</span><span class="mut num" style="width:60px">1 ч</span></div><div class="hr"></div>
+    <div class="row sm" style="padding:6px 0"><span class="chk"></span><span class="grow">Подготовиться к интервью: вопросы про TypeScript</span><span class="chip c-v">встреча 21.11</span><span class="mut num" style="width:90px">21.11</span><span class="mut num" style="width:60px">30 мин</span></div>
+  </div>
+  <div class="card col gap6" style="padding:12px 16px">
+    <div class="row"><span class="dom sm" style="background:#322B42;color:#B4A8C8">·</span><span class="h3">Без проекта</span><span class="sm mut">2 задачи · 1 без оценки</span></div>
+    <div class="row sm" style="padding:6px 0"><span class="chk"></span><span class="grow">Продлить страховку квартиры</span><span class="mut num" style="margin-left:auto;width:90px">25.11</span><span class="mut num" style="width:60px">20 мин</span></div><div class="hr"></div>
+    <div class="row sm" style="padding:6px 0"><span class="chk"></span><span class="grow">Записаться к стоматологу</span><span class="mut num" style="margin-left:auto;width:90px">без срока</span><span class="t3" style="width:60px">?</span></div>
+  </div>
+  <div class="row" style="position:absolute;left:50%;bottom:28px;transform:translateX(-50%);padding:8px 10px 8px 16px;border-radius:999px;background:#282236;border:1px solid #4A4060;box-shadow:0 12px 30px rgba(0,0,0,.4)">
+    <span class="sm b">Выбрано 2</span><a href="#" class="btn s g">Перенести</a><a href="#" class="btn s g">В проект</a><a href="#" class="btn s g">Оценка</a><a href="#" class="btn s d">В корзину</a>
+  </div>
+</main>
+</div>
+</div></body></html>

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+// Self-hosted Inter (ADR-011): fonts ship with the build, no runtime requests to Google.
+import "@fontsource-variable/inter";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,7 +13,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru">
       <body>
-        <a href="#main-content" className="fixed top-3 left-3 z-50 -translate-y-24 rounded-lg bg-primary px-4 py-3 font-medium text-primary-foreground focus:translate-y-0">
+        <a href="#main-content" className="fixed top-3 left-3 z-50 -translate-y-24 rounded-full bg-primary px-4 py-3 font-medium text-primary-foreground focus:translate-y-0">
           К содержимому
         </a>
         {children}

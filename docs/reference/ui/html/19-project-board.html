@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru"><head>
+<!-- Эталон вёрстки LifeOS (Design System v2). Данные на макете примерные, в код их не переносить. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"><meta charset="utf-8">
+
+
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#16131D}
+a{color:#9D90F8;text-decoration:none}
+.app{position:relative;background:#16131D;color:#F2EDF8;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden;font-size:13px;line-height:1.45}
+.top{height:56px;padding:0 28px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.logo{width:26px;height:26px;border-radius:8px;background:#8B7CF6;color:#16131D;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.brand{font-size:14px;font-weight:700}
+.crumb{font-size:13px;color:#B4A8C8}
+.nav{margin-left:auto;display:flex;gap:8px;align-items:center}
+.pill{padding:6px 12px;border-radius:999px;border:1px solid #372F47;color:#B4A8C8;font-size:13px;font-weight:500;white-space:nowrap}
+.pill.on{border-color:#4A4060;background:#282236;color:#F2EDF8;font-weight:600}
+.ib{width:32px;height:32px;border-radius:999px;border:1px solid #372F47;color:#B4A8C8;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.ib.on{border-color:#4A4060;background:#282236;color:#F2EDF8}
+.wrap{width:1180px;margin:0 auto;padding:16px 0 32px;display:flex;flex-direction:column;gap:16px}
+.h1{margin:0;font-size:30px;line-height:36px;font-weight:700;letter-spacing:-0.02em}
+.h2{margin:0;font-size:16px;line-height:22px;font-weight:700}
+.h3{margin:0;font-size:14px;font-weight:700}
+.sub{font-size:14px;color:#B4A8C8}
+.sub b{color:#F2EDF8}
+.mut{color:#B4A8C8}.t3{color:#857A99}.fg{color:#F2EDF8}
+.sm{font-size:12px}.xs{font-size:11px}.b{font-weight:600}.bb{font-weight:700}
+.num{font-variant-numeric:tabular-nums}
+.big{font-size:30px;line-height:34px;font-weight:800;font-variant-numeric:tabular-nums}
+.card{background:#1F1A2A;border:1px solid #372F47;border-radius:16px;padding:18px 20px}
+.card.tight{padding:12px 14px;border-radius:12px}
+.s2{background:#282236}.s3{background:#322B42}
+.row{display:flex;align-items:center;gap:10px}
+.col{display:flex;flex-direction:column;gap:10px}
+.gap4{gap:4px}.gap6{gap:6px}.gap14{gap:14px}.gap18{gap:18px}
+.grow{flex:1 1 0;min-width:0}
+.ml{margin-left:auto}
+.wrapx{flex-wrap:wrap}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.seg{display:inline-flex;padding:3px;gap:2px;border-radius:999px;background:#16131D;border:1px solid #372F47;flex-shrink:0}
+.seg span{padding:4px 11px;border-radius:999px;color:#B4A8C8;font-size:12px;font-weight:500;white-space:nowrap}
+.seg .on{background:#322B42;color:#F2EDF8;font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;border:1px solid #4A4060;background:#282236;color:#F2EDF8;font-size:13px;font-weight:600;white-space:nowrap}
+.btn.p{background:#8B7CF6;border-color:#8B7CF6;color:#16131D}
+.btn.g{background:transparent;border-color:#372F47;color:#B4A8C8}
+.btn.d{background:transparent;border-color:rgba(229,96,94,.55);color:#F09896}
+.btn.s{padding:4px 10px;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#322B42;color:#CFC5DD;white-space:nowrap}
+.c-v{background:rgba(139,124,246,.18);color:#C3B9FB}.c-g{background:rgba(79,191,131,.16);color:#8FDDB2}.c-b{background:rgba(91,141,239,.18);color:#A9C3F6}.c-a{background:rgba(232,176,74,.18);color:#F0CD8A}.c-o{background:rgba(238,138,69,.2);color:#F5B48A}.c-r{background:rgba(229,96,94,.18);color:#F09896}.c-c{background:rgba(86,194,230,.16);color:#9DDCF1}.c-x{background:transparent;border:1px solid #4A4060;color:#B4A8C8}
+.src{font-size:11px;color:#B4A8C8}
+.src:before{content:"◉ ";color:#857A99}
+.bar{height:6px;border-radius:999px;background:#322B42;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:#8B7CF6}
+.dom{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.dom.sm{width:22px;height:22px;border-radius:7px;font-size:11px}
+.d-lang{background:rgba(139,124,246,.2);color:#B5AAFA}.d-fin{background:rgba(79,191,131,.18);color:#8FDDB2}.d-work{background:rgba(91,141,239,.2);color:#A9C3F6}.d-proj{background:rgba(232,176,74,.2);color:#F0CD8A}.d-skill{background:rgba(86,194,230,.18);color:#9DDCF1}.d-health{background:rgba(229,96,94,.2);color:#F09896}
+.inp{min-height:38px;border-radius:10px;border:1px solid #372F47;background:#16131D;padding:9px 12px;display:flex;align-items:center;color:#F2EDF8;font-size:13px}
+.inp.ph{color:#857A99}
+.inp.focus{border-color:#9D90F8;box-shadow:0 0 0 3px rgba(157,144,248,.25)}
+.lbl{font-size:12px;font-weight:600;color:#B4A8C8}
+.kbd{padding:1px 6px;border-radius:6px;border:1px solid #4A4060;background:#282236;font-size:11px;color:#CFC5DD;font-family:ui-monospace,monospace}
+.hr{height:1px;background:#372F47;flex-shrink:0}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.chk{width:18px;height:18px;border-radius:50%;border:1.5px solid #4A4060;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#16131D}
+.chk.done{background:#4FBF83;border-color:#4FBF83}
+.chk.half{background:linear-gradient(90deg,#E8B04A 50%,transparent 50%);border-color:#E8B04A}
+.sel{border-color:#8B7CF6!important;background:#241E33!important}
+.dash{border:1.5px dashed #4A4060;border-radius:14px;background:transparent}
+.note{padding:10px 12px;border-radius:10px;background:#282236;border:1px solid #372F47;font-size:12px;color:#CFC5DD}
+.warn{padding:10px 12px;border-radius:10px;background:rgba(232,176,74,.10);border:1px solid rgba(232,176,74,.35);font-size:12px;color:#F0CD8A}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:11px;font-weight:600;color:#B4A8C8;padding:8px 10px;border-bottom:1px solid #372F47}
+.tbl td{padding:10px;border-bottom:1px solid #2C2539;vertical-align:middle}
+.bubble{padding:10px 14px;border-radius:14px;max-width:560px;font-size:13px;line-height:1.5}
+.me{align-self:flex-end;background:#322B42;border-bottom-right-radius:4px}
+.bot{align-self:flex-start;background:#1F1A2A;border:1px solid #372F47;border-bottom-left-radius:4px}
+.cap{font-size:11px;font-weight:600;color:#B4A8C8;letter-spacing:.02em}
+</style>
+<style>body{margin:0;font-family:Inter,sans-serif}</style></head><body data-done="1"><div id="root">
+
+<div class="app" style="width: 1440px; height: 900px;">
+<header class="top"><span class="logo">L</span><span class="brand">LifeOS</span><span class="crumb">/ Проекты</span><nav class="nav"><a href="#" class="pill">◎ Мой прогресс</a><a href="#" class="pill">☰ Задачи</a><a href="#" class="pill on">▭ Проекты</a><a href="#" class="pill">✦ Ассистент</a><a href="#" class="ib" aria-label="Настройки">⚙</a></nav></header>
+<style>
+.kcol{background:#1B1725;border:1px solid #2F283D;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:600px}
+.kc{background:#1F1A2A;border:1px solid #372F47;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+</style>
+<main class="wrap">
+  <a href="#" class="sm mut">‹ Проекты</a>
+  <div class="row">
+    <span class="dom" style="background:rgba(232,176,74,.22);color:#F0CD8A;width:40px;height:40px;border-radius:11px">L</span>
+    <div class="col gap4"><div class="row"><h1 class="h1">LifeOS</h1><span class="t3">✎ ⚲ ⋯</span></div><span class="sm mut">Персональная платформа развития · проект с 03.11.2026</span></div>
+    <div class="ml card tight col gap6" style="width:300px"><div class="row sm"><span class="b">Этап: Stage 2, Core</span><span class="ml num">8 из 10</span></div><div class="bar"><i style="width:80%;background:#E8B04A"></i></div><span class="src">по закрытым задачам этапа</span></div>
+  </div>
+  <div class="row">
+    <div class="seg"><span>Обзор</span><span class="on">Доска</span><span>Задачи 24</span><span>История</span><span>Инфо</span><span>Файлы 6</span></div>
+    <div class="ml row"><span class="chip c-x">Этап: Stage 2 ▾</span><a href="#" class="btn s">+ Колонка</a><a href="#" class="btn p s">+ Задача</a></div>
+  </div>
+  <div class="g4" style="gap:14px">
+    <div class="kcol">
+      <div class="row"><span class="dot" style="background:#6E6582"></span><span class="b">Backlog</span><span class="ml sm mut">6</span></div>
+      <div class="kc"><span class="b">LFS-209: E2E и безопасность</span><div class="row"><span class="chip c-a">Stage 2</span><span class="ml xs mut">4 ч</span></div></div>
+      <div class="kc"><span class="b">Задачи Stage 3: Telegram и AI Runtime</span><div class="row"><span class="chip c-v">Stage 3</span><span class="ml xs mut">2 ч</span></div></div>
+      <div class="kc"><span class="b">Выбрать хостинг для пилота</span><div class="row"><span class="chip c-x">без этапа</span><span class="ml xs t3">?</span></div></div>
+      <a href="#" class="sm mut">+ ещё 3</a>
+    </div>
+    <div class="kcol">
+      <div class="row"><span class="dot" style="background:#E8B04A"></span><span class="b">В работе</span><span class="ml sm mut">2</span></div>
+      <div class="kc" style="border-color:#8B7CF6"><span class="b">LFS-204: Dashboard в новом стиле</span><span class="xs mut">Codex · ревью Claude Code</span><div class="row"><span class="chip c-a">Stage 2</span><span class="chip c-o">сегодня</span><span class="ml xs mut">3 ч</span></div></div>
+      <div class="kc"><span class="b">Макеты недостающих экранов</span><div class="row"><span class="chip c-v">дизайн</span><span class="ml xs mut">2 ч</span></div></div>
+    </div>
+    <div class="kcol">
+      <div class="row"><span class="dot" style="background:#5B8DEF"></span><span class="b">На проверке</span><span class="ml sm mut">1</span></div>
+      <div class="kc"><span class="b">LFS-211: Design System v2</span><span class="xs mut">ждёт ревью Codex</span><div class="row"><span class="chip c-a">Stage 2</span><span class="ml xs mut">5 ч</span></div></div>
+    </div>
+    <div class="kcol">
+      <div class="row"><span class="dot" style="background:#4FBF83"></span><span class="b">Готово</span><span class="ml sm mut">12</span></div>
+      <div class="kc" style="opacity:.75"><div class="row"><span class="chk done">✓</span><span class="b">LFS-208: UI целей</span></div><span class="xs mut">закрыто 16.11</span></div>
+      <div class="kc" style="opacity:.75"><div class="row"><span class="chk done">✓</span><span class="b">LFS-207: API целей</span></div><span class="xs mut">закрыто 16.11</span></div>
+      <div class="kc" style="opacity:.75"><div class="row"><span class="chk done">✓</span><span class="b">LFS-206: замеры</span></div><span class="xs mut">закрыто 16.11</span></div>
+      <a href="#" class="sm mut">+ ещё 9</a>
+    </div>
+  </div>
+</main>
+</div>
+</div></body></html>

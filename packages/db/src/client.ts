@@ -5,6 +5,7 @@ import { parseDatabaseUrl } from "./configuration.ts";
 import * as schema from "./schema/index.ts";
 
 export type LifeosDatabase = NodePgDatabase<typeof schema>;
+export type LifeosTransaction = Parameters<Parameters<LifeosDatabase["transaction"]>[0]>[0];
 
 export type DatabaseOptions = {
   connectionString: string;

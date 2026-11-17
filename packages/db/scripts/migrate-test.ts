@@ -1,4 +1,5 @@
-import { createDatabase, applyMigrations, readTestDatabaseUrl, databaseErrorMessage } from "../src/index.ts";
+import { createDatabase, readTestDatabaseUrl, databaseErrorMessage } from "../src/index.ts";
+import { applyMigrations } from "../src/migrations.ts";
 
 async function main(): Promise<void> {
   // Never fall back to DATABASE_URL; validate the dedicated test target before constructing a pool.

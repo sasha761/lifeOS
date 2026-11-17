@@ -3,7 +3,10 @@
   "tasks": {
     "dev": {
       "dependsOn": ["^build"],
-      "passThroughEnv": ["DATABASE_URL", "WORKER_QUEUE_SCHEMA", "NODE_ENV"],
+      "passThroughEnv": [
+        "DATABASE_URL", "WORKER_QUEUE_SCHEMA", "NODE_ENV",
+        "BETTER_AUTH_SECRET", "BETTER_AUTH_URL", "AUTH_SIGNUP_ALLOWLIST", "MAIL_TRANSPORT", "MAIL_FROM", "MAIL_OUTBOX_DIR", "SMTP_URL"
+      ],
       "cache": false,
       "persistent": true
     },

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { EnvironmentConfigurationError, readWebEnv } from "@lifeos/config/env";
 
 const command = process.argv[2];
@@ -7,6 +8,11 @@ if (command !== "dev" && command !== "start") {
 } else {
   let valid = false;
   try {
+    // Load root env without CLI flags: Next forwards execArgv to its dev child via NODE_OPTIONS.
+    const envFile = new URL("../../../.env", import.meta.url);
+    if (existsSync(envFile)) process.loadEnvFile(envFile);
+    // Match Next CLI before validation, so start cannot accept development-only mail settings.
+    Object.assign(process.env, { NODE_ENV: process.env.NODE_ENV || (command === "dev" ? "development" : "production") });
     readWebEnv(process.env);
     valid = true;
   } catch (error: unknown) {

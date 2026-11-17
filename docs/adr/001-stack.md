@@ -56,15 +56,16 @@ manifest и lockfile, но не готовую функциональность.
 | server-only | 0.0.1 | Запрет импорта серверного env в client graph Next.js | `apps/web`; добавлен в LFS-106 | [Metadata](https://registry.npmjs.org/server-only/0.0.1), [Next.js server-only](https://nextjs.org/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning); 2026-11-12 |
 | Vitest / Vite | 5.1.0 / 8.3.6 | Unit/integration runner и его peer | Root tooling; установлены, тесты в следующих задачах | [Vitest](https://registry.npmjs.org/vitest/5.1.0), [Vite](https://registry.npmjs.org/vite/8.3.6), [guide](https://vitest.dev/guide/); 2026-11-08 |
 | Playwright Test | 1.65.0 | Будущие E2E/smoke-проверки | Root tooling; установлен, браузеры не загружались | [Metadata](https://registry.npmjs.org/@playwright/test/1.65.0), [системные требования](https://playwright.dev/docs/intro); 2026-11-08 |
-| Better Auth / Drizzle adapter | 1.7.18 / 1.7.18 | Будущая авторизация | Позже, этап 2; не установлены | [Auth peers](https://registry.npmjs.org/better-auth/1.7.18), [adapter peers](https://registry.npmjs.org/@better-auth/drizzle-adapter/1.7.18), [docs](https://better-auth.com/docs/adapters/drizzle); 2026-11-08 |
+| Better Auth / Drizzle adapter / core | 1.7.18 / 1.7.18 / 1.7.18 | Авторизация email/password | `apps/web`; установлены в LFS-201, [ADR-005](005-auth.md) | [Auth peers](https://registry.npmjs.org/better-auth/1.7.18), [adapter peers](https://registry.npmjs.org/@better-auth/drizzle-adapter/1.7.18), [docs](https://better-auth.com/docs/adapters/drizzle); 2026-11-08, повторно 2026-11-14 |
+| nodemailer | 10.3.1 | SMTP-доставка писем (сброс пароля) | `apps/web`; добавлен в LFS-201, встроенные types | [Metadata/engines](https://registry.npmjs.org/nodemailer/10.3.1); 2026-11-14 |
 | grammY | 1.46.0 | Будущий Telegram-бот | Позже, этап 3; не установлен | [Metadata](https://registry.npmjs.org/grammy/1.46.0), [guide](https://grammy.dev/guide/getting-started); 2026-11-08 |
 | AI SDK (`ai`) | 7.0.165 | Будущий общий AI runtime | Позже, этап 3; не установлен | [Metadata](https://registry.npmjs.org/ai/7.0.165), [Node.js guide](https://ai-sdk.dev/docs/getting-started/nodejs); 2026-11-08 |
 | ts-fsrs | 6.0.0 | Будущий планировщик повторений | Позже, этап 5; не установлен | [Metadata/engines](https://registry.npmjs.org/ts-fsrs/6.0.0), [репозиторий](https://github.com/open-spaced-repetition/ts-fsrs); 2026-11-08 |
 | Node / React / React DOM / pg types | 24.19.2 / 19.3.0 / 19.3.0 / 8.23.1 | Типы выбранных runtime-веток | Root / Web / DB devDependencies; установлены | [Node](https://registry.npmjs.org/@types/node/24.19.2), [React](https://registry.npmjs.org/@types/react/19.3.0), [DOM](https://registry.npmjs.org/@types/react-dom/19.3.0), [pg](https://registry.npmjs.org/@types/pg/8.23.1); 2026-11-08 |
 
-**Better Auth, grammY, AI SDK и ts-fsrs будут реализованы позже.** Сейчас
-выбраны версии и проверены объявленные требования, но нет их конфигурации,
-auth schema, Telegram webhook, AI provider, API-вызовов или FSRS state.
+**grammY, AI SDK и ts-fsrs будут реализованы позже.** Для них выбраны версии и
+проверены объявленные требования, но нет конфигурации, Telegram webhook, AI
+provider, API-вызовов или FSRS state. Better Auth установлен в LFS-201 (ниже).
 Перед их фактической установкой нужно повторно проверить совместимость и
 безопасность точного релиза и явно обновить этот ADR при смене версии.
 
@@ -245,3 +246,26 @@ sections выше описывают состояние на дату соотв
 приёмки зафиксированы в [Stage 1 acceptance](../tasks/STAGE-01-ACCEPTANCE.md).
 Текущие runtime/package boundaries — [system](../architecture/system.md),
 разработка/ADR updates — [workflow](../DEVELOPMENT_WORKFLOW.md).
+
+## Установка LFS-201 (2026-11-14)
+
+Повторная проверка перед установкой: `latest` Better Auth — 1.7.25, но
+1.7.19–1.7.25 вышли за последние 4 дня (2026-11-10…14); без известной
+уязвимости сохранён закреплённый здесь **1.7.18** (2026-11-05). Его peers
+совместимы с набором: drizzle-orm `^0.45.2` (0.45.4), drizzle-kit `>=0.31.4`
+(0.31.11), Next `^16`, React `^19`, Zod `^4.5.4` (4.6.7), Vitest `^5`.
+`@lifeos/web` получил точные `better-auth`, `@better-auth/drizzle-adapter`,
+`@better-auth/core` (request state, та же 1.7.18, что и транзитивная) и
+`drizzle-orm` 0.45.4 — чтобы peer адаптера разрешался в ту же копию Drizzle,
+что у `@lifeos/db`.
+
+`nodemailer` **10.3.1** (2026-10-29) — последний релиз старше двух недель на
+дату установки; Node `>=20`, без runtime-зависимостей, свои TypeScript types,
+ESM export `createTransport`. Более новые 10.4.x/10.5.0 не выбирались без
+причины.
+
+`pnpm audit --prod` после установки: 2 moderate, обе вне новых пакетов —
+`esbuild <=0.24.2` через уже описанные deprecated `@esbuild-kit/*` Drizzle Kit
+(dev server CLI, не runtime Web) и `minimatch` через `eslint` в
+`@lifeos/config`. Для better-auth 1.7.18 и nodemailer 10.3.1 advisories нет.
+Решения по конфигурации и ограничения — [ADR-005](005-auth.md).

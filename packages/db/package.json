@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./migrations": {
+      "types": "./dist/migrations.d.ts",
+      "import": "./dist/migrations.js"
     }
   },
   "scripts": {
@@ -22,11 +26,12 @@
   },
   "dependencies": {
     "@lifeos/config": "workspace:*",
+    "@lifeos/contracts": "workspace:*",
+    "@lifeos/domain": "workspace:*",
     "drizzle-orm": "0.45.4",
     "pg": "8.23.1"
   },
   "devDependencies": {
-    "@lifeos/contracts": "workspace:*",
     "@types/pg": "8.23.1",
     "drizzle-kit": "0.31.11",
     "pg-boss": "12.38.1",
