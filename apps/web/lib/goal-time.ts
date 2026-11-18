@@ -39,3 +39,12 @@ export function resolveGoalTime(local: string, timeZone: string, offset: string 
   if (!selected) throw new Error("В это время часы переводятся. Выберите смещение UTC.");
   return selected.instant;
 }
+/** Calendar date (YYYY-MM-DD) of an instant in the account's zone, for a native date field. */
+export function instantToLocalDate(instant: string, timeZone: string): string {
+  return instantToLocalInput(instant, timeZone).slice(0, 10);
+}
+/** A date-only deadline (LFS-213) is stored as the last millisecond of that day in the account's zone. */
+export function endOfLocalDay(date: string, timeZone: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Укажите дату срока.");
+  return resolveGoalTime(`${date}T23:59:59.999`, timeZone, null);
+}

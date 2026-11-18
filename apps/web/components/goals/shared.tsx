@@ -9,7 +9,7 @@ import { FormAlert } from "../auth/form-parts.tsx";
 import { StatusChip } from "../ui/status-chip.tsx";
 import { createGoalCommand, getGoalsData, GoalRequestError } from "../../lib/goals-api-client.ts";
 import { formatGoalNumber, formatGoalPercent, formatGoalValue } from "../../lib/goal-presentation.ts";
-import { instantToLocalInput, zonedInstantChoices } from "../../lib/goal-time.ts";
+import { instantToLocalDate, instantToLocalInput, zonedInstantChoices } from "../../lib/goal-time.ts";
 import type { GoalFieldErrors } from "../../lib/goal-form-input.ts";
 
 export type DomainChoice = { key: DomainKey; label: string };
@@ -82,6 +82,18 @@ export function DateTimeField({ name, label, hint, initial, timeZone, required, 
     {choices.length > 1 && <><label htmlFor={`${name}_offset`} className="field-label">Смещение UTC при переводе часов</label>
       <select id={`${name}_offset`} name={`${name}_offset`} value={offset} onChange={(event) => setOffset(event.target.value)} className={inputClass} required>
         <option value="">Выберите смещение</option>{choices.map((choice) => <option key={choice.instant} value={choice.offset}>{choice.offset}</option>)}</select></>}
+    {errors[name] && <p id={`${name}-error`} className="text-sm text-destructive">{errors[name]}</p>}</div>;
+}
+/**
+ * Date-only deadline (mockup 10, LFS-213). The stored instant is the end of the chosen day in the account's zone;
+ * an unchanged date sends the original instant back (`<name>_original`), so older deadlines keep their time.
+ */
+export function DateField({ name, label, describedBy, initial, timeZone, errors }: { name: string; label: string; describedBy?: string; initial?: string | null; timeZone: string; errors: GoalFieldErrors }) {
+  const described = [describedBy, errors[name] ? `${name}-error` : null].filter(Boolean).join(" ") || undefined;
+  return <div className="grid min-w-0 gap-1.5"><label htmlFor={name} className="field-label">{label}</label>
+    <input type="date" id={name} name={name} defaultValue={initial ? instantToLocalDate(initial, timeZone) : ""} className={inputClass}
+      aria-invalid={!!errors[name]} aria-describedby={described} />
+    {initial && <input type="hidden" name={`${name}_original`} value={initial} />}
     {errors[name] && <p id={`${name}-error`} className="text-sm text-destructive">{errors[name]}</p>}</div>;
 }
 /** «12 000 из 50 000 NOK · 24%» (mockups 09/10); the percentage keeps its own element for tests and screen readers. */

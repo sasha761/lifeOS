@@ -1,8 +1,8 @@
 import "server-only";
 import { readWebEnv } from "@lifeos/config/env";
-import { createUserPreferencesRepository, createGoalsUnitOfWork, createGoalMeasurementsUnitOfWork, createGoalsReadRepository, createDashboardReadRepository } from "@lifeos/db";
-import { createUserPreferencesService, createGoalsService, createGoalMeasurementsService, createGoalsReader, createDashboardReader } from "@lifeos/domain";
-import type { UserPreferencesService, GoalsService, GoalMeasurementsService, GoalsReader, DashboardReader } from "@lifeos/domain";
+import { createUserPreferencesRepository, createGoalsUnitOfWork, createGoalMeasurementsUnitOfWork, createGoalsReadRepository, createDashboardReadRepository, createActivityReadRepository } from "@lifeos/db";
+import { createUserPreferencesService, createGoalsService, createGoalMeasurementsService, createGoalsReader, createDashboardReader, createActivityReader } from "@lifeos/domain";
+import type { UserPreferencesService, GoalsService, GoalMeasurementsService, GoalsReader, DashboardReader, ActivityReader } from "@lifeos/domain";
 import { getDatabase } from "./db.ts";
 
 // Composition of core domain services (lazy: never during `next build`). Cached per module, not on
@@ -14,6 +14,7 @@ let goals: GoalsService | undefined;
 let measurements: GoalMeasurementsService | undefined;
 let goalsReader: GoalsReader | undefined;
 let dashboardReader: DashboardReader | undefined;
+let activityReader: ActivityReader | undefined;
 
 export function getUserPreferencesService(): UserPreferencesService {
   userPreferences ??= createUserPreferencesService(
@@ -37,4 +38,8 @@ export function getGoalsReader(): GoalsReader {
 export function getDashboardReader(): DashboardReader {
   dashboardReader ??= createDashboardReader(createDashboardReadRepository(getDatabase(readWebEnv(process.env).DATABASE_URL).db));
   return dashboardReader;
+}
+export function getActivityReader(): ActivityReader {
+  activityReader ??= createActivityReader(createActivityReadRepository(getDatabase(readWebEnv(process.env).DATABASE_URL).db));
+  return activityReader;
 }

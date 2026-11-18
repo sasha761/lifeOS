@@ -36,6 +36,15 @@ export async function add(page: Page, value: string, note = "Браузерно�
   await dialog.getByLabel("Заметка (необязательно)").fill(note);
   await dialog.getByRole("button", { name: "Добавить измерение", exact: true }).click();
 }
+/** Commands of the goal panel live in its «⋯» menu (mockup 09, LFS-213). */
+export async function goalAction(page: Page, name: "Изменить цель" | "В архив") {
+  await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
+  await page.getByRole("button", { name, exact: true }).click();
+}
+/** Row of a sphere in «Сферы жизни» showing the given goal as its newest active one (mockup 04, LFS-213). */
+export function sphereRow(page: Page, key: string, label: string, title: string) {
+  return page.getByTestId(`dashboard-domain-${key}`).filter({ has: page.getByRole("link", { name: `${label}: ${title}`, exact: true }) });
+}
 export async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 }

@@ -2,8 +2,10 @@ import { z } from "zod";
 import { goalDetailsSchema, goalsPageSchema, measurementsPageSchema } from "./goals-api.ts";
 import { goalMeasurementSchema, goalMeasurementDeletionSchema } from "./goal-measurements.ts";
 import { dashboardSchema } from "./dashboard.ts";
+import { activityFeedSchema } from "./activity.ts";
 export * from "./goals-api.ts";
 export * from "./dashboard.ts";
+export * from "./activity.ts";
 
 export { DOMAIN_KEYS, domainKeySchema } from "./domains.ts";
 export type { DomainKey } from "./domains.ts";
@@ -204,3 +206,4 @@ export const measurementsPageResponseSchema = apiResponseSchema(measurementsPage
 export const goalMeasurementResponseSchema = apiResponseSchema(goalMeasurementSchema);
 export const goalMeasurementDeletionResponseSchema = apiResponseSchema(goalMeasurementDeletionSchema);
 export const dashboardResponseSchema = apiResponseSchema(dashboardSchema);
+export const activityFeedResponseSchema = apiResponseSchema(activityFeedSchema);

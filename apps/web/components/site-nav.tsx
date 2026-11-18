@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
-import type { RefObject } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ChevronDown, Compass, LayoutGrid, Menu, Send, Settings, Target, UserRound, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -10,6 +9,7 @@ import { Brand } from "@/components/brand";
 import { NavigationLink } from "@/components/navigation-link";
 import { DomainIcon } from "@/components/ui/domain-icon";
 import { currentSectionLabel, isActivePath, SITE_SECTIONS } from "@/lib/site-sections";
+import { useDismiss } from "@/lib/use-dismiss";
 import type { NavDomain } from "@/lib/site-sections";
 
 const icons: Record<(typeof SITE_SECTIONS)[number]["href"], LucideIcon> = {
@@ -18,18 +18,6 @@ const icons: Record<(typeof SITE_SECTIONS)[number]["href"], LucideIcon> = {
 const [overview, goals, ...rest] = SITE_SECTIONS;
 const settings = rest.find((section) => section.href === "/settings")!;
 const trailing = rest.filter((section) => section.href !== "/settings");
-
-/** Closes a disclosure on Escape (returning focus to its toggle) and on a pointer press outside it. */
-function useDismiss(open: boolean, close: () => void, container: RefObject<HTMLElement | null>, toggle: RefObject<HTMLButtonElement | null>) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") { close(); toggle.current?.focus(); } };
-    const onPointer = (event: PointerEvent) => { if (!container.current?.contains(event.target as Node)) close(); };
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("pointerdown", onPointer);
-    return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", onPointer); };
-  }, [open, close, container, toggle]);
-}
 
 function DomainLinks({ domains, onNavigate }: { domains: readonly NavDomain[]; onNavigate(): void }) {
   return (

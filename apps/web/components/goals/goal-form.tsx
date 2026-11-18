@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { goalDetailsSchema, GOAL_UNITS } from "@lifeos/contracts";
 import type { DomainKey, Goal, UserPreferences } from "@lifeos/contracts";
 import { Field, focusFirstInvalid, FormAlert, SubmitButton } from "../auth/form-parts.tsx";
@@ -11,7 +12,7 @@ import { SegmentedChoice } from "../ui/segmented-choice.tsx";
 import { goalFormInput } from "../../lib/goal-form-input.ts";
 import type { GoalFieldErrors } from "../../lib/goal-form-input.ts";
 import { GOAL_UNIT_LABELS } from "../../lib/goal-presentation.ts";
-import { DateTimeField, inputClass, MutationError, TextArea, useGoalMutation } from "./shared.tsx";
+import { DateField, inputClass, MutationError, TextArea, useGoalMutation } from "./shared.tsx";
 import type { DomainChoice } from "./shared.tsx";
 
 // Stage 2 knows two directions; «Количество за период» from the mockup needs a metric mode that does not exist yet.
@@ -26,30 +27,38 @@ function FormulaPreview({ baseline, target }: { baseline: string; target: string
   </p>;
 }
 
+/** Mockup 10: one row Единица / Старт / Цель / Срок; the deadline is a date (end of that day in the account's zone). */
 export function GoalFields({ initial, domainKey, domains, preferences, errors }: { initial?: Goal; domainKey?: DomainKey; domains: DomainChoice[]; preferences: UserPreferences; errors: GoalFieldErrors }) {
   const [unit, setUnit] = useState<string>(initial?.unit ?? "NOK");
   const [baseline, setBaseline] = useState("0");
   const [target, setTarget] = useState("");
+  const [describing, setDescribing] = useState(false);
+  const hint = <p id="goal-fields-hint" className="-mt-1 text-xs leading-5 text-muted-foreground">
+    {initial ? "" : "NOK — до 2 знаков после запятой, шт. и мин — целые. "}Срок необязателен и действует до конца дня ({preferences.timezone}).</p>;
   if (initial) return <>
     <Field id="title" name="title" label="Название" labelClassName="field-label" required maxLength={200} defaultValue={initial.title} error={errors.title} />
     <TextArea name="description" label="Описание (необязательно)" initial={initial.description} maxLength={4000} errors={errors} rows={2} />
+    <div className="grid gap-2.5 sm:max-w-56"><DateField name="due_at" label="Срок" describedBy="goal-fields-hint" initial={initial.due_at} timeZone={preferences.timezone} errors={errors} /></div>
+    {hint}
     <p className="text-xs leading-5 text-muted-foreground">Можно изменить название, описание и срок. Единица, начальное и целевое значения сохраняют смысл истории измерений.</p>
-    <DateTimeField name="due_at" label="Срок" hint="Необязательно" initial={initial.due_at} timeZone={preferences.timezone} errors={errors} />
   </>;
+  const describe = describing || !!errors.description;
   return <>
     <SegmentedChoice name="domain_key" legend="Сфера" options={domains.map((domain) => ({ value: domain.key, label: domain.label }))} defaultValue={domainKey} error={errors.domain_key} />
     <Field id="title" name="title" label="Название" labelClassName="field-label" required maxLength={200} error={errors.title} placeholder="Например, накопить на отпуск" />
     <SegmentedChoice name="direction" legend="Как считать прогресс" options={DIRECTIONS} defaultValue="increase" error={errors.direction} />
-    <div className="grid gap-2.5 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
       <div className="grid min-w-0 gap-1.5"><label htmlFor="unit" className="field-label">Единица</label>
         <select id="unit" name="unit" value={unit} onChange={(event) => setUnit(event.target.value)} className={inputClass}>{GOAL_UNITS.map((value) => <option key={value} value={value}>{GOAL_UNIT_LABELS[value]}</option>)}</select></div>
       <Field id="baseline" name="baseline" type="text" inputMode="decimal" label="Старт" labelClassName="field-label" defaultValue="0" required error={errors.baseline} onChange={(event) => setBaseline(event.target.value)} />
       <Field id="target" name="target" type="text" inputMode="decimal" label="Цель" labelClassName="field-label" required error={errors.target} onChange={(event) => setTarget(event.target.value)} />
+      <DateField name="due_at" label="Срок" describedBy="goal-fields-hint" timeZone={preferences.timezone} errors={errors} />
     </div>
     {unit === "custom" && <Field id="unit_label" name="unit_label" label="Название своей единицы" labelClassName="field-label" required maxLength={40} error={errors.unit_label} placeholder="км" />}
-    <p className="-mt-1 text-xs leading-5 text-muted-foreground">Для NOK — до двух знаков после запятой, для количества — целое число. Единица, старт и направление сохраняются вместе с целью.</p>
-    <DateTimeField name="due_at" label="Срок" hint="Необязательно" timeZone={preferences.timezone} errors={errors} />
-    <TextArea name="description" label="Описание (необязательно)" maxLength={4000} errors={errors} rows={2} />
+    {hint}
+    {describe
+      ? <TextArea name="description" label="Описание (необязательно)" maxLength={4000} errors={errors} rows={2} />
+      : <div><button type="button" aria-label="Добавить описание" onClick={() => { setDescribing(true); setTimeout(() => document.getElementById("description")?.focus(), 0); }} className="action-link-secondary action-sm"><Plus aria-hidden="true" className="size-3.5" />Описание</button></div>}
     <FormulaPreview baseline={baseline} target={target} />
   </>;
 }

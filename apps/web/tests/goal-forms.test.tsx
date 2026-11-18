@@ -16,7 +16,17 @@ describe("goal form boundary and exact presentation", () => {
     const result = goalFormInput(values({ ...definition, baseline: "9007199254740993,01", target: "9007199254740993,02", user_id: "forged" }), "UTC");
     expect(result.data).toMatchObject({ baseline: "9007199254740993.01", target: "9007199254740993.02" });
     expect(result.data).not.toHaveProperty("user_id");
-    expect(goalFormInput(values({ ...definition, due_at: "2026-12-01T10:00" }), preferences.timezone).data?.due_at).toBe("2026-12-01T09:00:00.000Z");
+    // A date-only deadline (LFS-213) is the last millisecond of that day in the account's zone (Oslo: UTC+1 in winter).
+    expect(goalFormInput(values({ ...definition, due_at: "2026-12-01" }), preferences.timezone).data?.due_at).toBe("2026-12-01T22:59:59.999Z");
+    expect(goalFormInput(values({ ...definition, due_at: "2026-07-01" }), preferences.timezone).data?.due_at).toBe("2026-07-01T21:59:59.999Z");
+  });
+  it("keeps a stored deadline whose date is unchanged and moves an edited one to the end of the new day", () => {
+    const original = "2026-12-01T09:30:00.000Z";
+    const edit = (due_at: string) => goalFormInput(values({ title: definition.title, due_at, due_at_original: original }), preferences.timezone, true).data?.due_at;
+    expect(edit("2026-12-01")).toBe(original);
+    expect(edit("2026-12-02")).toBe("2026-12-02T22:59:59.999Z");
+    expect(edit("")).toBeNull();
+    expect(goalFormInput(values({ ...definition, due_at: "2026-13-01" }), preferences.timezone).errors).toHaveProperty("due_at");
   });
   it.each([{ target: "0" }, { target: "1.001" }, { baseline: "-1" }, { target: "1e5" }, { unit: "custom" }, { domain_key: "" }, { title: " " }])(
     "returns field errors before sending invalid goal %j", (change) => { expect(goalFormInput(values({ ...definition, ...change }), "UTC").errors).toBeTruthy(); },

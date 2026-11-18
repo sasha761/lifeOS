@@ -414,6 +414,38 @@ no-store в общем envelope. Владелец берётся только и
 GoalsReader ([ADR-010](../adr/010-goals-api-progress.md)); snapshots,
 materialized views и background projections не используются.
 
+## Журнал действий (LFS-213)
+
+`GET /api/v1/activity` — журнал `activity_events` владельца сессии, новые
+сверху. Нужен для «Истории изменений» на панели цели и «Последних действий в
+сфере». Гость и поддельная сессия — 401 (до чтения query); ответ no-store в
+общем envelope.
+
+Query (`activityQuerySchema`, strict): `limit` 1–50, по умолчанию 10
+(`ACTIVITY_LIMIT_DEFAULT`, `ACTIVITY_LIMIT_MAX`); не больше одного фильтра —
+`domain_key` или `goal_id` (UUID, регистр не важен). Оба фильтра сразу,
+неизвестный ключ (включая `user_id`), повтор ключа или `cursor` — 400
+VALIDATION_ERROR. Курсора пока нет: панель и страница сферы показывают
+последние записи. Чужой или несуществующий `goal_id` даёт пустой список, их
+нельзя различить.
+
+`ActivityFeed` (`activityFeedSchema`): `{ items }`; запись
+(`activityEntrySchema`) — поля записи Dashboard и детали изменения, взятые
+только из сохранённого payload:
+
+| Поле | Содержимое |
+|---|---|
+| `id`, `type`, `occurredAt`, `source`, `domainKey`, `goal` | как в `activity` Dashboard; `goal.title` — текущее название (audit не хранит названия, ADR-008) |
+| `measurement` | `{ value, previousValue, unit, unitLabel }` у `goal_measurement.*`, иначе null; `previousValue` — значение до исправления, только у `goal_measurement.updated` |
+| `changedFields` | у `goal.updated` — какие поля изменены (`title`, `description`, `due_at`), иначе null. Сами название и описание в журнале не хранятся |
+| `dueAt` | у `goal.updated` с изменённым сроком — `{ before, after }` (UTC instant или null), иначе null |
+
+Чтение — один owner-scoped SQL-запрос с join на `goals` по составному ключу
+(владелец, сфера, цель) и существующими индексами
+`(user_id, domain_key|goal_id, occurred_at, id)`; миграций нет. Dashboard
+строит свои записи той же нормализацией (`toDashboardActivity`), его контракт
+не менялся.
+
 ## Официальные API
 
 Использованы [Zod 4 schemas](https://zod.dev/api),

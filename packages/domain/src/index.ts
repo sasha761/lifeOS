@@ -23,6 +23,8 @@ export type {
 export { calculateGoalProgress } from "./core/goal-progress.ts";
 export { createGoalsReader, goalDetailsFromRecord } from "./core/goals-reader.ts";
 export type { GoalReadRecord, GoalsReadQuery, MeasurementsReadQuery, GoalsReadRepository, GoalsReader } from "./core/goals-reader.ts";
+export { createActivityReader, isVisibleActivity, toActivityEntry } from "./core/activity.ts";
+export type { ActivityFilter, ActivityReadRepository, ActivityReader, ActivityRecord } from "./core/activity.ts";
 export { createDashboardReader, DASHBOARD_LIMITS } from "./core/dashboard.ts";
 export type {
   DashboardActivityRecord, DashboardCountRecord, DashboardLimits, DashboardReader, DashboardReadRecord, DashboardReadRepository,

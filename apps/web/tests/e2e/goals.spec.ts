@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { add, create, login, noOverflow } from "./support.ts";
+import { add, create, goalAction, login, noOverflow } from "./support.ts";
 
 test("guest guards and the empty state", async ({ page }) => {
   for (const path of ["/goals", "/goals/new", "/goals/4fe63a56-7a7f-4905-bdc3-c9dff1d439dc"]) {
@@ -32,25 +32,26 @@ test("create, measure 24%, edit, cancel/delete, metadata and archive keep histor
   await page.getByRole("button", { name: "Подтвердить удаление" }).click();
   await expect(page.getByTestId("measurement-row")).toHaveCount(1);
   await expect(page.getByTestId("goal-percent")).toHaveText("30%");
-  await page.getByRole("button", { name: "Изменить цель", exact: true }).click();
+  await goalAction(page, "Изменить цель");
   await page.getByRole("dialog").getByLabel("Название", { exact: true }).fill(`${title} · исправлена`);
   await page.getByRole("button", { name: "Сохранить изменения цели" }).click();
   await expect(page.getByRole("heading", { name: `${title} · исправлена`, exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "В архив", exact: true }).click();
+  await goalAction(page, "В архив");
   await page.getByRole("button", { name: "Подтвердить архивирование" }).click();
-  await expect(page.getByText("В архиве", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: `${title} · исправлена` }).getByText("В архиве", { exact: true })).toBeVisible();
   await expect(page.getByTestId("measurement-row")).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Добавить измерение", exact: true })).toHaveCount(0);
   await noOverflow(page);
-  await page.getByRole("link", { name: "Все цели", exact: true }).click();
+  // «Все цели» is the narrow-screen way back (covered in layout.spec.ts); the list is beside the panel from 1024px.
+  await page.goto("/goals");
   const domainTabs = page.getByRole("navigation", { name: "Сфера целей" });
   await domainTabs.getByRole("link", { name: "Финансы", exact: true }).click();
   await expect(page).toHaveURL(/\/goals\?domain_key=finance$/);
   await expect(domainTabs.getByRole("link", { name: "Финансы", exact: true })).toHaveAttribute("aria-current", "page");
   const statusTabs = page.getByRole("navigation", { name: "Статус целей" });
-  await statusTabs.getByRole("link", { name: "В архиве", exact: true }).click();
+  await statusTabs.getByRole("link", { name: /^В архиве/ }).click();
   await expect(page).toHaveURL(/\/goals\?domain_key=finance&status=archived$/);
-  await expect(statusTabs.getByRole("link", { name: "В архиве", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(statusTabs.getByRole("link", { name: /^В архиве/ })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("link", { name: `${title} · исправлена`, exact: true })).toBeVisible();
   await noOverflow(page);
   await login(page, "OTHER"); await page.goto(path);
