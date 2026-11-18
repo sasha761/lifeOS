@@ -35,6 +35,16 @@
 | 9a | [LFS-212](LFS-212.md) | UI-kit and mockup comparison |
 | 10 | [LFS-209](LFS-209.md) | E2E, security, acceptance |
 | 10a | [LFS-213](LFS-213.md) | Stage 2 page layout per mockups |
+| 10b | [LFS-216](LFS-216.md) | Goal deletion |
+| 10c | [LFS-217](LFS-217.md) | Edit start and target before first measurement |
+| 10d | [LFS-218](LFS-218.md) | Starter goal pack |
+
+Доработки по рискам LFS-213. Stage 3 не блокируют, место в очереди назначает владелец.
+
+| ID | Короткое название |
+|---|---|
+| [LFS-214](LFS-214.md) | Activity journal pagination |
+| [LFS-215](LFS-215.md) | 404 and redirect status under streaming |
 
 Локальный статус 2026-11-15: LFS-202 проверена повторно (36 Web integration
 tests); LFS-203 выполнена, evidence — в [её отчёте](LFS-203.md#результат-lfs-203--2026-11-15).
@@ -65,3 +75,8 @@ LFS-213 выполнена 2026-11-18: [компоновка страниц по
 `GET /api/v1/activity`, срок цели датой, 404 неизвестных сфер в proxy; 558 unit + 145 PostgreSQL integration +
 28 Playwright desktop/mobile; без миграций. Очередь Stage 2 закрыта. Stage 3 начинается только после решения
 владельца по чек-листу приёмки.
+2026-11-18 риски LFS-213 вынесены в [LFS-214](LFS-214.md) (курсор журнала) и [LFS-215](LFS-215.md) (HTTP-статусы под
+потоковой оболочкой).
+2026-11-18 по запросу владельца перед Stage 3 добавлены [LFS-216](LFS-216.md) (удаление целей),
+[LFS-217](LFS-217.md) (правка старта и цели до первого измерения, срок «необязательно») и [LFS-218](LFS-218.md)
+(стартовый набор целей для новых и существующих аккаунтов). Следующая задача по очереди — LFS-216.
