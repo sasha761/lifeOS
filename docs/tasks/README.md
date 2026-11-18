@@ -57,7 +57,7 @@ LFS-204 выполнена 2026-11-17: [Dashboard шести сфер](LFS-204.m
 LFS-212 выполнена 2026-11-17: [UI-kit и сравнение с макетами](LFS-212.md#результат-lfs-212--2026-11-17),
 `pnpm ui:shots`, правило lint против литералов цвета, «Новая цель» диалогом; 524 unit + 139 PostgreSQL
 integration + 16 Playwright desktop/mobile; без миграций и изменений API.
-Hosted CI: LFS-212 — PASS на PR #2, LFS-209 — PASS на PR #3.
+Hosted CI: LFS-212 — PASS на PR #2, LFS-209 — PASS на PR #3, LFS-213 — PASS на PR #4.
 LFS-209 выполнена 2026-11-17: [E2E, security и приёмка Stage 2](LFS-209.md#результат-lfs-209--2026-11-17),
 [чек-лист приёмки](STAGE-02-ACCEPTANCE.md) заполнен; 524 unit + 140 PostgreSQL integration + 22 Playwright desktop/mobile; без миграций и изменений API/UI.
 2026-11-17 по сравнению с макетами добавлена LFS-213 (компоновка страниц Stage 2); она вставлена перед Stage 3.
