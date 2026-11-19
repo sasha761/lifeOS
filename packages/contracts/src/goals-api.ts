@@ -3,6 +3,9 @@ import { domainKeySchema } from "./domains.ts";
 import { goalDecimalSchema, goalDirectionSchema, goalIdSchema, goalInstantSchema, goalSchema, goalStatusSchema, goalUnitSchema, updateGoalInputSchema } from "./goals.ts";
 import { goalMeasurementSchema } from "./goal-measurements.ts";
 
+export const goalDeletionSchema = z.strictObject({ id: goalIdSchema, user_id: z.string().min(1).max(128), deleted: z.literal(true) });
+export type GoalDeletion = z.infer<typeof goalDeletionSchema>;
+
 export const GOALS_PAGE_DEFAULT = 20;
 export const GOALS_PAGE_MAX = 100;
 const limitSchema = z.union([z.number(), z.string().regex(/^[1-9][0-9]{0,2}$/).transform(Number)])

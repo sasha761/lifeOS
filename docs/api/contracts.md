@@ -305,7 +305,7 @@ stream: он допустим, любое фактическое содержи�
 с другим запросом — 409 CONFLICT; internal failure — безопасный 500.
 Успешные операции, включая POST/replay/DELETE, возвращают **200** и общий
 envelope. Все ответы no-store, request_id/correlation_id остаются в meta и
-headers. Неподдерживаемый метод, включая DELETE цели, обрабатывается Next
+headers. Неподдерживаемый метод обрабатывается Next
 как 405; это не domain endpoint.
 
 | Метод и URL | Вход / `data` успеха |
@@ -314,6 +314,7 @@ headers. Неподдерживаемый метод, включая DELETE це
 | `POST /api/v1/goals` | CreateGoalInput; `GoalDetails` |
 | `GET /api/v1/goals/:goalId` | `GoalDetails { goal: Goal, progress: GoalProgress }` |
 | `PATCH /api/v1/goals/:goalId` | UpdateGoalInput metadata **либо** `{status:"archived"}`; `GoalDetails` |
+| `DELETE /api/v1/goals/:goalId` (LFS-216) | без body; `GoalDeletion { id, user_id, deleted:true }` |
 | `GET /api/v1/goals/:goalId/measurements` | optional query limit/cursor; `MeasurementsPage { items: GoalMeasurement[], nextCursor, measurementCount }` |
 | `POST /api/v1/goals/:goalId/measurements` | CreateGoalMeasurementInput; `GoalMeasurement` |
 | `PATCH /api/v1/goal-measurements/:measurementId` | UpdateGoalMeasurementInput; `GoalMeasurement` |
@@ -321,11 +322,16 @@ headers. Неподдерживаемый метод, включая DELETE це
 
 Каждая запись требует `Idempotency-Key`: 1..128 ASCII `[A-Za-z0-9._:-]`.
 POST/PATCH требуют `Content-Type: application/json` (charset допустим).
+DELETE отклоняет любое непустое тело. Переданный Origin должен совпадать
+с публичным origin приложения (`BETTER_AUTH_URL`); чужой Origin, включая `null`,
+даёт 403 FORBIDDEN. Внутренний адрес Next и входящие Host headers не считаются доверенными.
+Запросы без Origin допустимы; CORS не включён.
 Body/headers/query не определяют владельца; source команды всегда web.
 Неизвестные/повторённые query fields отклоняются; query разрешён только для
 двух list endpoints. Status active/completed, смешанный archive + metadata,
 правка baseline/target/unit/domain и computed mode отклоняются. Архив
-терминальный и читаемый, свежие mutation-команды — 409.
+терминальный и читаемый, свежие команды редактирования/измерений — 409.
+Активную и архивную цель владелец может удалить навсегда отдельным DELETE.
 
 **Повторы.** Namespace `(user_id,key)` общий для goal и measurement команд.
 Один нормализованный запрос даёт один эффект/audit/receipt, включая concurrent
@@ -338,6 +344,15 @@ retries; JSON key order, эквивалентные decimal и offsets не ме
 Новый ключ DELETE отсутствующего id — 404. Goal responses читают progress
 после commit: если чтение/доставка ответа сорвалась, повторяйте **тот же**
 key/body. Новые meta IDs при replay допустимы. Ключи не истекают в Stage 2.
+
+LFS-216: DELETE цели удаляет её, все измерения, события журнала и прежние
+квитанции в одной транзакции. Корзины и восстановления нет. Только минимальная
+квитанция удаления (owner/key/hash/target UUID/time, без FK на цель и без
+metadata) остаётся для успешного повтора с тем же ключом; при удалении
+владельца она тоже удаляется. Новая операция использует общий namespace ключей
+всех goal/measurement команд. Нет `goal.deleted` event или response snapshot.
+После удаления прежние create/update receipts уже отсутствуют: их ключи не
+обеспечивают replay удалённых данных. Подробнее — [ADR-008](../adr/008-transactional-audit.md).
 
 **Проекция.** `goal` сохраняет прежний snake_case DTO; `progress` имеет поля:
 

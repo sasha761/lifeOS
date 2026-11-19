@@ -175,6 +175,17 @@ Tests никогда не должны принимать application DATABASE_U
 Миграции применяются повторяемо; уже применённые SQL/snapshots не переписываются.
 Удаление старой fixture в будущем оформляется новой миграцией.
 
+## Квитанции удаления целей · LFS-216
+
+`goal_deletion_receipts`, миграция `0006_goal_deletion_receipts.sql`: PK
+`(user_id,idempotency_key)`, SHA-256 `request_hash`, UUID `target_id`,
+`created_at timestamptz(3)`. CHECK проверяют формат ключа/hash и конечное время.
+FK `user_id → user.id CASCADE`; FK на цель отсутствует, чтобы подтверждение
+успеха переживало DELETE. Ни metadata, ни история, ни response не сохраняются.
+Общий owner/key advisory lock синхронизирует обе таблицы квитанций.
+Прежние goal/measurement receipts остаются с FK CASCADE на цель.
+Политика — [ADR-008](../adr/008-transactional-audit.md).
+
 ## Goals · LFS-205
 
 `packages/db/src/schema/goals.ts`, миграция `0003_goals.sql`.

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowLeft, Plus, Target } from "lucide-react";
@@ -23,7 +23,7 @@ import { GoalPanel } from "./goal-detail.tsx";
 import { GoalAmount, LoadState, StatusBadge, useGoalData } from "./shared.tsx";
 import type { DomainChoice } from "./shared.tsx";
 
-type Browser = { preferences: UserPreferences; domains: DomainChoice[]; firstId: string | null; filters: string; reloadList(): void };
+type Browser = { preferences: UserPreferences; domains: DomainChoice[]; firstId: string | null; filters: string; deletedId: string | null; reloadList(): void; deleted(id: string): void };
 const BrowserContext = createContext<Browser | null>(null);
 const GOAL_FORMS = ["активная цель", "активные цели", "активных целей"] as const;
 
@@ -59,6 +59,8 @@ function GoalRow({ value, label, preferences, href, selected }: { value: GoalDet
  * separate screens.
  */
 export function GoalsBrowser({ preferences, domains, children }: { preferences: UserPreferences; domains: DomainChoice[]; children: ReactNode }) {
+  const router = useRouter();
+  const [deletedId, setDeletedId] = useState<string | null>(null);
   const search = useSearchParams();
   const params = useParams<{ id?: string }>();
   const selectedId = typeof params.id === "string" ? params.id.toLowerCase() : null;
@@ -82,6 +84,12 @@ export function GoalsBrowser({ preferences, domains, children }: { preferences: 
   const [error, setError] = useState<string | null>(null);
   const data = more?.url === url ? more.page : resource.data;
   function reloadList() { setMore(null); resource.reload(); counts.reload(); }
+  function deleted(id: string) {
+    setDeletedId(id); reloadList();
+    router.replace(`/goals${filterSuffix}`);
+    // Refresh server-rendered route data; reloadList also refetches the Dashboard counters.
+    router.refresh();
+  }
   async function loadMore() {
     if (pending || !data?.nextCursor) return;
     setPending(true); setError(null);
@@ -116,7 +124,8 @@ export function GoalsBrowser({ preferences, domains, children }: { preferences: 
     ? <><strong className="font-semibold text-foreground"><span className="tabular-nums">{totals.active}</span> {plural(totals.active, GOAL_FORMS)} в <span className="tabular-nums">{totals.spheres}</span> {plural(totals.spheres, ["сфере", "сферах", "сферах"])}.</strong>{" "}</>
     : null;
 
-  return <BrowserContext.Provider value={{ preferences, domains, firstId, filters: filterSuffix, reloadList }}>
+  return <BrowserContext.Provider value={{ preferences, domains, firstId, filters: filterSuffix, deletedId, reloadList, deleted }}>
+    {deletedId && <div role="status" className="mb-4 rounded-lg border border-st-green/40 bg-st-green/10 px-3 py-2.5 text-sm">Цель удалена</div>}
     <div className={selectedId ? "max-lg:hidden" : undefined}>
       <PageHeader title="Цели" description={<>{lead}Прогресс считается только по измерениям, у каждой цели виден источник.</>}
         actions={<>
@@ -160,8 +169,8 @@ export function GoalsBrowser({ preferences, domains, children }: { preferences: 
 export function SelectedGoal({ id }: { id?: string }) {
   const browser = useContext(BrowserContext);
   const target = id?.toLowerCase() ?? browser?.firstId;
-  if (!browser || !target) return null;
+  if (!browser || !target || browser.deletedId === target) return null;
   return <div className={`min-w-0 lg:sticky lg:top-4 ${id ? "" : "max-lg:hidden"}`}>
-    <GoalPanel key={target} id={target} preferences={browser.preferences} domains={browser.domains} onChanged={browser.reloadList} />
+    <GoalPanel key={target} id={target} preferences={browser.preferences} domains={browser.domains} onChanged={browser.reloadList} onDeleted={() => browser.deleted(target)} />
   </div>;
 }

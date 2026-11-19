@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { decodeGoalsCursor, decodeMeasurementsCursor, encodeGoalsCursor, encodeMeasurementsCursor, goalsListQuerySchema,
+import { decodeGoalsCursor, decodeMeasurementsCursor, encodeGoalsCursor, encodeMeasurementsCursor, goalDeletionSchema, goalsListQuerySchema,
   measurementsListQuerySchema, patchGoalInputSchema, progressComputationSchema } from "../src/index.ts";
 
 const id = "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc";
 const time = "2026-11-15T10:00:00.000Z";
 describe("goals HTTP contracts", () => {
+  it("validates the minimal goal deletion result", () => {
+    const result = { id, user_id: "owner", deleted: true };
+    expect(goalDeletionSchema.parse(result)).toEqual(result);
+    for (const invalid of [{ ...result, deleted: false }, { ...result, user_id: "" }, { ...result, user_id: "x".repeat(129) }, { ...result, id: "bad" }, { ...result, title: "private" }]) {
+      expect(goalDeletionSchema.safeParse(invalid).success).toBe(false);
+    }
+  });
   it("bounds page size and normalizes query limit", () => {
     expect(goalsListQuerySchema.parse({})).toEqual({ limit: 20 });
     expect(goalsListQuerySchema.parse({ limit: "100", domain_key: "finance", status: "active" })).toEqual({ limit: 100, domain_key: "finance", status: "active" });

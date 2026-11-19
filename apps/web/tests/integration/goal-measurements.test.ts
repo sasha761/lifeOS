@@ -229,7 +229,7 @@ describe("manual measurements in PostgreSQL", () => {
       locked.resolve(); await release.promise; return operation(transaction);
     }) };
     const goalUnit = createGoalsUnitOfWork(harness.database.db);
-    const competing: GoalsUnitOfWork = { goals: goalUnit.goals, run: (actor, command, operation) => goalUnit.run(actor, command, async (transaction) => {
+    const competing: GoalsUnitOfWork = { ...goalUnit, run: (actor, command, operation) => goalUnit.run(actor, command, async (transaction) => {
       const pending = transaction.goals.find(actor, parent.id); started.resolve(); await pending; return operation(transaction);
     }) };
     const pending = createGoalMeasurementsService(delayed).create(owner.actor, parent.id, input, options());

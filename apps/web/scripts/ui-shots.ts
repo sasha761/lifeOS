@@ -37,7 +37,7 @@ async function seed(fixture: UiFixture) {
   await create({ domain_key: "work", title: "Отклики на вакансии", unit: "count", baseline: "0", target: "15", direction: "increase", due_at: due(5) });
   const archived = await create({ domain_key: "projects", title: "Черновик сайта портфолио", unit: "count", baseline: "0", target: "5", direction: "increase" });
   await apiWrite(base, cookies.owner, `/api/v1/goals/${archived.goal.id}`, { status: "archived" }, "PATCH");
-  return { goalId: savings.goal.id };
+  return { goalId: savings.goal.id, archivedId: archived.goal.id };
 }
 
 /** Waits until client data have loaded: no skeleton or «Загружаем…» status, fonts ready. */
@@ -87,12 +87,21 @@ async function main() {
     // Russian number and date formats, as on the mockups.
     fixture = await startUiFixture({ suite: "lfs212_shots", ownerLocale: "ru", onStage: (value) => { stage = value; } });
     stage = "test data through the API";
-    const { goalId } = await seed(fixture);
+    const { goalId, archivedId } = await seed(fixture);
     const shots: Shot[] = [
       { name: "home", path: "/", mockup: "04-progress.png" },
       { name: "dashboard", path: "/dashboard", mockup: "04-progress.png" },
       { name: "goals", path: "/goals", mockup: "09-goals.png" },
       { name: "goal", path: `/goals/${goalId}`, mockup: "09-goals.png" },
+      { name: "goal-menu", path: `/goals/${goalId}`, mockup: "09-goals.png", open: async (page) => {
+        await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
+      } },
+      ...[{ name: "goal-delete", id: goalId }, { name: "goal-delete-archived", id: archivedId }].map(({ name, id }): Shot => ({
+        name, path: `/goals/${id}`, mockup: "09-goals.png", open: async (page) => {
+          await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
+          await page.getByRole("button", { name: "Удалить цель", exact: true }).click();
+        },
+      })),
       { name: "domain-finance", path: "/domains/finance", mockup: "10-domain-new-goal.png" },
       // As on the mockup: the «Новая цель» dialog opened from the sphere page.
       { name: "goal-new", path: "/domains/finance", mockup: "10-domain-new-goal.png", open: async (page) => {

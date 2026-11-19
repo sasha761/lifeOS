@@ -13,7 +13,7 @@ import { actorFromVerifiedSession, createGoalsService } from "@lifeos/domain";
 import { createGoalsUnitOfWork } from "../../src/goals-unit-of-work.ts";
 
 // Every table the application migrations own; cleanup drops only these in schemas created by this run.
-const ownedTables = ["goal_measurements", "goal_command_receipts", "activity_events", "goals", "session", "account", "verification", "user", "foundation_migration_fixture", "__drizzle_migrations"];
+const ownedTables = ["goal_deletion_receipts", "goal_measurements", "goal_command_receipts", "activity_events", "goals", "session", "account", "verification", "user", "foundation_migration_fixture", "__drizzle_migrations"];
 const migrationsFolder = fileURLToPath(new URL("../../drizzle/", import.meta.url));
 const run = randomUUID().replaceAll("-", "");
 const cleanSchema = `lfs104_migration_${run}`;
@@ -123,7 +123,7 @@ it("applies migrations in a clean isolated schema and safely re-applies them", a
   expect(result.first).toBe(migrationCount);
   expect(result.second).toBe(migrationCount);
   expect(result.tables.map((table) => table.table_name)).toEqual([
-    "__drizzle_migrations", "account", "activity_events", "foundation_migration_fixture", "goal_command_receipts", "goal_measurements", "goals", "session", "user", "verification",
+    "__drizzle_migrations", "account", "activity_events", "foundation_migration_fixture", "goal_command_receipts", "goal_deletion_receipts", "goal_measurements", "goals", "session", "user", "verification",
   ]);
   expect(result.rows).toHaveLength(1);
   expect(result.rows[0]?.label).toBe("lfs104-migration-smoke");

@@ -37,7 +37,7 @@ export async function add(page: Page, value: string, note = "Браузерно�
   await dialog.getByRole("button", { name: "Добавить измерение", exact: true }).click();
 }
 /** Commands of the goal panel live in its «⋯» menu (mockup 09, LFS-213). */
-export async function goalAction(page: Page, name: "Изменить цель" | "В архив") {
+export async function goalAction(page: Page, name: "Изменить цель" | "В архив" | "Удалить цель") {
   await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
   await page.getByRole("button", { name, exact: true }).click();
 }

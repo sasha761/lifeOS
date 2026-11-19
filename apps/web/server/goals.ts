@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  goalDetailsSchema, goalMeasurementDeletionSchema, goalMeasurementSchema, goalsPageSchema, HTTP_HEADERS,
+  goalDeletionSchema, goalDetailsSchema, goalMeasurementDeletionSchema, goalMeasurementSchema, goalsPageSchema, HTTP_HEADERS,
   idempotencyKeySchema, measurementsPageSchema, patchGoalInputSchema,
 } from "@lifeos/contracts";
 import type { Actor, GoalMeasurementsService, GoalsReader, GoalsService } from "@lifeos/domain";
@@ -31,7 +31,10 @@ export function query(request: Request): Record<string, string> {
 function noQuery(request: Request): void {
   if (Object.keys(query(request)).length) throw new ApiError("VALIDATION_ERROR");
 }
-function commandContext(request: Request) {
+function commandContext(request: Request, publicBaseURL: string) {
+  const origin = request.headers.get("origin");
+  // Next may reconstruct request.url with its internal host. Trust the configured public URL, never Host/X-Forwarded-Host.
+  if (origin !== null && origin !== new URL(publicBaseURL).origin) throw new ApiError("FORBIDDEN");
   noQuery(request);
   const key = idempotencyKeySchema.safeParse(request.headers.get(HTTP_HEADERS.idempotencyKey));
   if (!key.success) throw new ApiError("VALIDATION_ERROR");
@@ -65,15 +68,20 @@ export function createGoalsRoutes(dependencies: GoalsRouteDependencies) {
       }, log),
       POST: apiRoute(goalDetailsSchema, async (request) => {
         const actor = await requireApiActor(resolveAuth(), request.headers);
-        const options = commandContext(request);
+        const options = commandContext(request, resolveAuth().options.baseURL);
         const goal = await resolveGoals().create(actor, await json(request), options);
         return resolveReader().get(actor, goal.id);
       }, log),
     },
     goal: {
+      DELETE: goalRoute(goalDeletionSchema, async (request, actor, id) => {
+        const options = commandContext(request, resolveAuth().options.baseURL);
+        if (request.body !== null && (await request.text()).length !== 0) throw new ApiError("VALIDATION_ERROR");
+        return resolveGoals().deleteGoal(actor, id, options);
+      }),
       GET: goalRoute(goalDetailsSchema, async (request, actor, id) => { noQuery(request); return resolveReader().get(actor, id); }),
       PATCH: goalRoute(goalDetailsSchema, async (request, actor, id) => {
-        const options = commandContext(request);
+        const options = commandContext(request, resolveAuth().options.baseURL);
         const parsed = patchGoalInputSchema.safeParse(await json(request));
         if (!parsed.success) throw new ApiError("VALIDATION_ERROR");
         const goal = "status" in parsed.data ? await resolveGoals().archive(actor, id, options) : await resolveGoals().update(actor, id, parsed.data, options);
@@ -83,17 +91,17 @@ export function createGoalsRoutes(dependencies: GoalsRouteDependencies) {
     measurements: {
       GET: goalRoute(measurementsPageSchema, (request, actor, id) => resolveReader().history(actor, id, query(request))),
       POST: goalRoute(goalMeasurementSchema, async (request, actor, id) => {
-        const options = commandContext(request);
+        const options = commandContext(request, resolveAuth().options.baseURL);
         return resolveMeasurements().create(actor, id, await json(request), options);
       }),
     },
     measurement: {
       PATCH: measurementRoute(goalMeasurementSchema, async (request, actor, id) => {
-        const options = commandContext(request);
+        const options = commandContext(request, resolveAuth().options.baseURL);
         return resolveMeasurements().update(actor, id, await json(request), options);
       }),
       DELETE: measurementRoute(goalMeasurementDeletionSchema, async (request, actor, id) => {
-        const options = commandContext(request);
+        const options = commandContext(request, resolveAuth().options.baseURL);
         // Next may expose a zero-byte DELETE as a stream; reject actual content, not that stream.
         if (request.body !== null && (await request.text()).length !== 0) throw new ApiError("VALIDATION_ERROR");
         return resolveMeasurements().remove(actor, id, options);

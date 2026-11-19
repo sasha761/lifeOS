@@ -18,7 +18,7 @@ import { createOutboxMailSender } from "../../../server/mail/outbox.ts";
  */
 export const TEST_ORIGIN = "http://lifeos.test";
 // Tables created by the application migrations; cleanup drops only these plus a suite's own fixtures.
-const MIGRATION_TABLES = ["goal_measurements", "goal_command_receipts", "activity_events", "goals", "session", "account", "verification", "user", "foundation_migration_fixture", "__drizzle_migrations"];
+const MIGRATION_TABLES = ["goal_deletion_receipts", "goal_measurements", "goal_command_receipts", "activity_events", "goals", "session", "account", "verification", "user", "foundation_migration_fixture", "__drizzle_migrations"];
 
 export type TestUser = {
   label: string;

@@ -6,3 +6,4 @@ export const dynamic = "force-dynamic";
 const routes = createGoalsRoutes({ resolveAuth: getAuth, resolveGoals: getGoalsService, resolveMeasurements: getGoalMeasurementsService, resolveReader: getGoalsReader });
 export const GET = routes.goal.GET;
 export const PATCH = routes.goal.PATCH;
+export const DELETE = routes.goal.DELETE;

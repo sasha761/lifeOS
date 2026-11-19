@@ -105,15 +105,17 @@ export function GoalAmount({ value, preferences, percentTestId }: { value: GoalD
     {progress.progressPercent !== null && <> · <span data-testid={percentTestId}>{formatGoalPercent(progress.progressPercent, preferences)}</span></>}
   </span>;
 }
-export function Modal({ title, children, close, busy = false }: { title: string; children: ReactNode; close(): void; busy?: boolean }) {
+export function Modal({ title, children, close, busy = false, role = "dialog", describedBy }: { title: string; children: ReactNode; close(): void; busy?: boolean; role?: "dialog" | "alertdialog"; describedBy?: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const previous = document.activeElement;
     const element = dialog.current;
     element?.showModal();
+    // React's autoFocus runs while the native dialog is still closed. Focus explicitly after showModal.
+    element?.querySelector<HTMLElement>("[data-dialog-initial-focus]")?.focus();
     return () => { element?.close(); if (previous instanceof HTMLElement && previous.isConnected) previous.focus(); };
   }, []);
-  return <dialog ref={dialog} aria-labelledby="goal-dialog-title" onCancel={(event) => { event.preventDefault(); if (!busy) close(); }}
+  return <dialog ref={dialog} role={role} aria-modal="true" aria-labelledby="goal-dialog-title" aria-describedby={describedBy} onCancel={(event) => { event.preventDefault(); if (!busy) close(); }}
     onKeyDown={(event) => {
       if (event.key !== "Tab" || event.ctrlKey || event.altKey || event.metaKey) return;
       const controls = [...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex='-1'])")]

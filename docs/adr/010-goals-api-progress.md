@@ -13,7 +13,7 @@ HTTP-контракт с прогрессом и ограниченной ист
 
 ## Решение
 
-**HTTP.** Восемь операций под `/api/v1`: GET/POST goals, GET/PATCH goal,
+**HTTP.** Девять операций под `/api/v1` (с LFS-216): GET/POST goals, GET/PATCH/DELETE goal,
 GET/POST goal measurements и PATCH/DELETE measurement. Все используют
 существующий apiRoute/envelope, fixed safe errors, no-store и request IDs.
 Сессия проверяется до чтения params/query/body. Source команды — серверный
@@ -31,8 +31,8 @@ Query поддерживается только в двух list endpoints.
 PATCH goal принимает metadata **либо** `{ status: "archived" }` отдельно.
 Смешанное архивирование/правка отклоняется до записи. Терминальный archive,
 no-op receipts, audit и fingerprint остаются прежними domain-командами;
-новой операции/миграции квитанций нет. Reopen запрещён, hard delete цели
-не экспортируется (Next.js отвечает 405 для неподдерживаемого метода).
+новой операции/миграции квитанций для PATCH нет. Reopen запрещён.
+Hard delete добавлен LFS-216 (дополнение ниже).
 Сигнатуры params Promise сверены с документацией установленного Next 16.4.5:
 `apps/web/node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/route.md`.
 
@@ -108,9 +108,31 @@ row не ломает продолжение. Между HTTP страницам
 по user timezone/locale с учётом DST. Это проверено на переходе Europe/Oslo.
 Новые экраны и локализованные date strings в API не вводятся.
 
+## Дополнение LFS-216 · 2026-11-18
+
+`DELETE /api/v1/goals/:goalId` принимает обязательный Idempotency-Key без query
+и body (zero-byte stream допустим), возвращает 200 с `GoalDeletion`:
+`{ id, user_id, deleted: true }` в прежнем envelope. Auth выполняется первым:
+гость получает 401, чужой/несуществующий/malformed id — одинаковый 404.
+Архивную цель можно удалить; терминальность архива для правок сохраняется.
+Общий commandContext отклоняет переданный Origin, не совпадающий с публичным
+origin из настроенного Better Auth baseURL, включая `null`, с 403. Внутренний
+Next request.url и клиентские Host/X-Forwarded-Host не задают доверенный origin.
+Без Origin разрешены небраузерные запросы;
+обязательный custom header, отсутствие CORS и cookie rules сохранены для всех
+write endpoints. Тело DELETE измерения и цели проверяется одинаково.
+
+Атомарность и повтор удаления обеспечены `goal_deletion_receipts` без FK на
+цель ([ADR-008](008-transactional-audit.md)); после первого успеха тот же ключ
+возвращает успех, новый ключ — 404. После commit нет дополнительного read
+удалённого ресурса. UI использует прежний механизм повтора body/key, нативный
+modal `alertdialog` с отменой и возвратом фокуса на «⋯», затем возвращает на
+`/goals` с фильтрами и заново читает список и счётчики Dashboard.
+
 ## Миграция, альтернативы и границы
 
-Новых таблиц, индексов, migrations, dependencies и runtime нет. Прежние SQL,
+В исходном LFS-207 новых таблиц, индексов, migrations, dependencies и runtime нет.
+LFS-216 добавляет только таблицу и миграцию минимальных квитанций удаления. Прежние SQL,
 snapshots/journal, lockfile, master plan и write fingerprints сохраняются.
 Новый read port не создаёт CQRS subsystem, projection или event sourcing:
 читает текущие SQL rows; audit используется только для времени изменения.

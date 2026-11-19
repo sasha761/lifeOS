@@ -12,6 +12,11 @@ const input = { domain_key: "finance", title: "Save", unit: "NOK", baseline: "0"
 function memory() {
   const rows = new Map<string, Goal>();
   const repository: GoalsRepository = {
+    deleteGoal: vi.fn<GoalsRepository["deleteGoal"]>(async (actor, id) => {
+      const goal = rows.get(id);
+      if (!goal || goal.user_id !== actor.userId) return null;
+      rows.delete(id); return goal;
+    }),
     create: vi.fn<GoalsRepository["create"]>(async (actor, data) => {
       const goal = goalSchema.parse({ ...data, id: randomUUID(), user_id: actor.userId, status: "active", created_at: "2026-11-15T10:00:00Z", updated_at: "2026-11-15T10:00:00Z" });
       rows.set(goal.id, goal);
@@ -39,7 +44,9 @@ function memory() {
     }),
   };
   const events = { append: vi.fn(async () => {}) };
-  const unit: GoalsUnitOfWork = { goals: repository, run: async (_actor, _command, operation) => ({ kind: "success", goal: await operation({ goals: repository, events }) }) };
+  const unit: GoalsUnitOfWork = { goals: repository,
+    runDeletion: async (_actor, _command, operation) => ({ kind: "success", result: await operation(repository) }),
+    run: async (_actor, _command, operation) => ({ kind: "success", goal: await operation({ goals: repository, events }) }) };
   const audited = createGoalsService(unit);
   const options = { idempotencyKey: "unit-key", source: "web" };
   const service = {
@@ -52,6 +59,19 @@ function memory() {
 }
 
 describe("goals service", () => {
+  it.each([false, true])("deletes an owned goal (archived=%s) without appending history", async (archived) => {
+    const { audited, events } = memory();
+    const options = { idempotencyKey: "delete-key", source: "web" };
+    const goal = await audited.create(owner, input, options);
+    if (archived) await audited.archive(owner, goal.id, options);
+    events.append.mockClear();
+    await expect(audited.deleteGoal(other, goal.id, options)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(audited.deleteGoal(owner, "invalid", options)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(audited.deleteGoal(owner, goal.id, {})).rejects.toBeInstanceOf(InvalidInputError);
+    expect(await audited.deleteGoal(owner, goal.id.toUpperCase(), options)).toEqual({ id: goal.id, user_id: owner.userId, deleted: true });
+    await expect(audited.get(owner, goal.id)).rejects.toBeInstanceOf(NotFoundError);
+    expect(events.append).not.toHaveBeenCalled();
+  });
   it("creates the actor's manual goal with exact strings, then edits metadata only", async () => {
     const { service } = memory();
     const created = await service.create(owner, { ...input, baseline: "9007199254740993.01", target: "9007199254740993.02" });

@@ -129,7 +129,7 @@ async function main(): Promise<void> {
       assert.equal(denied.headers.get("cache-control"), "no-store");
       assert.deepEqual(apiFailureSchema.parse(await denied.json()).errors.map((error) => error.code), ["UNAUTHORIZED"]);
     }
-    assert.equal((await fetch(`${base}/api/v1/goals/${resourceId}`, { method: "DELETE", signal: AbortSignal.timeout(5_000) })).status, 405);
+    assert.equal((await fetch(`${base}/api/v1/goals/${resourceId}`, { method: "DELETE", signal: AbortSignal.timeout(5_000) })).status, 401);
   } finally { await stop(web); }
 
   stage = "compiled worker startup";

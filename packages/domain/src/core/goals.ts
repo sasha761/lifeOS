@@ -1,5 +1,5 @@
 import { createGoalInputSchema, goalCommandOptionsSchema, goalIdSchema, updateGoalInputSchema } from "@lifeos/contracts";
-import type { CreateGoalInput, Goal, GoalCommandOptions, UpdateGoalInput } from "@lifeos/contracts";
+import type { CreateGoalInput, Goal, GoalCommandOptions, GoalDeletion, UpdateGoalInput } from "@lifeos/contracts";
 import type { Actor } from "./actor.ts";
 import { ConflictError, InvalidInputError, NotFoundError } from "./errors.ts";
 import { requireFound, requireOwned } from "./ownership.ts";
@@ -14,6 +14,8 @@ export type GoalsRepository = {
   updateActive(actor: Actor, id: string, input: UpdateGoalInput): Promise<Goal | null>;
   /** Atomic transition to archived, or the unchanged row if already archived; never hard deletes. */
   archive(actor: Actor, id: string): Promise<Goal | null>;
+  /** Owner-scoped hard delete; dependent rows cascade in the same transaction. */
+  deleteGoal(actor: Actor, id: string): Promise<Goal | null>;
 };
 
 export type GoalsService = {
@@ -21,6 +23,7 @@ export type GoalsService = {
   get(actor: Actor, id: unknown): Promise<Goal>;
   update(actor: Actor, id: unknown, input: unknown, options: unknown): Promise<Goal>;
   archive(actor: Actor, id: unknown, options: unknown): Promise<Goal>;
+  deleteGoal(actor: Actor, id: unknown, options: unknown): Promise<GoalDeletion>;
 };
 
 export type GoalCommand = GoalCommandOptions & {
@@ -30,9 +33,12 @@ export type GoalCommand = GoalCommandOptions & {
 };
 export type GoalCommandOutcome = { kind: "success"; goal: Goal } | { kind: "conflict" | "not_found" };
 export type GoalTransaction = { goals: GoalsRepository; events: ActivityEventWriter };
+export type GoalDeletionCommand = GoalCommandOptions & { operation: "delete"; targetId: string; input: null };
+export type GoalDeletionOutcome = { kind: "success"; result: GoalDeletion } | { kind: "conflict" | "not_found" };
 export type GoalsUnitOfWork = {
   goals: Pick<GoalsRepository, "find">;
   run(actor: Actor, command: GoalCommand, operation: (transaction: GoalTransaction) => Promise<Goal>): Promise<GoalCommandOutcome>;
+  runDeletion(actor: Actor, command: GoalDeletionCommand, operation: (goals: GoalsRepository) => Promise<GoalDeletion>): Promise<GoalDeletionOutcome>;
 };
 function commandOptions(input: unknown): GoalCommandOptions {
   const parsed = goalCommandOptionsSchema.safeParse(input);
@@ -61,6 +67,20 @@ export function createGoalsService(unit: GoalsUnitOfWork): GoalsService {
     return ownedGoal(actor, result.goal);
   }
   return {
+    async deleteGoal(actor, id, options) {
+      const key = resourceId(id);
+      const outcome = await unit.runDeletion(actor, { ...commandOptions(options), operation: "delete", targetId: key, input: null }, async (goals) => {
+        // Same parent lock order as measurement writes. Archived goals may also be deleted.
+        ownedGoal(actor, await goals.find(actor, key));
+        const deleted = ownedGoal(actor, await goals.deleteGoal(actor, key));
+        return { id: deleted.id, user_id: actor.userId, deleted: true };
+      });
+      if (outcome.kind === "conflict") throw new ConflictError();
+      if (outcome.kind === "not_found") throw new NotFoundError();
+      if (outcome.kind !== "success") throw new Error("Invalid goal deletion outcome.");
+      requireOwned(actor, { userId: outcome.result.user_id });
+      return outcome.result;
+    },
     async create(actor, input, options) {
       const parsed = createGoalInputSchema.safeParse(input);
       if (!parsed.success) throw new InvalidInputError();

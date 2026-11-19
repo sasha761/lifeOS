@@ -24,8 +24,12 @@ export function toGoal(row: typeof goals.$inferSelect): Goal {
 }
 
 /** Accepts a database or a transaction-bound adapter; audit composition belongs to LFS-210. */
-export function createGoalsRepository(database: Pick<LifeosDatabase, "select" | "insert" | "update">, options: { lockRows?: boolean } = {}): GoalsRepository {
+export function createGoalsRepository(database: Pick<LifeosDatabase, "select" | "insert" | "update" | "delete">, options: { lockRows?: boolean } = {}): GoalsRepository {
   const repository: GoalsRepository = {
+    async deleteGoal(actor, id) {
+      const [row] = await database.delete(goals).where(ownedBy(goals.userId, actor, eq(goals.id, id))).returning();
+      return row ? toGoal(row) : null;
+    },
     async create(actor, input) {
       const [row] = await database.insert(goals).values({
         userId: actor.userId, domainKey: input.domain_key, title: input.title, description: input.description,

@@ -21,7 +21,7 @@ const newPassword = `Changed-pass-${randomUUID().slice(0, 8)}`;
 const run = randomUUID().replaceAll("-", "");
 const schemaName = `lfs201_auth_${run}`;
 if (!/^lfs201_auth_[a-f0-9]{32}$/.test(schemaName)) throw new Error("Invalid isolated test schema name.");
-const ownedTables = ["goal_measurements", "goal_command_receipts", "activity_events", "goals", "session", "account", "verification", "user", "foundation_migration_fixture", "__drizzle_migrations"];
+const ownedTables = ["goal_deletion_receipts", "goal_measurements", "goal_command_receipts", "activity_events", "goals", "session", "account", "verification", "user", "foundation_migration_fixture", "__drizzle_migrations"];
 const allowed = {
   owner: "owner@example.test", sessions: "sessions@example.test", logout: "logout@example.test",
   reset: "reset@example.test", identity: "identity@example.test", other: "other@example.test",

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { goalDetailsSchema, goalsPageSchema, measurementsPageSchema } from "./goals-api.ts";
+import { goalDeletionSchema, goalDetailsSchema, goalsPageSchema, measurementsPageSchema } from "./goals-api.ts";
 import { goalMeasurementSchema, goalMeasurementDeletionSchema } from "./goal-measurements.ts";
 import { dashboardSchema } from "./dashboard.ts";
 import { activityFeedSchema } from "./activity.ts";
@@ -201,6 +201,7 @@ export const userPreferencesResponseSchema = apiResponseSchema(userPreferencesSc
 export type UserPreferencesResponse = z.infer<typeof userPreferencesResponseSchema>;
 
 export const goalDetailsResponseSchema = apiResponseSchema(goalDetailsSchema);
+export const goalDeletionResponseSchema = apiResponseSchema(goalDeletionSchema);
 export const goalsPageResponseSchema = apiResponseSchema(goalsPageSchema);
 export const measurementsPageResponseSchema = apiResponseSchema(measurementsPageSchema);
 export const goalMeasurementResponseSchema = apiResponseSchema(goalMeasurementSchema);
