@@ -11,7 +11,7 @@ import { Field, focusFirstInvalid, FormAlert, SubmitButton } from "../auth/form-
 import { SegmentedChoice } from "../ui/segmented-choice.tsx";
 import { goalFormInput } from "../../lib/goal-form-input.ts";
 import type { GoalFieldErrors } from "../../lib/goal-form-input.ts";
-import { GOAL_UNIT_LABELS } from "../../lib/goal-presentation.ts";
+import { goalUnitOptionLabel } from "../../lib/goal-presentation.ts";
 import { DateField, inputClass, MutationError, TextArea, useGoalMutation } from "./shared.tsx";
 import type { DomainChoice } from "./shared.tsx";
 
@@ -32,20 +32,21 @@ function FormulaPreview({ baseline, target }: { baseline: string; target: string
  * zone). Editing shows the same definition fields while the goal has no measurements (LFS-217); after the first
  * measurement only the title, description and deadline change.
  */
-export function GoalFields({ initial, definitionEditable = !initial, domainKey, domains, preferences, errors }: { initial?: Goal; definitionEditable?: boolean; domainKey?: DomainKey; domains: DomainChoice[]; preferences: UserPreferences; errors: GoalFieldErrors }) {
+export function GoalFields({ initial, definitionEditable = !initial, replacesExample = false, domainKey, domains, preferences, errors }: { initial?: Goal; definitionEditable?: boolean; replacesExample?: boolean; domainKey?: DomainKey; domains: DomainChoice[]; preferences: UserPreferences; errors: GoalFieldErrors }) {
   const [unit, setUnit] = useState<string>(initial?.unit ?? "NOK");
   const [baseline, setBaseline] = useState(initial?.baseline ?? "0");
   const [target, setTarget] = useState(initial?.target ?? "");
   const [describing, setDescribing] = useState(false);
   const hint = <p id="goal-fields-hint" className="-mt-1 text-xs leading-5 text-muted-foreground">
-    {definitionEditable ? "NOK — до 2 знаков после запятой, шт. и мин — целые. " : ""}Срок действует до конца выбранного дня ({preferences.timezone}).</p>;
+    {definitionEditable ? "NOK и $ — до 2 знаков после запятой, шт. и мин — целые. " : ""}Срок действует до конца выбранного дня ({preferences.timezone}).
+    {replacesExample && " Если изменить старт, цель или единицу, примерное измерение удалится: оно относится к прежним значениям."}</p>;
   const deadline = <DateField name="due_at" label="Срок · необязательно" describedBy="goal-fields-hint" initial={initial?.due_at} timeZone={preferences.timezone} errors={errors} />;
   const definition = <>
     <SegmentedChoice name="direction" legend="Как считать прогресс" options={DIRECTIONS} defaultValue={initial?.direction ?? "increase"} error={errors.direction} />
     {/* The deadline column is wider than on mockup 10: «Срок · необязательно» and the date mask stay on one line. */}
     <div className="grid grid-cols-2 items-start gap-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.45fr)]">
       <div className="grid min-w-0 gap-1.5"><label htmlFor="unit" className="field-label">Единица</label>
-        <select id="unit" name="unit" value={unit} onChange={(event) => setUnit(event.target.value)} className={inputClass}>{GOAL_UNITS.map((value) => <option key={value} value={value}>{GOAL_UNIT_LABELS[value]}</option>)}</select></div>
+        <select id="unit" name="unit" value={unit} onChange={(event) => setUnit(event.target.value)} className={inputClass}>{GOAL_UNITS.map((value) => <option key={value} value={value}>{goalUnitOptionLabel(value)}</option>)}</select></div>
       <Field id="baseline" name="baseline" type="text" inputMode="decimal" label="Старт" labelClassName="field-label" defaultValue={initial?.baseline ?? "0"} required error={errors.baseline} onChange={(event) => setBaseline(event.target.value)} />
       <Field id="target" name="target" type="text" inputMode="decimal" label="Цель" labelClassName="field-label" defaultValue={initial?.target} required error={errors.target} onChange={(event) => setTarget(event.target.value)} />
       {deadline}
@@ -81,7 +82,7 @@ export function GoalFields({ initial, definitionEditable = !initial, domainKey, 
  * Create or edit a goal. `cancel` is the «Отмена» control: a link back on the standalone page, a button that
  * closes the dialog elsewhere. After creating, the browser opens the new goal.
  */
-export function GoalForm({ initial, definitionEditable, domainKey, domains, preferences, saved, onBusyChange, cancel }: { initial?: Goal; definitionEditable?: boolean; domainKey?: DomainKey; domains: DomainChoice[]; preferences: UserPreferences; saved?(): void; onBusyChange?(busy: boolean): void; cancel?: ReactNode }) {
+export function GoalForm({ initial, definitionEditable, replacesExample, domainKey, domains, preferences, saved, onBusyChange, cancel }: { initial?: Goal; definitionEditable?: boolean; replacesExample?: boolean; domainKey?: DomainKey; domains: DomainChoice[]; preferences: UserPreferences; saved?(): void; onBusyChange?(busy: boolean): void; cancel?: ReactNode }) {
   const router = useRouter();
   const mutation = useGoalMutation();
   const [errors, setErrors] = useState<GoalFieldErrors>({});
@@ -103,7 +104,7 @@ export function GoalForm({ initial, definitionEditable, domainKey, domains, pref
     <MutationError error={mutation.error} uncertain={mutation.uncertain} />
     {errors.form && <FormAlert tone="error">{errors.form}</FormAlert>}
     <fieldset disabled={locked} className="grid min-w-0 gap-3.5"><legend className="sr-only">Параметры цели</legend>
-      <GoalFields initial={initial} definitionEditable={definitionEditable} domainKey={domainKey} domains={domains} preferences={preferences} errors={errors} /></fieldset>
+      <GoalFields initial={initial} definitionEditable={definitionEditable} replacesExample={replacesExample} domainKey={domainKey} domains={domains} preferences={preferences} errors={errors} /></fieldset>
     <div className="flex flex-wrap items-center justify-end gap-2.5 pt-1">
       {/* One row as on mockup 10: from sm an edit's narrower note leaves room for «Отмена» and «Сохранить изменения цели»;
           on a phone the note takes its own line above both buttons, as in «Новая цель». */}

@@ -6,12 +6,20 @@ export const GOAL_DECIMAL_SCALE = 8;
 export const GOAL_TITLE_MAX_LENGTH = 200;
 export const GOAL_DESCRIPTION_MAX_LENGTH = 4000;
 export const GOAL_UNIT_LABEL_MAX_LENGTH = 40;
-export const GOAL_UNITS = Object.freeze(["NOK", "count", "minutes", "percent", "custom"] as const);
+export const GOAL_UNITS = Object.freeze(["NOK", "USD", "count", "minutes", "percent", "custom"] as const);
+/** Money units: two decimal places (LFS-218 adds USD); no conversion between currencies. */
+export const GOAL_CURRENCY_UNITS = Object.freeze(["NOK", "USD"] as const);
 export const GOAL_DIRECTIONS = Object.freeze(["increase", "decrease"] as const);
 export const GOAL_STATUSES = Object.freeze(["active", "archived"] as const);
+/**
+ * Who made the goal (LFS-218): the person (`manual`), the example the person chose to load (`starter`) or the onboarding
+ * wizard (`onboarding`, LFS-219). Assigned by the server only; an example becomes `manual` on the first edit or own measurement.
+ */
+export const GOAL_ORIGINS = Object.freeze(["manual", "starter", "onboarding"] as const);
 export const goalUnitSchema = z.enum(GOAL_UNITS);
 export const goalDirectionSchema = z.enum(GOAL_DIRECTIONS);
 export const goalStatusSchema = z.enum(GOAL_STATUSES);
+export const goalOriginSchema = z.enum(GOAL_ORIGINS);
 /** Reserved vocabulary; create/stored goals accept manual only until a real metric provider exists. */
 export const goalCalculationModeSchema = z.enum(["manual", "computed"]);
 
@@ -32,7 +40,7 @@ export function goalValueMatchesUnit(value: string, unit: z.infer<typeof goalUni
   const parsed = goalDecimalSchema.safeParse(value);
   if (!parsed.success) return false;
   const scale = parsed.data.split(".")[1]?.length ?? 0;
-  return !(unit === "NOK" && scale > 2) && !(unit === "count" && scale > 0)
+  return !((GOAL_CURRENCY_UNITS as readonly string[]).includes(unit) && scale > 2) && !(unit === "count" && scale > 0)
     && !(unit === "percent" && goalDecimalToScaledInteger(parsed.data) > goalDecimalToScaledInteger("100"));
 }
 
@@ -123,6 +131,8 @@ export const goalSchema = z.strictObject({
   id: goalIdSchema,
   user_id: z.string().min(1).max(128),
   ...definition,
+  // Older clients and fixtures without the field read as the person's own goal; the server always sends it.
+  origin: goalOriginSchema.default("manual"),
   status: goalStatusSchema,
   created_at: goalInstantSchema,
   updated_at: goalInstantSchema,

@@ -41,6 +41,8 @@ export const dashboardActivitySchema = z.strictObject({
     /** null for a measurement recorded before the goal's unit last changed (LFS-217): shown as a plain number. */
     value: goalDecimalSchema, unit: goalUnitSchema.nullable(), unitLabel: z.string().min(1).max(GOAL_UNIT_LABEL_MAX_LENGTH).nullable(),
   }).refine((measurement) => measurement.unit !== null || measurement.unitLabel === null).nullable(),
+  /** As in the journal (LFS-218): a fact of the example, labelled «Пример». */
+  example: z.boolean(),
 }).refine((item) => item.type.startsWith("goal_measurement.") === (item.measurement !== null));
 export type DashboardActivity = z.infer<typeof dashboardActivitySchema>;
 
@@ -57,5 +59,10 @@ export const dashboardSchema = z.strictObject({
   /** Newest first. */
   activity: z.array(dashboardActivitySchema).max(DASHBOARD_ACTIVITY_LIMIT)
     .refine((items) => ordered(items.map((item) => item.occurredAt), "desc")),
+  /**
+   * The example in the account (LFS-218): goals still labelled «Пример» (active and archived) and example measurements,
+   * for the banner and «Удалить все примеры». Two counts of owned rows, no query per goal.
+   */
+  examples: z.strictObject({ goals: countSchema, measurements: countSchema }),
 });
 export type Dashboard = z.infer<typeof dashboardSchema>;

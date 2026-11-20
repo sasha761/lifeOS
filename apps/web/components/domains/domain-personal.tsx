@@ -8,7 +8,7 @@ import type { DomainKey, GoalDetails, UserPreferences } from "@lifeos/contracts"
 import { describeActivity } from "../../lib/activity-presentation.ts";
 import { domainPresentation } from "../../lib/domain-presentation.ts";
 import { formatDate, formatDateTime, formatShortDateTime } from "../../lib/user-preferences.ts";
-import { GoalAmount, LoadState, useGoalData } from "../goals/shared.tsx";
+import { ExampleChip, GoalAmount, LoadState, useGoalData } from "../goals/shared.tsx";
 import { ProgressBar } from "../ui/progress-bar.tsx";
 import { SectionCard } from "../ui/section-card.tsx";
 import { SourceLabel } from "../ui/source-label.tsx";
@@ -22,13 +22,14 @@ function SphereGoalCard({ value, preferences, wide }: { value: GoalDetails; pref
   const { goal, progress } = value;
   return <SectionCard role="article" titleId={`sphere-goal-${goal.id}`} headingLevel={3} data-testid="domain-goal" className={wide ? "lg:col-span-2" : undefined}
     title={<Link href={`/goals/${goal.id}`} className="rounded hover:underline underline-offset-4">{goal.title}</Link>}
-    action={goal.due_at && <span className="text-xs font-normal text-muted-foreground tabular-nums">до <time dateTime={goal.due_at}>{formatDate(new Date(goal.due_at), preferences)}</time></span>}
+    action={(goal.due_at || goal.origin === "starter") && <span className="flex items-center gap-2">{goal.origin === "starter" && <ExampleChip />}
+      {goal.due_at && <span className="text-xs font-normal text-muted-foreground tabular-nums">до <time dateTime={goal.due_at}>{formatDate(new Date(goal.due_at), preferences)}</time></span>}</span>}
     contentClassName="grid gap-2">
     {progress.progressPercent === null
       ? <p className="text-xs leading-5 text-muted-foreground">{progress.explanation}. Добавьте измерение на странице цели.</p>
       : <>
         <ProgressBar value={progress.progressPercent} tone={domainPresentation[goal.domain_key].tone} label={`Прогресс: ${goal.title}`} />
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1"><GoalAmount value={value} preferences={preferences} /><SourceLabel className="ml-auto">ручной ввод</SourceLabel></div>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1"><GoalAmount value={value} preferences={preferences} /><SourceLabel className="ml-auto">{progress.provenance?.kind === "example" ? "пример" : "ручной ввод"}</SourceLabel></div>
       </>}
   </SectionCard>;
 }
@@ -59,7 +60,7 @@ export function DomainPersonal({ domainKey, label, preferences, moduleCard }: { 
         ? <p className="text-xs leading-5 text-muted-foreground">Действий в этой сфере пока нет.</p>
         : <ol className="grid" data-testid="domain-activity">{journal.data.items.map((entry) => <li key={entry.id} className="grid min-w-0 gap-x-3 gap-y-0.5 border-b py-2 text-sm first:pt-0 last:border-b-0 last:pb-0 sm:grid-cols-[110px_minmax(0,1fr)]">
           <time dateTime={entry.occurredAt} title={formatDateTime(new Date(entry.occurredAt), preferences)} className="text-xs leading-5 text-muted-foreground tabular-nums">{formatShortDateTime(new Date(entry.occurredAt), preferences)}</time>
-          <span className="min-w-0 wrap-anywhere">{describeActivity(entry, preferences, { withTitle: true })}{entry.goal.status === "archived" && <> <StatusChip tone="gray">в архиве</StatusChip></>}</span>
+          <span className="min-w-0 wrap-anywhere">{describeActivity(entry, preferences, { withTitle: true })}{entry.example && <> <ExampleChip /></>}{entry.goal.status === "archived" && <> <StatusChip tone="gray">в архиве</StatusChip></>}</span>
         </li>)}</ol>)}
     </SectionCard>
   </>;

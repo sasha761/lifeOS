@@ -164,7 +164,7 @@ describe("goals database constraints", () => {
     ["a computed goal", { calculation_mode: "computed" }, "23514"],
     ["a manual metric provider", { metric_key: "balance" }, "23514"],
     ["an unsupported status", { status: "completed" }, "23514"],
-    ["an unsupported unit", { unit: "USD" }, "23514"],
+    ["an unsupported unit", { unit: "EUR" }, "23514"],
     ["a missing custom label", { unit: "custom" }, "23514"],
     ["a label on NOK", { unit_label: "km" }, "23514"],
     ["a blank title", { title: " " }, "23514"],

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { goalSchema, goalMeasurementSchema } from "@lifeos/contracts";
 import { actorFromVerifiedSession, ConflictError, createGoalMeasurementsService, InvalidInputError, NotFoundError } from "../src/index.ts";
-import type { GoalMeasurementsRepository, GoalMeasurementsUnitOfWork } from "../src/index.ts";
+import type { ActivityEventWriter, GoalMeasurementsRepository, GoalMeasurementsUnitOfWork } from "../src/index.ts";
 
 const actor = actorFromVerifiedSession("owner");
 const context = { idempotencyKey: "unit-command", source: "web" };
@@ -15,10 +15,10 @@ function fixture() {
   const measurements: GoalMeasurementsRepository = {
     create: vi.fn(async () => measurement), find: vi.fn(async () => measurement),
     update: vi.fn(async (_actor, _id, changes) => ({ ...measurement, ...changes })), remove: vi.fn(async () => measurement),
-    latest: vi.fn(async () => measurement), list: vi.fn(async () => [measurement]),
+    latest: vi.fn(async () => measurement), list: vi.fn(async () => [measurement]), removeExamples: vi.fn(async () => []),
   };
-  const goals = { find: vi.fn(async () => goal) };
-  const events = { append: vi.fn(async () => {}) };
+  const goals = { find: vi.fn(async () => goal), claimExample: vi.fn(async () => ({ ...goal, origin: "manual" as const })) };
+  const events = { append: vi.fn<ActivityEventWriter["append"]>(async () => {}) };
   const unit: GoalMeasurementsUnitOfWork = { goals, measurements,
     run: vi.fn<GoalMeasurementsUnitOfWork["run"]>(async (_actor, _command, operation) => ({ kind: "success", result: await operation({ goals, measurements, events }) })) };
   const service = createGoalMeasurementsService(unit, () => new Date("2026-11-15T10:00:00Z"));
@@ -107,5 +107,33 @@ describe("measurement business rules", () => {
     await expect(service.create(actor, goal.id, input, context)).rejects.toBeInstanceOf(ConflictError);
     unit.run = async () => ({ kind: "not_found" });
     await expect(service.create(actor, goal.id, input, context)).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("an own value replaces the example ones (LFS-218)", () => {
+  it("removes the example values, makes the example goal the person's own and records the own value last", async () => {
+    const { service, goal, measurements, events, goals } = fixture();
+    const example = goalMeasurementSchema.parse({ ...input, value: "12", id: randomUUID(), user_id: actor.userId, goal_id: goal.id, unit: goal.unit,
+      source: "example", note: "Пример", created_at: input.measured_at, updated_at: input.measured_at });
+    goals.find.mockResolvedValue({ ...goal, origin: "starter" });
+    vi.mocked(measurements.removeExamples).mockResolvedValueOnce([example]);
+    await service.create(actor, goal.id, input, context);
+    expect(goals.claimExample).toHaveBeenCalledExactlyOnceWith(actor, goal.id);
+    expect(events.append.mock.calls.map(([event]) => [event.event_type, event.target_id])).toEqual([
+      ["goal_measurement.deleted", example.id], ["goal.updated", goal.id], ["goal_measurement.created", expect.any(String)]]);
+    expect(events.append.mock.calls[1]![0]).toMatchObject({ payload: { changed_fields: ["origin"] } });
+    expect(vi.mocked(measurements.removeExamples).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(measurements.create).mock.invocationCallOrder[0]!);
+  });
+  it("does not claim a goal that is already the person's own", async () => {
+    const { service, goal, goals, events } = fixture();
+    await service.create(actor, goal.id, input, context);
+    expect(goals.claimExample).not.toHaveBeenCalled();
+    expect(events.append.mock.calls.map(([event]) => event.event_type)).toEqual(["goal_measurement.created"]);
+  });
+  it("refuses to correct an example value into the person's data", async () => {
+    const { service, measurement, measurements } = fixture();
+    vi.mocked(measurements.find).mockResolvedValueOnce({ ...measurement, source: "example" });
+    await expect(service.update(actor, measurement.id, { value: "11" }, context)).rejects.toBeInstanceOf(ConflictError);
+    expect(measurements.update).not.toHaveBeenCalled();
   });
 });

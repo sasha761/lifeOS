@@ -8,7 +8,8 @@ import { goalDetailsFromRecord } from "./goals-reader.ts";
 import type { GoalReadRecord } from "./goals-reader.ts";
 
 export type DashboardLimits = { goalsPerDomain: number; dueGoals: number; activity: number };
-export type DashboardCountRecord = { domainKey: DomainKey; status: Goal["status"]; total: number };
+/** Goal counts per sphere, status and origin (the origin feeds the example banner, LFS-218). */
+export type DashboardCountRecord = { domainKey: DomainKey; status: Goal["status"]; origin: Goal["origin"]; total: number };
 /** Same record as the activity journal (LFS-213): an owned event with its current goal row. */
 export type DashboardActivityRecord = ActivityRecord;
 export type DashboardReadRecord = {
@@ -19,6 +20,8 @@ export type DashboardReadRecord = {
   dueGoals: GoalReadRecord[];
   /** At most `activity` newest owned events. */
   activity: DashboardActivityRecord[];
+  /** The owner's example measurements (`source = example`), counted in the same snapshot. */
+  exampleMeasurements: number;
 };
 /** One consistent read snapshot with a fixed number of owner-scoped queries (no query per goal). */
 export type DashboardReadRepository = { read(actor: Actor, limits: DashboardLimits): Promise<DashboardReadRecord> };
@@ -45,7 +48,11 @@ export function createDashboardReader(repository: DashboardReadRepository, limit
     async get(actor) {
       const record = await repository.read(actor, limits);
       const counts = new Map<string, number>();
-      for (const row of record.counts) counts.set(`${row.domainKey}:${row.status}`, (counts.get(`${row.domainKey}:${row.status}`) ?? 0) + count(row.total));
+      let exampleGoals = 0;
+      for (const row of record.counts) {
+        counts.set(`${row.domainKey}:${row.status}`, (counts.get(`${row.domainKey}:${row.status}`) ?? 0) + count(row.total));
+        if (row.origin === "starter") exampleGoals += count(row.total);
+      }
       // Ownership of goals is re-checked here (NotFound on a foreign row), exactly as in GoalsReader.
       const domainGoals = record.domainGoals.map((item) => goalDetailsFromRecord(actor, item)).filter(({ goal }) => goal.status === "active");
       const dueGoals = record.dueGoals.map((item) => goalDetailsFromRecord(actor, item))
@@ -61,6 +68,7 @@ export function createDashboardReader(repository: DashboardReadRepository, limit
         })),
         today: { dueGoals },
         activity,
+        examples: { goals: exampleGoals, measurements: count(record.exampleMeasurements) },
       };
     },
   };

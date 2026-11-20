@@ -20,7 +20,7 @@ import { StatCard } from "../ui/stat-card.tsx";
 import { StatusChip } from "../ui/status-chip.tsx";
 import { GoalForm } from "./goal-form.tsx";
 import { MeasurementForm } from "./measurement-form.tsx";
-import { LoadState, Modal, MutationError, StatusBadge, useGoalData, useGoalMutation } from "./shared.tsx";
+import { ExampleChip, LoadState, Modal, MutationError, StatusBadge, useGoalData, useGoalMutation } from "./shared.tsx";
 import type { DomainChoice } from "./shared.tsx";
 
 type DialogState = { mode: "goal" | "add" | "archive" | "deleteGoal" } | { mode: "edit" | "delete"; row: GoalMeasurement };
@@ -56,7 +56,9 @@ export function GoalProgressPanel({ value, preferences, now = new Date() }: { va
       <StatCard label="Осталось" value={progress.current === null ? "—" : number(remainingToTarget(goal, progress.current))} hint={daysLeft} />
     </div>
     <p className="rounded-[10px] border bg-surface-2 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-      {goal.direction === "increase" ? "Прогресс = (сейчас − старт) / (цель − старт)." : "Прогресс = (старт − сейчас) / (старт − цель)."} Источник: <strong className="font-semibold text-foreground">ручной ввод</strong>, самоотчёт. Автоматической синхронизации нет.
+      {goal.direction === "increase" ? "Прогресс = (сейчас − старт) / (цель − старт)." : "Прогресс = (старт − сейчас) / (старт − цель)."} Источник: {progress.provenance?.kind === "example"
+        ? <><strong className="font-semibold text-foreground">пример</strong> из стартового набора, не ваши данные.</>
+        : <><strong className="font-semibold text-foreground">ручной ввод</strong>, самоотчёт.</>} Автоматической синхронизации нет.
     </p>
     {goal.description && <p className="whitespace-pre-wrap wrap-anywhere text-sm leading-6 text-muted-foreground">{goal.description}</p>}
   </div>;
@@ -118,6 +120,8 @@ export function GoalPanel({ id, preferences, domains, onChanged, onDeleted }: { 
   const { goal } = value;
   const active = goal.status === "active";
   const domainLabel = domains.find((domain) => domain.key === goal.domain_key)?.label;
+  // LFS-218: the measurements are either all examples or all the person's own — the first own value removes the examples.
+  const onlyExamples = value.progress.provenance?.kind === "example";
   return <SectionCard titleId="goal-panel-title" title={goal.title} icon={<DomainIcon domain={goal.domain_key} />} aria-busy={detail.loading}
     className="[&_[data-slot=card-title]]:text-[17px] [&_[data-slot=card-title]]:leading-6"
     description={<span className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -125,11 +129,13 @@ export function GoalPanel({ id, preferences, domains, onChanged, onDeleted }: { 
       <StatusChip>{goal.direction === "increase" ? "увеличить ↑" : "уменьшить ↓"}</StatusChip>
       {goal.due_at && <StatusChip tone="outline">до <time dateTime={goal.due_at}>{formatDate(new Date(goal.due_at), preferences)}</time></StatusChip>}
       <StatusBadge status={goal.status} />
+      {goal.origin === "starter" && <ExampleChip />}
     </span>}
     action={<GoalActions active={active} disabled={detail.loading} edit={() => open({ mode: "goal" })} archive={() => open({ mode: "archive" })} deleteGoal={() => open({ mode: "deleteGoal" })} />}
     contentClassName="grid gap-4">
     {message && <div role="status" className="rounded-[10px] border border-st-green/40 bg-st-green/10 px-3 py-2.5 text-sm">{message}</div>}
     {!active && <p className="rounded-[10px] border bg-surface-2 px-3 py-2.5 text-sm leading-6">Цель в архиве. Измерения и история сохранены и доступны для просмотра. Редактирование закрыто; цель можно удалить навсегда.</p>}
+    {active && onlyExamples && <p className="rounded-[10px] border border-st-amber/35 bg-st-amber/10 px-3 py-2.5 text-sm leading-6" data-testid="example-hint">Это пример: поправьте старт и цель под себя или удалите цель.</p>}
     <GoalProgressPanel value={value} preferences={preferences} />
     <section aria-labelledby={MEASUREMENTS_TITLE} className="grid gap-2.5">
       <div className="flex flex-wrap items-center gap-2">
@@ -144,8 +150,9 @@ export function GoalPanel({ id, preferences, domains, onChanged, onDeleted }: { 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <time dateTime={row.measured_at} title={formatDateTime(new Date(row.measured_at), preferences)} className="text-xs text-muted-foreground tabular-nums">{formatShortDateTime(new Date(row.measured_at), preferences)}</time>
               <span className="text-sm font-semibold wrap-anywhere tabular-nums">{formatGoalValue(row.value, goal, preferences.locale)}</span>
-              <SourceLabel>ручной ввод{row.updated_at !== row.created_at && " · исправлено"}</SourceLabel>
-              {active && <span className="ml-auto flex gap-1"><button onClick={() => open({ mode: "edit", row })} aria-label="Изменить" title="Изменить измерение" className={iconButton}><Pencil aria-hidden="true" className="size-3.5" /></button>
+              {row.source === "example" ? <ExampleChip /> : <SourceLabel>ручной ввод{row.updated_at !== row.created_at && " · исправлено"}</SourceLabel>}
+              {/* An example value is not corrected into the person's data: their own measurement replaces it (LFS-218). */}
+              {active && <span className="ml-auto flex gap-1">{row.source !== "example" && <button onClick={() => open({ mode: "edit", row })} aria-label="Изменить" title="Изменить измерение" className={iconButton}><Pencil aria-hidden="true" className="size-3.5" /></button>}
                 <button onClick={() => open({ mode: "delete", row })} aria-label="Удалить" title="Удалить измерение" className={`${iconButton} hover:text-destructive`}><Trash2 aria-hidden="true" className="size-3.5" /></button></span>}
             </div>
             {row.note && <p className="mt-1 whitespace-pre-wrap wrap-anywhere text-xs leading-5 text-muted-foreground">{row.note}</p>}</li>)}</ol>}
@@ -159,6 +166,7 @@ export function GoalPanel({ id, preferences, domains, onChanged, onDeleted }: { 
       {journal.data && !journal.loading && !journal.error && <ol className="grid gap-1 text-xs leading-5 text-muted-foreground" data-testid="goal-history">
         {journal.data.items.map((entry) => <li key={entry.id} className="min-w-0 wrap-anywhere">
           <time dateTime={entry.occurredAt} title={formatDateTime(new Date(entry.occurredAt), preferences)} className="tabular-nums">{formatShortDateTime(new Date(entry.occurredAt), preferences)}</time> · {describeActivity(entry, preferences)}
+          {entry.example && <> <ExampleChip /></>}
         </li>)}
       </ol>}
     </section>
@@ -173,9 +181,9 @@ export function GoalPanel({ id, preferences, domains, onChanged, onDeleted }: { 
             onClick={() => void action.save({ url: `/api/v1/goals/${id}`, method: "DELETE" }, goalDeletionSchema, onDeleted)}>
             {action.pending ? "Удаляем…" : action.uncertain ? "Повторить запрос" : "Удалить"}</button>
         </div></div>}
-      {dialog.mode === "goal" && <GoalForm initial={goal} definitionEditable={value.progress.measurementCount === 0} domains={domains} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved("Изменения цели сохранены.")}
+      {dialog.mode === "goal" && <GoalForm initial={goal} definitionEditable={value.progress.measurementCount === 0 || onlyExamples} replacesExample={onlyExamples} domains={domains} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved("Изменения цели сохранены.")}
         cancel={<button type="button" disabled={dialogBusy} onClick={() => setDialog(null)} className="action-link-secondary action-compact disabled:opacity-50">Отмена</button>} />}
-      {(dialog.mode === "add" || dialog.mode === "edit") && <MeasurementForm goal={goal} initial={dialog.mode === "edit" ? dialog.row : undefined} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved(dialog.mode === "add" ? "Измерение добавлено." : "Измерение исправлено.")} />}
+      {(dialog.mode === "add" || dialog.mode === "edit") && <MeasurementForm goal={goal} initial={dialog.mode === "edit" ? dialog.row : undefined} replacesExample={dialog.mode === "add" && onlyExamples} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved(dialog.mode === "add" ? "Измерение добавлено." : "Измерение исправлено.")} />}
       {(dialog.mode === "delete" || dialog.mode === "archive") && <div className="grid gap-5"><MutationError error={action.error} uncertain={action.uncertain} />
         <p className="text-sm leading-7">{dialog.mode === "delete" ? <>Будет удалено измерение <strong>{formatGoalValue(dialog.row.value, goal, preferences.locale)}</strong> от {formatDateTime(new Date(dialog.row.measured_at), preferences)}. Прогресс обновится, а факт удаления останется в журнале.</>
           : "Цель и её измерения сохранятся в архиве. Добавление, исправление и удаление измерений будут закрыты. Вернуть цель в активные в этом этапе нельзя."}</p>

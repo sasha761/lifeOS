@@ -186,6 +186,23 @@ FK `user_id → user.id CASCADE`; FK на цель отсутствует, чт�
 Прежние goal/measurement receipts остаются с FK CASCADE на цель.
 Политика — [ADR-008](../adr/008-transactional-audit.md).
 
+## Пример по выбору · LFS-218
+
+Миграция `0007_starter_pack.sql`:
+
+- `goals.origin text NOT NULL DEFAULT 'manual'` + CHECK `manual|starter|onboarding`;
+  существующие цели получают `manual`.
+- CHECK единиц целей включает `USD`; точность `USD` как у `NOK` (2 знака) в
+  CHECK целей и измерений.
+- `goal_measurements.source` CHECK `manual|example`; `activity_events.source`
+  CHECK включает `starter`.
+- `starter_pack_receipts`: PK `(user_id,idempotency_key)`, SHA-256 `request_hash`,
+  `operation` (`starter_pack.apply|remove`), `goals`, `measurements` (≥ 0),
+  `created_at timestamptz(3)`. FK `user_id → user.id CASCADE`, FK на цели нет.
+
+Политика — дополнения LFS-218 к [ADR-007](../adr/007-goals.md) и
+[ADR-008](../adr/008-transactional-audit.md).
+
 ## Goals · LFS-205
 
 `packages/db/src/schema/goals.ts`, миграция `0003_goals.sql`.

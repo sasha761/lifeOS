@@ -23,7 +23,7 @@ describe("dashboard presentation (LFS-204)", () => {
   });
   it("sums exact counts only", () => {
     const domains = DOMAIN_KEYS.map((key, index) => ({ key, activeCount: index === 1 ? 3 : index === 5 ? 1 : 0, archivedCount: index === 2 ? 2 : 0, goals: [] }));
-    expect(dashboardTotals({ domains, today: { dueGoals: [] }, activity: [] })).toEqual({ active: 4, archived: 2, spheres: 2 });
+    expect(dashboardTotals({ domains, today: { dueGoals: [] }, activity: [], examples: { goals: 0, measurements: 0 } })).toEqual({ active: 4, archived: 2, spheres: 2 });
   });
   it("formats the current day in the account zone and survives an unknown zone", () => {
     expect(formatDay(new Date("2026-11-16T23:30:00Z"), { timezone: "Europe/Oslo", locale: "ru" })).toContain("17");

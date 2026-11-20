@@ -3,20 +3,25 @@ import type { CreateGoalInput, Goal, GoalCommandOptions, GoalDeletion, UpdateGoa
 import type { Actor } from "./actor.ts";
 import { ConflictError, InvalidInputError, NotFoundError } from "./errors.ts";
 import { requireFound, requireOwned } from "./ownership.ts";
-import { goalAuditSnapshot } from "./events.ts";
+import { goalAuditSnapshot, measurementDeletedEvent } from "./events.ts";
 import type { ActivityEventWriter } from "./events.ts";
+import type { GoalMeasurementsRepository } from "./goal-measurements.ts";
 
 /** Each operation is scoped to the verified actor in SQL; no unscoped resource lookup is allowed. */
 export type GoalsRepository = {
-  create(actor: Actor, input: CreateGoalInput): Promise<Goal>;
+  /** `origin` is assigned by the server only: `manual` unless the example command creates a `starter` goal (LFS-218). */
+  create(actor: Actor, input: CreateGoalInput, options?: { origin?: Goal["origin"] }): Promise<Goal>;
   find(actor: Actor, id: string): Promise<Goal | null>;
   /**
-   * Atomic update conditional on status=active and, when the input carries a definition, on the goal having no
-   * measurements (LFS-217). Null means missing, foreign, concurrently archived or measured.
+   * Atomic update conditional on status=active and, when the input carries a definition, on the goal having no own
+   * measurements (LFS-217; example measurements are removed first, LFS-218). An example goal becomes `manual` in the
+   * same statement. Null means missing, foreign, concurrently archived or measured.
    */
   updateActive(actor: Actor, id: string, input: UpdateGoalInput): Promise<Goal | null>;
-  /** Whether the owned goal has at least one measurement; called under the goal row lock. */
-  hasMeasurements(actor: Actor, id: string): Promise<boolean>;
+  /** Whether the owned goal has a measurement of the person's own (not an example); called under the goal row lock. */
+  hasOwnMeasurements(actor: Actor, id: string): Promise<boolean>;
+  /** An example goal becomes the person's own (`starter` → `manual`, LFS-218); null if it was not an example. */
+  claimExample(actor: Actor, id: string): Promise<Goal | null>;
   /** Atomic transition to archived, or the unchanged row if already archived; never hard deletes. */
   archive(actor: Actor, id: string): Promise<Goal | null>;
   /** Owner-scoped hard delete; dependent rows cascade in the same transaction. */
@@ -37,7 +42,7 @@ export type GoalCommand = GoalCommandOptions & {
   input: CreateGoalInput | UpdateGoalInput | null;
 };
 export type GoalCommandOutcome = { kind: "success"; goal: Goal } | { kind: "conflict" | "not_found" };
-export type GoalTransaction = { goals: GoalsRepository; events: ActivityEventWriter };
+export type GoalTransaction = { goals: GoalsRepository; measurements: Pick<GoalMeasurementsRepository, "removeExamples">; events: ActivityEventWriter };
 export type GoalDeletionCommand = GoalCommandOptions & { operation: "delete"; targetId: string; input: null };
 export type GoalDeletionOutcome = { kind: "success"; result: GoalDeletion } | { kind: "conflict" | "not_found" };
 export type GoalsUnitOfWork = {
@@ -103,19 +108,26 @@ export function createGoalsService(unit: GoalsUnitOfWork): GoalsService {
       const parsed = updateGoalInputSchema.safeParse(input);
       if (!parsed.success) throw new InvalidInputError();
       const key = resourceId(id);
-      return execute(actor, { ...commandOptions(options), operation: "update", targetId: key, input: parsed.data }, async ({ goals, events }) => {
+      return execute(actor, { ...commandOptions(options), operation: "update", targetId: key, input: parsed.data }, async ({ goals, measurements, events }) => {
         // The row lock taken by find() is the same parent lock measurement writes take first, so «no measurements»
         // cannot change between the check and the update.
         const current = ownedGoal(actor, await goals.find(actor, key));
         if (current.status === "archived") throw new ConflictError();
-        const changed_fields = [...GOAL_METADATA_FIELDS, ...GOAL_DEFINITION_FIELDS]
+        const edited = [...GOAL_METADATA_FIELDS, ...GOAL_DEFINITION_FIELDS]
           .filter((field) => parsed.data[field] !== undefined && parsed.data[field] !== current[field]);
-        if (changed_fields.length === 0) return current;
-        const redefines = changed_fields.some((field) => (GOAL_DEFINITION_FIELDS as readonly string[]).includes(field));
+        if (edited.length === 0) return current;
+        // Any real edit makes an example the person's own goal (LFS-218); updateActive writes the origin.
+        const changed_fields = current.origin === "starter" ? [...edited, "origin" as const] : edited;
+        const redefines = edited.some((field) => (GOAL_DEFINITION_FIELDS as readonly string[]).includes(field));
         // An unchanged definition is not a redefinition: it is dropped, so metadata edits of a measured goal still work.
         const input = redefines ? parsed.data
           : Object.fromEntries(GOAL_METADATA_FIELDS.filter((field) => parsed.data[field] !== undefined).map((field) => [field, parsed.data[field]])) as UpdateGoalInput;
-        if (redefines && await goals.hasMeasurements(actor, key)) throw new ConflictError();
+        if (redefines) {
+          // Only the person's own measurements fix the definition. Example measurements would be reinterpreted by it,
+          // so they are removed with an audit fact before the goal changes (the unit FK requires that order).
+          if (await goals.hasOwnMeasurements(actor, key)) throw new ConflictError();
+          for (const removed of await measurements.removeExamples(actor, key)) await events.append(measurementDeletedEvent(current, removed));
+        }
         const updated = await goals.updateActive(actor, key, input);
         if (!updated) throw new ConflictError();
         ownedGoal(actor, updated);

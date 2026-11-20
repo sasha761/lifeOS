@@ -31,7 +31,8 @@ export function query(request: Request): Record<string, string> {
 function noQuery(request: Request): void {
   if (Object.keys(query(request)).length) throw new ApiError("VALIDATION_ERROR");
 }
-function commandContext(request: Request, publicBaseURL: string) {
+/** Origin, no query and a valid Idempotency-Key for every goal write; shared with the example commands (LFS-218). */
+export function commandContext(request: Request, publicBaseURL: string) {
   const origin = request.headers.get("origin");
   // Next may reconstruct request.url with its internal host. Trust the configured public URL, never Host/X-Forwarded-Host.
   if (origin !== null && origin !== new URL(publicBaseURL).origin) throw new ApiError("FORBIDDEN");
@@ -39,6 +40,10 @@ function commandContext(request: Request, publicBaseURL: string) {
   const key = idempotencyKeySchema.safeParse(request.headers.get(HTTP_HEADERS.idempotencyKey));
   if (!key.success) throw new ApiError("VALIDATION_ERROR");
   return { idempotencyKey: key.data, source: "web" as const };
+}
+/** Next may expose a zero-byte body as a stream; reject actual content, not that stream. */
+export async function requireEmptyBody(request: Request): Promise<void> {
+  if (request.body !== null && (await request.text()).length !== 0) throw new ApiError("VALIDATION_ERROR");
 }
 async function json(request: Request) {
   // JSON + the mandatory custom header require preflight for cross-origin browser writes.
@@ -76,7 +81,7 @@ export function createGoalsRoutes(dependencies: GoalsRouteDependencies) {
     goal: {
       DELETE: goalRoute(goalDeletionSchema, async (request, actor, id) => {
         const options = commandContext(request, resolveAuth().options.baseURL);
-        if (request.body !== null && (await request.text()).length !== 0) throw new ApiError("VALIDATION_ERROR");
+        await requireEmptyBody(request);
         return resolveGoals().deleteGoal(actor, id, options);
       }),
       GET: goalRoute(goalDetailsSchema, async (request, actor, id) => { noQuery(request); return resolveReader().get(actor, id); }),
@@ -102,8 +107,7 @@ export function createGoalsRoutes(dependencies: GoalsRouteDependencies) {
       }),
       DELETE: measurementRoute(goalMeasurementDeletionSchema, async (request, actor, id) => {
         const options = commandContext(request, resolveAuth().options.baseURL);
-        // Next may expose a zero-byte DELETE as a stream; reject actual content, not that stream.
-        if (request.body !== null && (await request.text()).length !== 0) throw new ApiError("VALIDATION_ERROR");
+        await requireEmptyBody(request);
         return resolveMeasurements().remove(actor, id, options);
       }),
     },

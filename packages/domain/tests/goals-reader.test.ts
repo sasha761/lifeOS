@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { encodeGoalsCursor, encodeMeasurementsCursor, goalSchema } from "@lifeos/contracts";
-import { actorFromVerifiedSession, createGoalsReader, InvalidInputError, NotFoundError } from "../src/index.ts";
+import { encodeGoalsCursor, encodeMeasurementsCursor, goalDetailsSchema, goalMeasurementSchema, goalSchema } from "@lifeos/contracts";
+import { actorFromVerifiedSession, createGoalsReader, goalDetailsFromRecord, InvalidInputError, NotFoundError } from "../src/index.ts";
 import type { GoalReadRecord, GoalsReadRepository } from "../src/index.ts";
 
 const actor = actorFromVerifiedSession("owner");
@@ -40,5 +40,19 @@ describe("owned goal read boundary", () => {
     const { service, record, goal } = fixture();
     record.measurementCount = 1;
     await expect(service.get(actor, goal.id)).rejects.toThrow("Invalid measurement summary.");
+  });
+});
+
+describe("example current value (LFS-218)", () => {
+  it("is shown as an example, not as the person's self-report", () => {
+    const actor = actorFromVerifiedSession("owner");
+    const goal = goalSchema.parse({ id: randomUUID(), user_id: actor.userId, domain_key: "finance", title: "Накопить 5 000 $", unit: "USD", baseline: "0", target: "5000",
+      direction: "increase", status: "active", origin: "starter", created_at: "2026-11-18T19:40:00Z", updated_at: "2026-11-18T19:40:00Z" });
+    const latest = goalMeasurementSchema.parse({ id: randomUUID(), goal_id: goal.id, user_id: actor.userId, unit: "USD", value: "1200", measured_at: "2026-11-18T19:40:00Z",
+      source: "example", note: null, created_at: "2026-11-18T19:40:00Z", updated_at: "2026-11-18T19:40:00Z" });
+    const details = goalDetailsSchema.parse(goalDetailsFromRecord(actor, { goal, latest, measurementCount: 1, updatedAt: latest.updated_at }));
+    expect(details.progress.provenance).toMatchObject({ kind: "example", source: "example", measurementId: latest.id });
+    expect(details.progress).toMatchObject({ current: "1200", progressPercent: 24 });
+    expect(details.goal.origin).toBe("starter");
   });
 });

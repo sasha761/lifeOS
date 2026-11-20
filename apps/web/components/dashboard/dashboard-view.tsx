@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { CalendarClock, History, Plus } from "lucide-react";
-import { dashboardSchema } from "@lifeos/contracts";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { KeyboardEvent } from "react";
+import { CalendarClock, History, LayoutList, Plus } from "lucide-react";
+import { dashboardSchema, starterPackRemovedSchema } from "@lifeos/contracts";
 import type { Dashboard, DashboardActivity, DashboardDomain, DomainKey, GoalDetails, UserPreferences } from "@lifeos/contracts";
 import { domainPresentation } from "../../lib/domain-presentation.ts";
 import { activityLabel, dashboardTotals, dueState, formatDay, plural, sourceLabel } from "../../lib/dashboard-presentation.ts";
 import { formatLoggedValue } from "../../lib/goal-presentation.ts";
+import { useDismiss } from "../../lib/use-dismiss.ts";
 import { formatDate, formatDateTime } from "../../lib/user-preferences.ts";
-import { GoalAmount, LoadState, useGoalData } from "../goals/shared.tsx";
+import { CloseButton, ExampleChip, GoalAmount, LoadState, MutationError, useGoalData, useGoalMutation } from "../goals/shared.tsx";
 import { ProgressBar } from "../ui/progress-bar.tsx";
 import { SectionCard } from "../ui/section-card.tsx";
 import { Skeleton } from "../ui/skeleton.tsx";
@@ -19,6 +21,8 @@ import { ToneDot } from "../ui/tone-dot.tsx";
 
 type DomainLabels = Record<DomainKey, string>;
 const GOAL_FORMS = ["активная цель", "активные цели", "активных целей"] as const;
+const COUNT_GOALS = ["цель", "цели", "целей"] as const;
+const COUNT_MEASUREMENTS = ["измерение", "измерения", "измерений"] as const;
 /** The right card of the first row stays about as tall as «Сегодня» (LFS-213); the API keeps its own limit. */
 const DASHBOARD_ACTIVITY_SHOWN = 5;
 
@@ -28,22 +32,25 @@ function Summary({ dashboard }: { dashboard: Dashboard }) {
   if (active === 0 && archived === 0) {
     return <p className="mt-2 text-sm leading-6 text-muted-foreground">Целей пока нет. Выберите сферу ниже и создайте первую цель — прогресс появится после первого измерения.</p>;
   }
+  // Mockup 28: while every goal is an example, so is every measurement (an own value makes its goal the person's).
+  const allExamples = dashboard.examples.goals > 0 && dashboard.examples.goals === active + archived;
   return <p className="mt-2 text-sm leading-6 text-muted-foreground" data-testid="dashboard-summary">
     <strong className="font-semibold text-foreground"><span className="tabular-nums">{active}</span> {plural(active, GOAL_FORMS)}
       {active > 0 && <> в <span className="tabular-nums">{spheres}</span> {plural(spheres, ["сфере", "сферах", "сферах"])}</>}.</strong>
     {archived > 0 && <> <span className="tabular-nums">{archived}</span> в архиве.</>}
+    {allExamples && " Все цели и измерения пока примерные."}
   </p>;
 }
 
 /** Newest active goal of the sphere: its bar and «X из Y · %», or why there is no percentage. */
-function SphereGoal({ value, preferences }: { value: GoalDetails; preferences: UserPreferences }) {
+function SphereGoal({ value, preferences, examples }: { value: GoalDetails; preferences: UserPreferences; examples: boolean }) {
   const { goal, progress } = value;
   return progress.progressPercent === null
     ? <p className="col-span-full text-xs leading-5 text-muted-foreground sm:col-span-2 sm:text-right" data-testid="dashboard-goal">{progress.explanation}</p>
     : <>
       <ProgressBar value={progress.progressPercent} tone={domainPresentation[goal.domain_key].tone} label={`Прогресс: ${goal.title}`}
-        className="col-span-full row-start-2 sm:col-span-1 sm:col-start-3 sm:row-start-1" />
-      <p className="text-right text-xs leading-5 text-muted-foreground" data-testid="dashboard-goal"><GoalAmount value={value} preferences={preferences} percentTestId="dashboard-goal-percent" /></p>
+        className={`col-span-full row-start-2 sm:col-span-1 sm:row-start-1 ${examples ? "sm:col-start-4" : "sm:col-start-3"}`} />
+      <p className="min-w-0 text-right text-xs leading-5 text-muted-foreground" data-testid="dashboard-goal"><GoalAmount value={value} preferences={preferences} percentTestId="dashboard-goal-percent" /></p>
     </>;
 }
 
@@ -51,20 +58,24 @@ function SphereGoal({ value, preferences }: { value: GoalDetails; preferences: U
  * One row of «Сферы жизни» (mockup 04): colour dot, sphere name, bar and value of the newest active goal (LFS-213).
  * There is no sphere percentage or score: a sphere without measurements says so, an empty one offers a goal.
  */
-function SphereRow({ domain, label, preferences }: { domain: DashboardDomain; label: string; preferences: UserPreferences }) {
+function SphereRow({ domain, label, preferences, examples }: { domain: DashboardDomain; label: string; preferences: UserPreferences; examples: boolean }) {
   const [newest] = domain.goals;
   const more = domain.activeCount - (newest ? 1 : 0);
   const href = `/goals?domain_key=${domain.key}${domain.activeCount === 0 && domain.archivedCount > 0 ? "&status=archived" : ""}`;
+  const example = newest?.goal.origin === "starter";
+  // Mockup 28: while there are examples, «Пример» has its own column after the sphere name (rows stay aligned).
   return <li data-testid={`dashboard-domain-${domain.key}`}
-    className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5 py-2 sm:grid-cols-[auto_92px_minmax(0,1fr)_210px] sm:py-1.5">
+    className={`grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1.5 py-2 sm:py-1.5 ${examples ? "sm:grid-cols-[auto_92px_64px_minmax(0,1fr)_210px]" : "sm:grid-cols-[auto_92px_minmax(0,1fr)_210px]"}`}>
     <ToneDot tone={domainPresentation[domain.key].tone} />
     <span className="flex min-w-0 items-center gap-1.5">
       <Link href={href} aria-label={newest ? `${label}: ${newest.goal.title}` : `${label}: цели сферы`} title={newest?.goal.title}
         className="rounded text-[13px] leading-5 font-semibold hover:underline underline-offset-4">{label}</Link>
       {more > 0 && newest && <span className="text-xs text-muted-foreground tabular-nums" title={`Ещё ${more} ${plural(more, ["цель", "цели", "целей"])}`}>+{more}</span>}
+      {example && <ExampleChip className="sm:hidden" />}
     </span>
+    {examples && <span className="hidden sm:block">{example && <ExampleChip />}</span>}
     {newest
-      ? <SphereGoal value={newest} preferences={preferences} />
+      ? <SphereGoal value={newest} preferences={preferences} examples={examples} />
       : <p className="col-span-full flex flex-wrap items-center justify-end gap-x-2.5 text-xs leading-5 text-muted-foreground sm:col-span-2">
         {domain.archivedCount > 0 ? "Активных целей нет" : "Нет целей"}
         <Link href={`/goals/new?domain_key=${domain.key}`} className="inline-flex min-h-8 items-center gap-1 rounded font-medium text-primary pointer-coarse:min-h-11">
@@ -78,7 +89,7 @@ function SpheresCard({ dashboard, labels, preferences }: { dashboard: Dashboard;
   return <SectionCard titleId="dashboard-spheres-title" title="Сферы жизни" className="mt-4"
     description={<span className="sm:hidden">прогресс целей, не «уровень жизни»</span>}
     action={<span className="hidden text-xs font-normal text-muted-foreground sm:inline">прогресс целей, не «уровень жизни»</span>}>
-    <ul className="grid divide-y sm:divide-y-0">{dashboard.domains.map((domain) => <SphereRow key={domain.key} domain={domain} label={labels[domain.key]} preferences={preferences} />)}</ul>
+    <ul className="grid divide-y sm:divide-y-0">{dashboard.domains.map((domain) => <SphereRow key={domain.key} domain={domain} label={labels[domain.key]} preferences={preferences} examples={dashboard.examples.goals > 0} />)}</ul>
   </SectionCard>;
 }
 
@@ -86,10 +97,17 @@ const DUE_TONES = { overdue: "red", today: "orange", upcoming: "outline" } as co
 
 function TodayCard({ dashboard, labels, preferences, now }: { dashboard: Dashboard; labels: DomainLabels; preferences: UserPreferences; now: Date }) {
   const items = dashboard.today.dueGoals;
+  const empty = items.length === 0;
+  // Mockup 28: without deadlines the card stretches to the row and shows a dashed empty block.
   return <SectionCard titleId="dashboard-today-title" title="Сегодня" icon={<CalendarClock aria-hidden="true" className="size-[18px] text-today" />}
-    action={<span className="text-xs font-normal text-muted-foreground">{formatDay(now, preferences)}</span>}>
-    {items.length === 0
-      ? <p className="text-xs leading-5 text-muted-foreground">Нет целей со сроком. Срок можно указать при создании или изменении цели.</p>
+    action={<span className="text-xs font-normal text-muted-foreground">{formatDay(now, preferences)}</span>}
+    className={empty ? "lg:self-stretch" : undefined} contentClassName={empty ? "flex flex-1 flex-col" : undefined}>
+    {empty
+      ? <div data-testid="today-empty" className="flex min-h-28 flex-1 flex-col items-center justify-center gap-1.5 rounded-[14px] border-[1.5px] border-dashed border-border-strong p-[18px] text-center">
+        <p className="text-xs leading-5 text-muted-foreground">Нет целей со сроком</p>
+        <p className="text-[11px] leading-4 text-muted-foreground">{dashboard.examples.goals > 0
+          ? "У примерных целей сроков нет. Добавьте срок, и цель появится здесь." : "Срок можно указать при создании или изменении цели."}</p>
+      </div>
       : <ul className="grid gap-2">{items.map(({ goal }) => {
         const state = dueState(goal.due_at!, now, preferences.timezone);
         return <li key={goal.id} className="min-w-0 rounded-xl border bg-surface-2 px-3.5 py-2.5">
@@ -100,7 +118,7 @@ function TodayCard({ dashboard, labels, preferences, now }: { dashboard: Dashboa
           <Link href={`/goals/${goal.id}`} className="mt-1 block rounded text-sm font-semibold wrap-anywhere hover:underline underline-offset-4">{goal.title}</Link>
         </li>;
       })}</ul>}
-    <p className="mt-3.5 text-xs text-muted-foreground">Активные цели со сроком, ближайшие первыми.</p>
+    {!empty && <p className="mt-3.5 text-xs text-muted-foreground">Активные цели со сроком, ближайшие первыми.</p>}
   </SectionCard>;
 }
 
@@ -109,6 +127,7 @@ function ActivityRow({ item, labels, preferences }: { item: DashboardActivity; l
     <p className="text-sm">
       <span className="font-medium">{activityLabel(item.type)}</span>
       {item.measurement && <span className="font-semibold tabular-nums"> {formatLoggedValue(item.measurement.value, item.measurement, preferences.locale)}</span>}
+      {item.example && <> <ExampleChip className="ml-1 align-[1px]" /></>}
     </p>
     <Link href={`/goals/${item.goal.id}`} className="mt-0.5 block rounded text-sm text-muted-foreground wrap-anywhere hover:text-foreground hover:underline underline-offset-4">{item.goal.title}</Link>
     <p className="mt-1 text-xs text-muted-foreground"><time dateTime={item.occurredAt}>{formatDateTime(new Date(item.occurredAt), preferences)}</time> · {labels[item.domainKey]} · {sourceLabel(item.source)}</p>
@@ -122,6 +141,69 @@ function ActivityCard({ dashboard, labels, preferences }: { dashboard: Dashboard
       ? <p className="text-xs leading-5 text-muted-foreground">Действий пока нет. Здесь появятся созданные цели и измерения.</p>
       : <ol>{dashboard.activity.slice(0, DASHBOARD_ACTIVITY_SHOWN).map((item) => <ActivityRow key={item.id} item={item} labels={labels} preferences={preferences} />)}</ol>}
   </SectionCard>;
+}
+
+/**
+ * «Удалить все примеры?» of mockup 28: a card under the banner (not a centred modal), focus on «Отмена». Escape, ✕,
+ * «Отмена» and a press outside close it and return focus to the banner button; Tab stays inside while it is open.
+ */
+function RemoveExamplesConfirm({ count, close, removed }: { count: number; close(): void; removed(deleted: number): void }) {
+  const action = useGoalMutation();
+  const busy = action.pending || action.uncertain;
+  function trap(event: KeyboardEvent<HTMLElement>) {
+    if (event.key !== "Tab" || event.ctrlKey || event.altKey || event.metaKey) return;
+    const controls = [...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled)")];
+    const first = controls[0]; const last = controls.at(-1);
+    if (!first || !last) { event.preventDefault(); return; }
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  }
+  return <section role="alertdialog" aria-modal="false" aria-labelledby="remove-examples-title" aria-describedby="remove-examples-description" onKeyDown={trap}
+    className="absolute top-[calc(100%+8px)] right-0 sm:top-[calc(100%-18px)] z-30 grid w-full gap-2.5 rounded-2xl border border-border-strong bg-card px-5 py-[18px] shadow-dialog sm:w-[400px]">
+    <div className="flex items-center gap-3"><h2 id="remove-examples-title" className="text-sm font-bold">Удалить все примеры?</h2>
+      <span className="ml-auto"><CloseButton disabled={busy} onClick={close} /></span></div>
+    <MutationError error={action.error} uncertain={action.uncertain} />
+    <p id="remove-examples-description" className="text-xs leading-5 text-muted-foreground sm:text-[13px]">
+      Удалим <span className="tabular-nums">{count}</span> {plural(count, ["примерную цель", "примерные цели", "примерных целей"])} вместе с их измерениями и историей. Цели, которые вы поправили или где есть ваши измерения, останутся.</p>
+    <div className="flex flex-wrap justify-end gap-2.5">
+      {/* The safe choice gets focus, as in the goal deletion dialog (LFS-216). */}
+      <button type="button" autoFocus disabled={busy} onClick={close} className="action-link-secondary action-sm disabled:opacity-50">Отмена</button>
+      <button type="button" disabled={action.pending} className="action-link-secondary action-sm border-destructive/55 text-destructive hover:bg-destructive/10 disabled:opacity-50"
+        onClick={() => void action.save({ url: "/api/v1/starter-pack", method: "DELETE" }, starterPackRemovedSchema, (result) => removed(result.deleted_goals))}>
+        {action.pending ? "Удаляем…" : action.uncertain ? "Повторить запрос" : `Удалить ${count} ${plural(count, COUNT_GOALS)}`}</button>
+    </div>
+  </section>;
+}
+
+/** Mockup 28: «Это пример» while the account has example goals; «Пройти настройку вместо примера» comes with LFS-220. */
+function ExamplesBanner({ dashboard, removed }: { dashboard: Dashboard; removed(deleted: number): void }) {
+  const [confirming, setConfirming] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => { setConfirming(false); toggle.current?.focus(); }, []);
+  useDismiss(confirming, close, box, toggle);
+  const { goals, measurements } = dashboard.examples;
+  const marked = measurements > 0
+    ? <><span className="tabular-nums">{goals}</span> {plural(goals, COUNT_GOALS)} и <span className="tabular-nums">{measurements}</span> {plural(measurements, COUNT_MEASUREMENTS)} помечены «Пример». Поправьте цель под себя: первое ваше измерение заменит примерное.</>
+    : <><span className="tabular-nums">{goals}</span> {plural(goals, COUNT_GOALS)} {goals === 1 ? "помечена" : "помечены"} «Пример». Поправьте цель под себя.</>;
+  return <div ref={box} className="relative mt-4" data-testid="examples-banner">
+    <section aria-labelledby="examples-banner-title" className="flex flex-col gap-3 rounded-[14px] border border-primary/40 bg-primary/12 px-4 py-3 sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
+        <span aria-hidden="true" className="inline-flex size-[30px] shrink-0 items-center justify-center rounded-[9px] bg-st-amber/20 text-st-amber"><LayoutList className="size-4" /></span>
+        <div className="grid min-w-0 gap-1"><h2 id="examples-banner-title" className="text-sm font-bold">Это пример</h2>
+          <p className="text-xs leading-5 text-muted-foreground">{marked} Или удалите всё и начните по-своему.</p></div>
+      </div>
+      <button ref={toggle} type="button" aria-expanded={confirming} onClick={() => setConfirming((value) => !value)}
+        className="action-link-secondary action-compact self-start border-destructive/55 bg-transparent text-destructive hover:bg-destructive/10 sm:self-auto">Удалить все примеры</button>
+    </section>
+    {confirming && <RemoveExamplesConfirm count={goals} close={close} removed={(deleted) => { setConfirming(false); removed(deleted); }} />}
+  </div>;
+}
+
+/** Mockup 28, under «Сферы жизни»: what the chip means. */
+function ExamplesLegend() {
+  return <p className="mt-3 text-xs leading-5 text-muted-foreground"><ExampleChip className="mr-2 align-[1px]" />
+    помечает цели и измерения из стартового набора. Ваши собственные измерения этой метки не получают.</p>;
 }
 
 function DashboardSkeleton() {
@@ -139,15 +221,26 @@ function DashboardSkeleton() {
 export function DashboardView({ preferences, labels }: { preferences: UserPreferences; labels: DomainLabels }) {
   const resource = useGoalData("/api/v1/dashboard", dashboardSchema);
   const [now] = useState(() => new Date());
+  const [message, setMessage] = useState<string | null>(null);
+  const status = useRef<HTMLDivElement>(null);
+  // The banner and its button are gone after «Удалить все примеры»: focus moves to the result once it is rendered.
+  useEffect(() => { if (message) status.current?.focus(); }, [message]);
   if (resource.error) return <LoadState loading={false} error={resource.error} retry={resource.reload} />;
-  if (resource.loading || !resource.data) return <DashboardSkeleton />;
+  if (!resource.data) return <DashboardSkeleton />;
   const dashboard = resource.data;
+  function removed(deleted: number) {
+    setMessage(`Примеры удалены: ${deleted} ${plural(deleted, COUNT_GOALS)}. Цели, которые вы сделали своими, остались.`);
+    resource.reload();
+  }
   return <>
     <Summary dashboard={dashboard} />
+    {message && <div ref={status} role="status" tabIndex={-1} className="mt-4 rounded-[10px] border border-st-green/40 bg-st-green/10 px-3 py-2.5 text-sm">{message}</div>}
+    {dashboard.examples.goals > 0 && <ExamplesBanner dashboard={dashboard} removed={removed} />}
     <div className="mt-4 grid items-start gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
       <TodayCard dashboard={dashboard} labels={labels} preferences={preferences} now={now} />
       <ActivityCard dashboard={dashboard} labels={labels} preferences={preferences} />
     </div>
     <SpheresCard dashboard={dashboard} labels={labels} preferences={preferences} />
+    {(dashboard.examples.goals > 0 || dashboard.examples.measurements > 0) && <ExamplesLegend />}
   </>;
 }

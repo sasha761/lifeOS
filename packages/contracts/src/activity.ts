@@ -44,6 +44,8 @@ export const activityEntrySchema = z.strictObject({
   changedFields: z.array(goalChangedFieldSchema).min(1).max(goalChangedFieldSchema.options.length).nullable(),
   dueAt: z.strictObject({ before: goalInstantSchema.nullable(), after: goalInstantSchema.nullable() }).nullable(),
   definition: z.strictObject({ before: definitionSchema, after: definitionSchema }).nullable(),
+  /** The fact belongs to the example (LFS-218): written by loading it, or about an example measurement. Shown as «Пример». */
+  example: z.boolean(),
 }).refine((item) => item.type.startsWith("goal_measurement.") === (item.measurement !== null))
   .refine((item) => (item.type === "goal_measurement.updated") === (item.measurement?.previousValue != null))
   .refine((item) => (item.type === "goal.updated") === (item.changedFields !== null))

@@ -20,7 +20,7 @@ import { SegmentedTabs } from "../ui/segmented-tabs.tsx";
 import { SourceLabel } from "../ui/source-label.tsx";
 import { StatusChip } from "../ui/status-chip.tsx";
 import { GoalPanel } from "./goal-detail.tsx";
-import { GoalAmount, LoadState, StatusBadge, useGoalData } from "./shared.tsx";
+import { ExampleChip, GoalAmount, LoadState, StatusBadge, useGoalData } from "./shared.tsx";
 import type { DomainChoice } from "./shared.tsx";
 
 type Browser = { preferences: UserPreferences; domains: DomainChoice[]; firstId: string | null; filters: string; deletedId: string | null; reloadList(): void; deleted(id: string): void };
@@ -38,6 +38,7 @@ function GoalRow({ value, label, preferences, href, selected }: { value: GoalDet
         <p className="min-w-0 text-sm leading-5 font-bold wrap-anywhere"><Link href={href} scroll={false} aria-current={selected ? "true" : undefined} className="rounded hover:underline underline-offset-4">{goal.title}</Link></p>
         <StatusChip tone={tone}>{label}</StatusChip>
         {goal.status === "archived" && <StatusBadge status={goal.status} />}
+        {goal.origin === "starter" && <ExampleChip />}
         {goal.due_at && <span className="ml-auto text-xs leading-5 text-muted-foreground tabular-nums">до <time dateTime={goal.due_at}>{formatDate(new Date(goal.due_at), preferences)}</time></span>}
       </div>
       {progress.progressPercent !== null && <ProgressBar value={progress.progressPercent} tone={tone} label={`Прогресс: ${goal.title}`} />}
@@ -46,7 +47,7 @@ function GoalRow({ value, label, preferences, href, selected }: { value: GoalDet
           ? <><span className="text-xs leading-5 text-muted-foreground">Нет измерений, поэтому процент не показываем.</span>
             {goal.status === "active" && <Link href={href} scroll={false} className="action-link-secondary action-sm ml-auto"><Plus aria-hidden="true" className="size-3.5" />Первое измерение</Link>}</>
           : <><GoalAmount value={value} preferences={preferences} />
-            <SourceLabel className="ml-auto">ручной ввод{progress.provenance && <> · <time dateTime={progress.provenance.measuredAt}>{formatDate(new Date(progress.provenance.measuredAt), preferences)}</time></>}</SourceLabel></>}
+            <SourceLabel className="ml-auto">{progress.provenance?.kind === "example" ? "пример" : "ручной ввод"}{progress.provenance && <> · <time dateTime={progress.provenance.measuredAt}>{formatDate(new Date(progress.provenance.measuredAt), preferences)}</time></>}</SourceLabel></>}
       </div>
     </div>
   </Card>;

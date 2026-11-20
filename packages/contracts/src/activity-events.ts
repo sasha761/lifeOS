@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { domainKeySchema } from "./domains.ts";
+import { goalMeasurementSourceSchema } from "./goal-measurements.ts";
 import { goalDecimalSchema, goalDirectionSchema, goalIdSchema, goalInstantSchema, goalStatusSchema, goalUnitSchema } from "./goals.ts";
 import { idempotencyKeySchema } from "./idempotency.ts";
 
@@ -7,12 +8,16 @@ export const ACTIVITY_EVENT_TYPES = Object.freeze([
   "goal.created", "goal.updated", "goal.archived",
   "goal_measurement.created", "goal_measurement.updated", "goal_measurement.deleted",
 ] as const);
-export const ACTIVITY_SOURCES = Object.freeze(["manual", "web", "telegram", "import", "ai_proposed"] as const);
+/** `starter`: facts written by loading the example the person chose (LFS-218). */
+export const ACTIVITY_SOURCES = Object.freeze(["manual", "web", "telegram", "import", "ai_proposed", "starter"] as const);
 export const activitySourceSchema = z.enum(ACTIVITY_SOURCES);
 export const activeActivitySourceSchema = z.enum(["manual", "web"]);
 /** Server transport context, separate from the request body; keys are required even for no-ops. */
 export const goalCommandOptionsSchema = z.strictObject({ idempotencyKey: idempotencyKeySchema, source: activeActivitySourceSchema });
 export type GoalCommandOptions = z.infer<typeof goalCommandOptionsSchema>;
+/** Sources an audit writer may stamp: the transport sources plus `starter`, which only the example command uses. */
+export const activityWriterContextSchema = z.strictObject({ idempotencyKey: idempotencyKeySchema, source: z.enum(["manual", "web", "starter"]) });
+export type ActivityWriterContext = z.infer<typeof activityWriterContextSchema>;
 
 // No free text, identity, credentials or request bodies in audit snapshots.
 export const goalAuditSnapshotSchema = z.strictObject({
@@ -21,9 +26,12 @@ export const goalAuditSnapshotSchema = z.strictObject({
 });
 export const GOAL_AUDIT_FIELDS = Object.freeze(["unit", "baseline", "target", "direction", "status", "due_at"] as const);
 export const MEASUREMENT_AUDIT_FIELDS = Object.freeze(["value", "measured_at", "source"] as const);
-const measurementSnapshotSchema = z.strictObject({ value: goalDecimalSchema, measured_at: goalInstantSchema, source: z.literal("manual") });
-/** goal.updated: which fields changed. Text fields are named only; definition values are in the before/after snapshots. */
-export const GOAL_CHANGED_FIELDS = Object.freeze(["title", "description", "due_at", "unit", "unit_label", "baseline", "target", "direction"] as const);
+const measurementSnapshotSchema = z.strictObject({ value: goalDecimalSchema, measured_at: goalInstantSchema, source: goalMeasurementSourceSchema });
+/**
+ * goal.updated: which fields changed. Text fields are named only; definition values are in the before/after snapshots.
+ * `origin` (LFS-218) marks an example becoming the person's own goal; the snapshots hold no origin.
+ */
+export const GOAL_CHANGED_FIELDS = Object.freeze(["title", "description", "due_at", "unit", "unit_label", "baseline", "target", "direction", "origin"] as const);
 export const goalChangedFieldSchema = z.enum(GOAL_CHANGED_FIELDS);
 const changedFieldsSchema = z.array(goalChangedFieldSchema).min(1).max(GOAL_CHANGED_FIELDS.length).refine((fields) => new Set(fields).size === fields.length);
 const base = { goal_id: goalIdSchema, domain_key: domainKeySchema, target_id: goalIdSchema, schema_version: z.literal(1) };

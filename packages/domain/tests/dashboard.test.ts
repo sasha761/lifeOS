@@ -29,7 +29,7 @@ function activity(value: Goal, type: Parameters<typeof event>[1], occurredAt: st
   return { event: event(value, type, occurredAt, userId), goal: value };
 }
 function reader(data: Partial<DashboardReadRecord>) {
-  const repository: DashboardReadRepository = { read: vi.fn(async () => ({ counts: [], domainGoals: [], dueGoals: [], activity: [], ...data })) };
+  const repository: DashboardReadRepository = { read: vi.fn(async () => ({ counts: [], domainGoals: [], dueGoals: [], activity: [], exampleMeasurements: 0, ...data })) };
   return { repository, service: createDashboardReader(repository) };
 }
 
@@ -48,7 +48,7 @@ describe("dashboard of the six registry spheres", () => {
     const goals = Array.from({ length: 6 }, (_, index) => goal({ title: `Goal ${index}`, created_at: `2026-11-1${index}T10:00:00Z` }));
     const measured = record(goals[5]!, "25");
     const { service } = reader({
-      counts: [{ domainKey: "finance", status: "active", total: 7 }, { domainKey: "finance", status: "archived", total: 2 }, { domainKey: "health", status: "archived", total: 1 }],
+      counts: [{ domainKey: "finance", status: "active", origin: "manual", total: 7 }, { domainKey: "finance", status: "archived", origin: "manual", total: 2 }, { domainKey: "health", status: "archived", origin: "manual", total: 1 }],
       domainGoals: [...goals.slice(0, 5).map((value) => record(value)), measured],
     });
     const dashboard = await service.get(actor);
@@ -99,8 +99,25 @@ describe("dashboard of the six registry spheres", () => {
   });
 
   it("keeps archived goals out of sphere lists even if an adapter returns them", async () => {
-    const { service } = reader({ counts: [{ domainKey: "work" as DomainKey, status: "archived", total: 1 }],
+    const { service } = reader({ counts: [{ domainKey: "work" as DomainKey, status: "archived", origin: "manual", total: 1 }],
       domainGoals: [record(goal({ domain_key: "work", status: "archived" }))] });
     expect((await service.get(actor)).domains.find((domain) => domain.key === "work")?.goals).toEqual([]);
+  });
+});
+
+describe("example banner counts (LFS-218)", () => {
+  it("counts example goals of every sphere and status from the grouped counts, and example values from the snapshot", async () => {
+    const { service } = reader({
+      counts: [{ domainKey: "finance", status: "active", origin: "starter", total: 1 }, { domainKey: "health", status: "active", origin: "starter", total: 2 },
+        { domainKey: "health", status: "archived", origin: "starter", total: 1 }, { domainKey: "health", status: "active", origin: "manual", total: 3 },
+        { domainKey: "work", status: "active", origin: "onboarding", total: 1 }],
+      exampleMeasurements: 3,
+    });
+    const dashboard = dashboardSchema.parse(await service.get(actor));
+    expect(dashboard.examples).toEqual({ goals: 4, measurements: 3 });
+    expect(dashboard.domains.find((domain) => domain.key === "health")).toMatchObject({ activeCount: 5, archivedCount: 1 });
+  });
+  it("reports no examples for an ordinary account", async () => {
+    expect((await reader({}).service.get(actor)).examples).toEqual({ goals: 0, measurements: 0 });
   });
 });

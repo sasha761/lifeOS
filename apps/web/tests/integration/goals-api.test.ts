@@ -279,7 +279,7 @@ describe("goals HTTP and progress", () => {
     const parent = await createGoal();
     const before = await counts();
     const requests = [
-      ...[{ unit: "USD" }, { baseline: "0", target: "0" }, { target: "-1" }, { user_id: other.userId }, { calculation_mode: "computed" }]
+      ...[{ unit: "EUR" }, { baseline: "0", target: "0" }, { target: "-1" }, { user_id: other.userId }, { calculation_mode: "computed" }]
         .map((changes) => raw("collection", "POST", "", { cookie: owner.cookie, body: { ...definition, ...changes } })),
       ...[{ value: 1 }, { value: "1.001" }, { unit: "count" }, { user_id: other.userId }, { measured_at: "2020-01-01" }, { measured_at: new Date(Date.now() + 600_000).toISOString() }]
         .map((changes) => raw("measurements", "POST", parent.goal.id, { cookie: owner.cookie, body: { ...measurement, ...changes } })),

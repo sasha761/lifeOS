@@ -9,7 +9,7 @@ const ACTIVITY_LABELS = {
   "goal_measurement.deleted": "Удалено измерение",
 } as const satisfies Record<DashboardActivity["type"], string>;
 const SOURCE_LABELS = {
-  web: "веб", manual: "вручную", telegram: "Telegram", import: "импорт", ai_proposed: "предложение ассистента",
+  web: "веб", manual: "вручную", telegram: "Telegram", import: "импорт", ai_proposed: "предложение ассистента", starter: "стартовый набор",
 } as const satisfies Record<DashboardActivity["source"], string>;
 
 export function activityLabel(type: DashboardActivity["type"]): string { return ACTIVITY_LABELS[type]; }

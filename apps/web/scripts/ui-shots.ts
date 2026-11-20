@@ -1,3 +1,5 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium } from "@playwright/test";
@@ -17,7 +19,7 @@ const day = 86_400_000;
 const viewports = [{ width: 1440, height: 900, mobile: false }, { width: 390, height: 844, mobile: true }] as const;
 let stage = "isolated test setup";
 
-type Shot = { name: string; path: string; mockup: string; open?: (page: Page) => Promise<void> };
+type Shot = { name: string; path: string; mockup: string; open?: (page: Page) => Promise<void>; account?: "owner" | "example" };
 type Problem = { page: string; width: number; problem: string };
 
 async function seed(fixture: UiFixture) {
@@ -47,7 +49,11 @@ async function settle(page: Page) {
   await page.evaluate(() => document.fonts.ready);
 }
 
-async function capture(context: BrowserContext, base: string, shot: Shot, width: number, problems: Problem[]) {
+async function capture(context: BrowserContext, base: string, shot: Shot, width: number, problems: Problem[], cookie: string) {
+  // Each shot signs in as its own fixture account (the example lives in a separate one, LFS-218).
+  const separator = cookie.indexOf("=");
+  await context.clearCookies();
+  await context.addCookies([{ name: cookie.slice(0, separator), value: cookie.slice(separator + 1), url: base }]);
   const page = await context.newPage();
   page.on("pageerror", (error) => problems.push({ page: shot.name, width, problem: `page error: ${error.message}` }));
   page.on("request", (request) => { if (new URL(request.url()).hostname !== "127.0.0.1") problems.push({ page: shot.name, width, problem: `external request: ${request.url()}` }); });
@@ -88,6 +94,9 @@ async function main() {
     fixture = await startUiFixture({ suite: "lfs212_shots", ownerLocale: "ru", onStage: (value) => { stage = value; } });
     stage = "test data through the API";
     const { goalId, archivedId, unmeasuredId } = await seed(fixture);
+    stage = "example through the API";
+    const example = await fetch(`${fixture.base}/api/v1/starter-pack`, { method: "POST", headers: { cookie: fixture.cookies.exampleDesktop, "idempotency-key": randomUUID() } });
+    assert(example.ok, `POST /api/v1/starter-pack → ${example.status}`);
     const shots: Shot[] = [
       { name: "home", path: "/", mockup: "04-progress.png" },
       { name: "dashboard", path: "/dashboard", mockup: "04-progress.png" },
@@ -117,6 +126,12 @@ async function main() {
         await page.getByRole("dialog", { name: "Новая цель" }).waitFor();
       } },
       { name: "settings", path: "/settings", mockup: "16-settings.png" },
+      // LFS-218: an account with the loaded example, as on mockup 28; then the «Удалить все примеры?» card.
+      { name: "dashboard-example", path: "/dashboard", mockup: "28-onb-example.png", account: "example" },
+      { name: "dashboard-example-confirm", path: "/dashboard", mockup: "28-onb-example.png", account: "example", open: async (page) => {
+        await page.getByRole("button", { name: "Удалить все примеры", exact: true }).click();
+        await page.getByRole("alertdialog", { name: "Удалить все примеры?" }).waitFor();
+      } },
     ];
     stage = "browser screenshots";
     await mkdir(out, { recursive: true });
@@ -125,9 +140,10 @@ async function main() {
     const files: Record<string, Record<number, string>> = {};
     for (const viewport of viewports) {
       const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, deviceScaleFactor: 1, isMobile: viewport.mobile, hasTouch: viewport.mobile });
-      const separator = fixture.cookies.owner.indexOf("=");
-      await context.addCookies([{ name: fixture.cookies.owner.slice(0, separator), value: fixture.cookies.owner.slice(separator + 1), url: fixture.base }]);
-      for (const shot of shots) (files[shot.name] ??= {})[viewport.width] = await capture(context, fixture.base, shot, viewport.width, problems);
+      for (const shot of shots) {
+        const cookie = shot.account === "example" ? fixture.cookies.exampleDesktop : fixture.cookies.owner;
+        (files[shot.name] ??= {})[viewport.width] = await capture(context, fixture.base, shot, viewport.width, problems, cookie);
+      }
       await context.close();
     }
     stage = "side-by-side comparison";
