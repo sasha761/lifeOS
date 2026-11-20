@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { ACTIVITY_EVENT_TYPES, activitySourceSchema } from "./activity-events.ts";
+import { ACTIVITY_EVENT_TYPES, activitySourceSchema, goalChangedFieldSchema } from "./activity-events.ts";
 import { domainKeySchema } from "./domains.ts";
 import {
-  GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, goalDecimalSchema, goalIdSchema, goalInstantSchema, goalStatusSchema, goalUnitSchema,
+  GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, goalDecimalSchema, goalDirectionSchema, goalIdSchema, goalInstantSchema, goalStatusSchema,
+  goalUnitSchema,
 } from "./goals.ts";
 
 /** GET /api/v1/activity (LFS-213): the owner's audit journal, newest first, bounded; no cursor yet. */
@@ -19,11 +20,15 @@ export const activityQuerySchema = z.strictObject({
 }).refine((query) => query.domain_key === undefined || query.goal_id === undefined, { path: ["goal_id"], message: "Use one filter." });
 export type ActivityQuery = z.infer<typeof activityQuerySchema>;
 
-const goalChangedFieldSchema = z.enum(["title", "description", "due_at"]);
+/** Fields whose before/after values the stored goal snapshot holds (ADR-008); a custom unit label is free text and is not kept. */
+const DEFINITION_VALUE_FIELDS = ["unit", "baseline", "target", "direction"] as const;
+const definitionSchema = z.strictObject({ unit: goalUnitSchema, baseline: goalDecimalSchema, target: goalDecimalSchema, direction: goalDirectionSchema });
 
 /**
  * One audit fact for people: type, UTC time, source, the current goal title (the log stores none, ADR-008) and only
- * what the stored payload proves. `changedFields`/`dueAt` describe goal edits; `previousValue` a corrected measurement.
+ * what the stored payload proves. `changedFields`/`dueAt`/`definition` describe goal edits; `previousValue` a corrected
+ * measurement. A measurement recorded before the goal's unit last changed (LFS-217) has `unit: null`: its value is shown
+ * as a plain number rather than in a unit it was never entered in.
  */
 export const activityEntrySchema = z.strictObject({
   id: z.uuid(),
@@ -34,14 +39,16 @@ export const activityEntrySchema = z.strictObject({
   goal: z.strictObject({ id: goalIdSchema, title: z.string().min(1).max(GOAL_TITLE_MAX_LENGTH), status: goalStatusSchema }),
   measurement: z.strictObject({
     value: goalDecimalSchema, previousValue: goalDecimalSchema.nullable(),
-    unit: goalUnitSchema, unitLabel: z.string().min(1).max(GOAL_UNIT_LABEL_MAX_LENGTH).nullable(),
-  }).nullable(),
-  changedFields: z.array(goalChangedFieldSchema).min(1).max(3).nullable(),
+    unit: goalUnitSchema.nullable(), unitLabel: z.string().min(1).max(GOAL_UNIT_LABEL_MAX_LENGTH).nullable(),
+  }).refine((measurement) => measurement.unit !== null || measurement.unitLabel === null).nullable(),
+  changedFields: z.array(goalChangedFieldSchema).min(1).max(goalChangedFieldSchema.options.length).nullable(),
   dueAt: z.strictObject({ before: goalInstantSchema.nullable(), after: goalInstantSchema.nullable() }).nullable(),
+  definition: z.strictObject({ before: definitionSchema, after: definitionSchema }).nullable(),
 }).refine((item) => item.type.startsWith("goal_measurement.") === (item.measurement !== null))
   .refine((item) => (item.type === "goal_measurement.updated") === (item.measurement?.previousValue != null))
   .refine((item) => (item.type === "goal.updated") === (item.changedFields !== null))
-  .refine((item) => (item.dueAt !== null) === (item.changedFields?.includes("due_at") ?? false));
+  .refine((item) => (item.dueAt !== null) === (item.changedFields?.includes("due_at") ?? false))
+  .refine((item) => (item.definition !== null) === DEFINITION_VALUE_FIELDS.some((field) => item.changedFields?.includes(field) ?? false));
 export type ActivityEntry = z.infer<typeof activityEntrySchema>;
 
 export const activityFeedSchema = z.strictObject({

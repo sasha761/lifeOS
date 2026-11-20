@@ -22,7 +22,10 @@ export const goalAuditSnapshotSchema = z.strictObject({
 export const GOAL_AUDIT_FIELDS = Object.freeze(["unit", "baseline", "target", "direction", "status", "due_at"] as const);
 export const MEASUREMENT_AUDIT_FIELDS = Object.freeze(["value", "measured_at", "source"] as const);
 const measurementSnapshotSchema = z.strictObject({ value: goalDecimalSchema, measured_at: goalInstantSchema, source: z.literal("manual") });
-const changedFieldsSchema = z.array(z.enum(["title", "description", "due_at"])).min(1).max(3).refine((fields) => new Set(fields).size === fields.length);
+/** goal.updated: which fields changed. Text fields are named only; definition values are in the before/after snapshots. */
+export const GOAL_CHANGED_FIELDS = Object.freeze(["title", "description", "due_at", "unit", "unit_label", "baseline", "target", "direction"] as const);
+export const goalChangedFieldSchema = z.enum(GOAL_CHANGED_FIELDS);
+const changedFieldsSchema = z.array(goalChangedFieldSchema).min(1).max(GOAL_CHANGED_FIELDS.length).refine((fields) => new Set(fields).size === fields.length);
 const base = { goal_id: goalIdSchema, domain_key: domainKeySchema, target_id: goalIdSchema, schema_version: z.literal(1) };
 export const activityEventDraftSchema = z.discriminatedUnion("event_type", [
   z.strictObject({ ...base, event_type: z.literal("goal.created"), target_type: z.literal("goal"), payload: z.strictObject({ before: z.null(), after: goalAuditSnapshotSchema }) }),

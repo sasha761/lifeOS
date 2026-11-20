@@ -14,12 +14,13 @@ export {
   GOAL_DIRECTIONS, GOAL_STATUSES, GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, GOAL_UNITS,
   goalCalculationModeSchema, goalDecimalSchema, goalDecimalToScaledInteger, goalDirectionSchema,
   goalIdSchema, goalInstantSchema, goalSchema, goalStatusSchema, goalUnitSchema, goalValueMatchesUnit, updateGoalInputSchema,
+  GOAL_DEFINITION_FIELDS, GOAL_METADATA_FIELDS,
 } from "./goals.ts";
 export type { CreateGoalInput, Goal, UpdateGoalInput } from "./goals.ts";
 export {
   ACTIVITY_EVENT_TYPES, ACTIVITY_SOURCES, activeActivitySourceSchema, activityEventDraftSchema,
-  activityEventMetadataSchema, activitySourceSchema, GOAL_AUDIT_FIELDS, goalAuditSnapshotSchema,
-  goalCommandOptionsSchema, MEASUREMENT_AUDIT_FIELDS,
+  activityEventMetadataSchema, activitySourceSchema, GOAL_AUDIT_FIELDS, GOAL_CHANGED_FIELDS, goalAuditSnapshotSchema,
+  goalChangedFieldSchema, goalCommandOptionsSchema, MEASUREMENT_AUDIT_FIELDS,
 } from "./activity-events.ts";
 export type { ActivityEvent, ActivityEventDraft, GoalCommandOptions } from "./activity-events.ts";
 export {

@@ -34,10 +34,10 @@ async function seed(fixture: UiFixture) {
   await measure(weight.goal.id, "83", 3);
   const practice = await create({ domain_key: "skills", title: "Практика TypeScript", unit: "minutes", baseline: "0", target: "1800", direction: "increase" });
   await measure(practice.goal.id, "540", 4);
-  await create({ domain_key: "work", title: "Отклики на вакансии", unit: "count", baseline: "0", target: "15", direction: "increase", due_at: due(5) });
+  const applications = await create({ domain_key: "work", title: "Отклики на вакансии", unit: "count", baseline: "0", target: "15", direction: "increase", due_at: due(5) });
   const archived = await create({ domain_key: "projects", title: "Черновик сайта портфолио", unit: "count", baseline: "0", target: "5", direction: "increase" });
   await apiWrite(base, cookies.owner, `/api/v1/goals/${archived.goal.id}`, { status: "archived" }, "PATCH");
-  return { goalId: savings.goal.id, archivedId: archived.goal.id };
+  return { goalId: savings.goal.id, archivedId: archived.goal.id, unmeasuredId: applications.goal.id };
 }
 
 /** Waits until client data have loaded: no skeleton or «Загружаем…» status, fonts ready. */
@@ -87,7 +87,7 @@ async function main() {
     // Russian number and date formats, as on the mockups.
     fixture = await startUiFixture({ suite: "lfs212_shots", ownerLocale: "ru", onStage: (value) => { stage = value; } });
     stage = "test data through the API";
-    const { goalId, archivedId } = await seed(fixture);
+    const { goalId, archivedId, unmeasuredId } = await seed(fixture);
     const shots: Shot[] = [
       { name: "home", path: "/", mockup: "04-progress.png" },
       { name: "dashboard", path: "/dashboard", mockup: "04-progress.png" },
@@ -100,6 +100,14 @@ async function main() {
         name, path: `/goals/${id}`, mockup: "09-goals.png", open: async (page) => {
           await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
           await page.getByRole("button", { name: "Удалить цель", exact: true }).click();
+        },
+      })),
+      // LFS-217: editing an unmeasured goal shows the definition fields of the «Новая цель» dialog; a measured one only the hint.
+      ...[{ name: "goal-edit", id: unmeasuredId }, { name: "goal-edit-measured", id: goalId }].map(({ name, id }): Shot => ({
+        name, path: `/goals/${id}`, mockup: "10-domain-new-goal.png", open: async (page) => {
+          await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
+          await page.getByRole("button", { name: "Изменить цель", exact: true }).click();
+          await page.getByRole("dialog", { name: "Изменить цель" }).waitFor();
         },
       })),
       { name: "domain-finance", path: "/domains/finance", mockup: "10-domain-new-goal.png" },

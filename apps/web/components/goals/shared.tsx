@@ -85,15 +85,21 @@ export function DateTimeField({ name, label, hint, initial, timeZone, required, 
     {errors[name] && <p id={`${name}-error`} className="text-sm text-destructive">{errors[name]}</p>}</div>;
 }
 /**
- * Date-only deadline (mockup 10, LFS-213). The stored instant is the end of the chosen day in the account's zone;
- * an unchanged date sends the original instant back (`<name>_original`), so older deadlines keep their time.
+ * Date-only, optional deadline (mockup 10, LFS-213/217). The stored instant is the end of the chosen day in the account's
+ * zone; an unchanged date sends the original instant back (`<name>_original`), so older deadlines keep their time.
+ * «Убрать срок» empties the field: an empty date saves a goal without a deadline. The input stays uncontrolled, so a
+ * partly typed date is never overwritten.
  */
 export function DateField({ name, label, describedBy, initial, timeZone, errors }: { name: string; label: string; describedBy?: string; initial?: string | null; timeZone: string; errors: GoalFieldErrors }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [filled, setFilled] = useState(!!initial);
   const described = [describedBy, errors[name] ? `${name}-error` : null].filter(Boolean).join(" ") || undefined;
   return <div className="grid min-w-0 gap-1.5"><label htmlFor={name} className="field-label">{label}</label>
-    <input type="date" id={name} name={name} defaultValue={initial ? instantToLocalDate(initial, timeZone) : ""} className={inputClass}
-      aria-invalid={!!errors[name]} aria-describedby={described} />
+    <input ref={input} type="date" id={name} name={name} defaultValue={initial ? instantToLocalDate(initial, timeZone) : ""} className={inputClass}
+      aria-invalid={!!errors[name]} aria-describedby={described} onChange={(event) => setFilled(event.currentTarget.value !== "")} />
     {initial && <input type="hidden" name={`${name}_original`} value={initial} />}
+    {filled && <button type="button" className="action-link-secondary action-sm justify-self-start"
+      onClick={() => { if (input.current) { input.current.value = ""; input.current.focus(); } setFilled(false); }}>Убрать срок</button>}
     {errors[name] && <p id={`${name}-error`} className="text-sm text-destructive">{errors[name]}</p>}</div>;
 }
 /** «12 000 из 50 000 NOK · 24%» (mockups 09/10); the percentage keeps its own element for tests and screen readers. */

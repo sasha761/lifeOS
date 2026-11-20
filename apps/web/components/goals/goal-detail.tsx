@@ -173,7 +173,7 @@ export function GoalPanel({ id, preferences, domains, onChanged, onDeleted }: { 
             onClick={() => void action.save({ url: `/api/v1/goals/${id}`, method: "DELETE" }, goalDeletionSchema, onDeleted)}>
             {action.pending ? "Удаляем…" : action.uncertain ? "Повторить запрос" : "Удалить"}</button>
         </div></div>}
-      {dialog.mode === "goal" && <GoalForm initial={goal} domains={domains} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved("Изменения цели сохранены.")}
+      {dialog.mode === "goal" && <GoalForm initial={goal} definitionEditable={value.progress.measurementCount === 0} domains={domains} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved("Изменения цели сохранены.")}
         cancel={<button type="button" disabled={dialogBusy} onClick={() => setDialog(null)} className="action-link-secondary action-compact disabled:opacity-50">Отмена</button>} />}
       {(dialog.mode === "add" || dialog.mode === "edit") && <MeasurementForm goal={goal} initial={dialog.mode === "edit" ? dialog.row : undefined} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved(dialog.mode === "add" ? "Измерение добавлено." : "Измерение исправлено.")} />}
       {(dialog.mode === "delete" || dialog.mode === "archive") && <div className="grid gap-5"><MutationError error={action.error} uncertain={action.uncertain} />

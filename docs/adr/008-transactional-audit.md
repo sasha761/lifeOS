@@ -40,7 +40,9 @@ manual/web/telegram/import/ai_proposed, но command context и writer сейч�
 **Минимальный payload.** Before/after содержит unit/baseline/target/direction/
 status/due_at. Названия, описания, custom unit labels, user/email/session/password,
 raw request и response не копируются. Для metadata-правки changed_fields
-показывает изменённые title/description/due_at без текстовых значений.
+показывает изменённые title/description/due_at без текстовых значений; с LFS-217
+в нём же unit/unit_label/baseline/target/direction правки определения
+([ADR-007, дополнение LFS-217](007-goals.md#дополнение-lfs-217--2026-11-19)).
 Reserved measurement snapshot содержит value/measured_at/source, без note.
 SQL ограничивает форму/размер JSON и набор ключей; точные типы и переходы
 проверяет Zod writer. События append-only на уровне порта: update/delete API нет.

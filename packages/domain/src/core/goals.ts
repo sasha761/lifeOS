@@ -1,4 +1,4 @@
-import { createGoalInputSchema, goalCommandOptionsSchema, goalIdSchema, updateGoalInputSchema } from "@lifeos/contracts";
+import { createGoalInputSchema, GOAL_DEFINITION_FIELDS, GOAL_METADATA_FIELDS, goalCommandOptionsSchema, goalIdSchema, updateGoalInputSchema } from "@lifeos/contracts";
 import type { CreateGoalInput, Goal, GoalCommandOptions, GoalDeletion, UpdateGoalInput } from "@lifeos/contracts";
 import type { Actor } from "./actor.ts";
 import { ConflictError, InvalidInputError, NotFoundError } from "./errors.ts";
@@ -10,8 +10,13 @@ import type { ActivityEventWriter } from "./events.ts";
 export type GoalsRepository = {
   create(actor: Actor, input: CreateGoalInput): Promise<Goal>;
   find(actor: Actor, id: string): Promise<Goal | null>;
-  /** Atomic update conditional on status=active. Null means missing, foreign or concurrently archived. */
+  /**
+   * Atomic update conditional on status=active and, when the input carries a definition, on the goal having no
+   * measurements (LFS-217). Null means missing, foreign, concurrently archived or measured.
+   */
   updateActive(actor: Actor, id: string, input: UpdateGoalInput): Promise<Goal | null>;
+  /** Whether the owned goal has at least one measurement; called under the goal row lock. */
+  hasMeasurements(actor: Actor, id: string): Promise<boolean>;
   /** Atomic transition to archived, or the unchanged row if already archived; never hard deletes. */
   archive(actor: Actor, id: string): Promise<Goal | null>;
   /** Owner-scoped hard delete; dependent rows cascade in the same transaction. */
@@ -99,12 +104,19 @@ export function createGoalsService(unit: GoalsUnitOfWork): GoalsService {
       if (!parsed.success) throw new InvalidInputError();
       const key = resourceId(id);
       return execute(actor, { ...commandOptions(options), operation: "update", targetId: key, input: parsed.data }, async ({ goals, events }) => {
+        // The row lock taken by find() is the same parent lock measurement writes take first, so «no measurements»
+        // cannot change between the check and the update.
         const current = ownedGoal(actor, await goals.find(actor, key));
         if (current.status === "archived") throw new ConflictError();
-        const changed_fields = (["title", "description", "due_at"] as const)
+        const changed_fields = [...GOAL_METADATA_FIELDS, ...GOAL_DEFINITION_FIELDS]
           .filter((field) => parsed.data[field] !== undefined && parsed.data[field] !== current[field]);
         if (changed_fields.length === 0) return current;
-        const updated = await goals.updateActive(actor, key, parsed.data);
+        const redefines = changed_fields.some((field) => (GOAL_DEFINITION_FIELDS as readonly string[]).includes(field));
+        // An unchanged definition is not a redefinition: it is dropped, so metadata edits of a measured goal still work.
+        const input = redefines ? parsed.data
+          : Object.fromEntries(GOAL_METADATA_FIELDS.filter((field) => parsed.data[field] !== undefined).map((field) => [field, parsed.data[field]])) as UpdateGoalInput;
+        if (redefines && await goals.hasMeasurements(actor, key)) throw new ConflictError();
+        const updated = await goals.updateActive(actor, key, input);
         if (!updated) throw new ConflictError();
         ownedGoal(actor, updated);
         await events.append({ goal_id: key, domain_key: updated.domain_key, target_type: "goal", target_id: key, schema_version: 1,

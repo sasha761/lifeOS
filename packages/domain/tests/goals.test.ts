@@ -11,7 +11,9 @@ const input = { domain_key: "finance", title: "Save", unit: "NOK", baseline: "0"
 
 function memory() {
   const rows = new Map<string, Goal>();
+  const measured = new Set<string>();
   const repository: GoalsRepository = {
+    hasMeasurements: vi.fn<GoalsRepository["hasMeasurements"]>(async (actor, id) => rows.get(id)?.user_id === actor.userId && measured.has(id)),
     deleteGoal: vi.fn<GoalsRepository["deleteGoal"]>(async (actor, id) => {
       const goal = rows.get(id);
       if (!goal || goal.user_id !== actor.userId) return null;
@@ -55,7 +57,7 @@ function memory() {
     update: (actor: Actor, id: unknown, input: unknown) => audited.update(actor, id, input, options),
     archive: (actor: Actor, id: unknown) => audited.archive(actor, id, options),
   };
-  return { rows, repository, service, audited, events, unit };
+  return { rows, measured, repository, service, audited, events, unit };
 }
 
 describe("goals service", () => {
@@ -89,12 +91,44 @@ describe("goals service", () => {
     },
   );
   it.each([{ baseline: "1" }, { target: "2" }, { direction: "decrease" }, { unit: "count" }, { domain_key: "work" }, { user_id: "other" }])(
-    "keeps measurement definitions immutable %j", async (changes) => {
+    "rejects a partial definition and fields that never change %j", async (changes) => {
       const { service, repository } = memory();
       const goal = await service.create(owner, input);
       await expect(service.update(owner, goal.id, changes)).rejects.toBeInstanceOf(InvalidInputError);
       expect(repository.updateActive).not.toHaveBeenCalled();
       expect(await service.get(owner, goal.id)).toEqual(goal);
+    },
+  );
+  const definition = { unit: "count", unit_label: null, baseline: "2", target: "10", direction: "increase" } as const;
+  it("redefines a goal without measurements and records the definition before and after (LFS-217)", async () => {
+    const { service, events } = memory();
+    const goal = await service.create(owner, input);
+    events.append.mockClear();
+    const updated = await service.update(owner, goal.id, { ...definition, title: "Read books" });
+    expect(updated).toMatchObject({ title: "Read books", unit: "count", unit_label: null, baseline: "2", target: "10", direction: "increase" });
+    expect(vi.mocked(events.append).mock.calls[0]).toMatchObject([{ event_type: "goal.updated", payload: {
+      changed_fields: ["title", "unit", "baseline", "target"],
+      before: { unit: "NOK", baseline: "0", target: "50000" }, after: { unit: "count", baseline: "2", target: "10" } } }]);
+  });
+  it("rejects a definition change once the goal has a measurement, but still saves metadata with the same definition", async () => {
+    const { service, repository, measured } = memory();
+    const goal = await service.create(owner, input);
+    measured.add(goal.id);
+    await expect(service.update(owner, goal.id, { ...definition, title: "Changed" })).rejects.toBeInstanceOf(ConflictError);
+    expect(repository.updateActive).not.toHaveBeenCalled();
+    expect(await service.get(owner, goal.id)).toEqual(goal);
+    vi.mocked(repository.hasMeasurements).mockClear();
+    const same = { unit: goal.unit, unit_label: goal.unit_label, baseline: goal.baseline, target: goal.target, direction: goal.direction };
+    expect(await service.update(owner, goal.id, { ...same, title: "Renamed" })).toMatchObject({ title: "Renamed", unit: "NOK", target: "50000" });
+    expect(repository.hasMeasurements).not.toHaveBeenCalled();
+    expect(vi.mocked(repository.updateActive).mock.calls[0]![2]).not.toHaveProperty("unit");
+  });
+  it.each([{ ...definition, target: "2" }, { ...definition, direction: "decrease" }, { ...definition, unit: "custom" }, { ...definition, unit_label: "km" }, { ...definition, target: "1.5" }])(
+    "validates a new definition by the creation rules %j", async (changes) => {
+      const { service, repository } = memory();
+      const goal = await service.create(owner, input);
+      await expect(service.update(owner, goal.id, changes)).rejects.toBeInstanceOf(InvalidInputError);
+      expect(repository.updateActive).not.toHaveBeenCalled();
     },
   );
   it("makes foreign and missing resources indistinguishable for every operation", async () => {

@@ -6,7 +6,7 @@ import { remainingToTarget } from "../lib/goal-presentation.ts";
 
 const preferences = { timezone: "Europe/Oslo", locale: "ru" };
 const base = { id: "5fe63a56-7a7f-4905-bdc3-c9dff1d439dc", occurredAt: "2026-11-14T10:00:00.000Z", source: "web", domainKey: "finance",
-  goal: { id: "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc", title: "Накопить 50 000 NOK", status: "active" }, measurement: null, changedFields: null, dueAt: null } as const;
+  goal: { id: "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc", title: "Накопить 50 000 NOK", status: "active" }, measurement: null, changedFields: null, dueAt: null, definition: null } as const;
 const entry = (value: Partial<ActivityEntry>): ActivityEntry => ({ ...base, type: "goal.created", ...value } as ActivityEntry);
 /** Russian grouping uses a no-break space; compare with plain spaces. */
 const describeActivity = (...args: Parameters<typeof describe_>) => describe_(...args).replace(/[  ]/g, " ");
@@ -28,6 +28,22 @@ describe("journal sentences (LFS-213, mockups 09 and 10)", () => {
     expect(describeActivity(entry({ type: "goal.archived" }), preferences, { withTitle: true })).toBe("Цель «Накопить 50 000 NOK» перенесена в архив");
     expect(describeActivity(entry({ type: "goal_measurement.created", measurement: nok("8500") }), preferences)).toBe("Добавлено измерение: 8 500 NOK");
     expect(describeActivity(entry({ type: "goal_measurement.deleted", measurement: nok("8500") }), preferences)).toBe("Удалено измерение: 8 500 NOK");
+  });
+});
+
+describe("journal sentences for a redefined goal (LFS-217)", () => {
+  const definition = { before: { unit: "NOK", baseline: "2", target: "5000", direction: "increase" }, after: { unit: "custom", baseline: "3", target: "4", direction: "decrease" } } as const;
+  it("shows stored definition values in reading order, the deadline last", () => {
+    expect(describeActivity(entry({ type: "goal.updated", changedFields: ["due_at", "unit", "unit_label", "baseline", "target", "direction"], definition,
+      dueAt: { before: null, after: "2026-12-31T22:59:59.999Z" } }), preferences))
+      .toBe("Единица изменена: NOK → своя единица, название единицы изменено, старт изменён: 2 → 3, цель изменена: 5 000 → 4, "
+        + "направление изменено: увеличить → уменьшить, срок изменён: без срока → 31.12.2026");
+    expect(describeActivity(entry({ type: "goal.updated", changedFields: ["target"], definition }), preferences, { withTitle: true }))
+      .toBe("Цель «Накопить 50 000 NOK»: цель изменена: 5 000 → 4");
+  });
+  it("shows a value entered before the unit changed as a plain number", () => {
+    expect(describeActivity(entry({ type: "goal_measurement.deleted", measurement: { value: "1200", previousValue: null, unit: null, unitLabel: null } }), preferences))
+      .toBe("Удалено измерение: 1 200");
   });
 });
 

@@ -228,9 +228,14 @@ actor только из сессии (`requireApiActor`); repositories филь�
 строки `baseline`/`target`, `direction`, optional `due_at` с явным offset/Z.
 `calculation_mode` по умолчанию manual, computed отклоняется; `metric_key`
 может быть только null. Все DTO strict: id/user_id/status/timestamps клиент
-задавать не может. `updateGoalInputSchema` принимает только metadata:
-`title?`, `description?`, `due_at?`, хотя бы одно поле; null очищает nullable
-значение. Архивирование — отдельная domain-команда.
+задавать не может. `updateGoalInputSchema` принимает metadata
+`title?`, `description?`, `due_at?` и (LFS-217) определение целиком:
+`unit`, `unit_label` (null у не-custom), `baseline`, `target`, `direction` —
+все пять вместе или ни одного; хотя бы одно поле; null очищает nullable
+значение. Определение проверяется теми же правилами, что при создании;
+частичное определение — VALIDATION_ERROR. Менять его можно, только пока у цели
+нет измерений: иначе CONFLICT; то же определение без изменений — не правка.
+`domain_key` не меняется. Архивирование — отдельная domain-команда.
 
 Decimal: 0 ≤ value < 10^22, максимум 8 дробных знаков, без JSON number,
 экспонент/знаков/пробелов/ведущих нулей; дробные нули нормализуются. NOK — до
@@ -260,7 +265,11 @@ user_id, не добавляются в goal body. Будущий HTTP adapter L
 `ActivityEventDraft` — discriminated contract по шести event_type с
 schema_version=1. Server добавляет owner, source, key и UTC timestamps.
 Before/after whitelist исключает title/description/custom labels и auth PII;
-изменение текста отмечается только в changed_fields. Measurement event types
+изменение текста отмечается только в changed_fields. С LFS-217 `changed_fields`
+у `goal.updated` — до 8 значений из `GOAL_CHANGED_FIELDS`: `title`,
+`description`, `due_at`, `unit`, `unit_label`, `baseline`, `target`,
+`direction`; значения определения — в before/after snapshot, своя единица
+(`unit_label`) — только фактом. Measurement event types
 реализованы в LFS-206. Детали — [ADR-008](../adr/008-transactional-audit.md)
 и [ADR-009](../adr/009-goal-measurements.md).
 
@@ -313,7 +322,7 @@ headers. Неподдерживаемый метод обрабатываетс�
 | `GET /api/v1/goals` | optional query limit/cursor/domain_key/status; `GoalsPage { items: GoalDetails[], nextCursor }` |
 | `POST /api/v1/goals` | CreateGoalInput; `GoalDetails` |
 | `GET /api/v1/goals/:goalId` | `GoalDetails { goal: Goal, progress: GoalProgress }` |
-| `PATCH /api/v1/goals/:goalId` | UpdateGoalInput metadata **либо** `{status:"archived"}`; `GoalDetails` |
+| `PATCH /api/v1/goals/:goalId` | UpdateGoalInput (metadata и/или определение целиком, LFS-217) **либо** `{status:"archived"}`; `GoalDetails` |
 | `DELETE /api/v1/goals/:goalId` (LFS-216) | без body; `GoalDeletion { id, user_id, deleted:true }` |
 | `GET /api/v1/goals/:goalId/measurements` | optional query limit/cursor; `MeasurementsPage { items: GoalMeasurement[], nextCursor, measurementCount }` |
 | `POST /api/v1/goals/:goalId/measurements` | CreateGoalMeasurementInput; `GoalMeasurement` |
@@ -329,7 +338,8 @@ DELETE отклоняет любое непустое тело. Переданн
 Body/headers/query не определяют владельца; source команды всегда web.
 Неизвестные/повторённые query fields отклоняются; query разрешён только для
 двух list endpoints. Status active/completed, смешанный archive + metadata,
-правка baseline/target/unit/domain и computed mode отклоняются. Архив
+частичное определение, правка domain и computed mode отклоняются; новое
+определение у цели с измерениями — 409 (LFS-217). Архив
 терминальный и читаемый, свежие команды редактирования/измерений — 409.
 Активную и архивную цель владелец может удалить навсегда отдельным DELETE.
 
@@ -451,15 +461,19 @@ VALIDATION_ERROR. Курсора пока нет: панель и страниц
 | Поле | Содержимое |
 |---|---|
 | `id`, `type`, `occurredAt`, `source`, `domainKey`, `goal` | как в `activity` Dashboard; `goal.title` — текущее название (audit не хранит названия, ADR-008) |
-| `measurement` | `{ value, previousValue, unit, unitLabel }` у `goal_measurement.*`, иначе null; `previousValue` — значение до исправления, только у `goal_measurement.updated` |
-| `changedFields` | у `goal.updated` — какие поля изменены (`title`, `description`, `due_at`), иначе null. Сами название и описание в журнале не хранятся |
+| `measurement` | `{ value, previousValue, unit, unitLabel }` у `goal_measurement.*`, иначе null; `previousValue` — значение до исправления, только у `goal_measurement.updated`. `unit` и `unitLabel` — null у измерения, записанного до последней смены единицы цели (LFS-217): журнал не хранит единицу измерения, поэтому значение показывается числом |
+| `changedFields` | у `goal.updated` — какие поля изменены (`GOAL_CHANGED_FIELDS`), иначе null. Сами название, описание и своя единица в журнале не хранятся |
 | `dueAt` | у `goal.updated` с изменённым сроком — `{ before, after }` (UTC instant или null), иначе null |
+| `definition` | у `goal.updated` с изменёнными `unit`/`baseline`/`target`/`direction` — `{ before, after }` с этими четырьмя полями (LFS-217), иначе null |
 
 Чтение — один owner-scoped SQL-запрос с join на `goals` по составному ключу
 (владелец, сфера, цель) и существующими индексами
 `(user_id, domain_key|goal_id, occurred_at, id)`; миграций нет. Dashboard
-строит свои записи той же нормализацией (`toDashboardActivity`), его контракт
-не менялся.
+строит свои записи той же нормализацией (`toDashboardActivity`). Время
+последней смены единицы цели оба reader берут коррелированным подзапросом на
+каждую строку: индекс `(user_id, goal_id, …)` сужает поиск до событий цели,
+`event_type` и `changed_fields` проверяются построчно. В Dashboard с LFS-217
+`measurement.unit` тоже может быть null.
 
 ## Официальные API
 

@@ -69,10 +69,20 @@ describe("goal editing and time", () => {
     expect(updateGoalInputSchema.parse({ due_at: "2020-01-01T00:00:00Z" }).due_at).toBe("2020-01-01T00:00:00.000Z");
   });
   it.each([{}, { title: undefined }, { baseline: "1" }, { target: "100" }, { unit: "count" }, { unit_label: "km" }, { direction: "decrease" }, { domain_key: "work" }, { calculation_mode: "computed" }, { metric_key: null }, { status: "archived" }, { user_id: "other" }, null, []])(
-    "rejects empty updates and changes that would reinterpret history %j", (value) => {
+    "rejects empty updates, a partial definition and fields that never change %j", (value) => {
       expect(updateGoalInputSchema.safeParse(value).success).toBe(false);
     },
   );
+  const definition = { unit: "count", unit_label: null, baseline: "2", target: "10", direction: "increase" };
+  it("accepts a whole new definition with or without metadata and validates it like a new goal (LFS-217)", () => {
+    expect(updateGoalInputSchema.parse(definition)).toEqual(definition);
+    expect(updateGoalInputSchema.parse({ ...definition, unit: "custom", unit_label: " km ", target: "12.5", title: "Run" }))
+      .toEqual({ ...definition, unit: "custom", unit_label: "km", target: "12.5", title: "Run" });
+  });
+  it.each([{ target: "2" }, { direction: "decrease" }, { target: "1.5" }, { unit: "custom" }, { unit_label: "km" }, { unit: "percent", target: "101" },
+    { baseline: "-1" }, { unit_label: undefined }, { domain_key: "work" }])("rejects an invalid or incomplete definition %j", (change) => {
+    expect(updateGoalInputSchema.safeParse({ ...definition, ...change }).success).toBe(false);
+  });
   it.each(["infinity", "0000-01-01T00:00:00Z", "2026-11-15T10:00:00", "2026-11-15T10:00:00.1234Z", "9999-12-31T23:59:59-01:00"])(
     "rejects non-finite, ambiguous or lossy instants %s", (value) => { expect(goalInstantSchema.safeParse(value).success).toBe(false); },
   );

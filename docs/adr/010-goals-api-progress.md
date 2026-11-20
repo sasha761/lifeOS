@@ -28,7 +28,9 @@ web; user_id берётся только из verified Actor. GET возвращ
 повторённые query параметры отклоняются, x-user-id не определяет Actor.
 Query поддерживается только в двух list endpoints.
 
-PATCH goal принимает metadata **либо** `{ status: "archived" }` отдельно.
+PATCH goal принимает metadata **либо** `{ status: "archived" }` отдельно; с LFS-217
+вместе с metadata можно передать определение целиком, пока у цели нет измерений
+([ADR-007](007-goals.md), дополнение LFS-217).
 Смешанное архивирование/правка отклоняется до записи. Терминальный archive,
 no-op receipts, audit и fingerprint остаются прежними domain-командами;
 новой операции/миграции квитанций для PATCH нет. Reopen запрещён.
