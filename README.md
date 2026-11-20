@@ -218,6 +218,10 @@ pnpm dev
 - `/onboarding` — мастер начальной настройки: сферы, вопрос на каждую выбранную сферу, ритм и итог; цели создаются только кнопкой «Создать N целей», без измерений (LFS-219). Только после входа.
 - `/api/v1/onboarding` — `GET` состояния и `PUT` черновика; `/api/v1/onboarding/complete` — `POST` создаёт отмеченные цели одной транзакцией (LFS-219); [DTO](docs/api/contracts.md#мастер-начальной-настройки-lfs-219).
 
+В `apps/web/next.config.ts` включено `deprecated.looseRouteMatching`: строгий режим Next 16.4 в dev отдавал 404 для
+страниц вне группы `(web)` (`/auth/*`, `/telegram`, `/onboarding`) из-за слота `@modal/[...catchAll]`; production-сборка
+сопоставляет маршруты так же, как с этим флагом. Если после обновления Next флага не станет — нужен `app/(web)/default.tsx`.
+
 Для локального `MAIL_TRANSPORT=outbox` используйте `pnpm dev`. Команда `start`
 запускает production и требует `MAIL_TRANSPORT=smtp` с рабочим `SMTP_URL`.
 Несовместимые настройки отклоняются до запуска сервера. Root `.env` загружается
