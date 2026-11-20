@@ -8,7 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import type { DomainKey } from "@lifeos/contracts";
 import { Brand } from "@/components/brand";
 import { NavigationLink } from "@/components/navigation-link";
-import { domainPresentation } from "@/lib/domain-presentation";
+import { DomainIcon } from "@/components/ui/domain-icon";
 import { currentSectionLabel, isActivePath, SITE_SECTIONS } from "@/lib/site-sections";
 import type { NavDomain } from "@/lib/site-sections";
 
@@ -34,17 +34,14 @@ function useDismiss(open: boolean, close: () => void, container: RefObject<HTMLE
 function DomainLinks({ domains, onNavigate }: { domains: readonly NavDomain[]; onNavigate(): void }) {
   return (
     <ul className="grid gap-0.5">
-      {domains.map((domain) => {
-        const { icon: Icon, tone } = domainPresentation[domain.key as DomainKey];
-        return (
-          <li key={domain.key}>
-            <NavigationLink href={domain.url} match="prefix" onNavigate={onNavigate}>
-              <span aria-hidden="true" className={`flex size-7 shrink-0 items-center justify-center rounded-md ${tone}`}><Icon className="size-4" strokeWidth={1.8} /></span>
-              {domain.label}
-            </NavigationLink>
-          </li>
-        );
-      })}
+      {domains.map((domain) => (
+        <li key={domain.key}>
+          <NavigationLink href={domain.url} match="prefix" onNavigate={onNavigate}>
+            <DomainIcon domain={domain.key as DomainKey} size="sm" />
+            {domain.label}
+          </NavigationLink>
+        </li>
+      ))}
     </ul>
   );
 }
@@ -68,10 +65,10 @@ export function SiteNav({ domains }: { domains: readonly NavDomain[] }) {
 
   return (
     <div ref={sheetBox}>
-      <div className="mx-auto flex h-14 max-w-[1180px] items-center justify-between gap-3 px-4 sm:px-6">
+      <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-7">
         <div className="flex min-w-0 items-center gap-2">
           <Brand />
-          {label && <span className="truncate text-sm text-muted-foreground"><span aria-hidden="true">· </span>{label}</span>}
+          {label && <span className="truncate text-[13px] text-muted-foreground"><span aria-hidden="true">/ </span>{label}</span>}
         </div>
         <nav aria-label="Основная навигация" className="hidden items-center gap-2 lg:flex">
           {[overview, goals].map((section) => {
@@ -80,10 +77,10 @@ export function SiteNav({ domains }: { domains: readonly NavDomain[] }) {
           })}
           <div ref={domainsBox} className="relative">
             <button ref={domainsToggle} type="button" aria-expanded={domainsOpen} aria-controls={domainsId} onClick={() => setDomainsOpen((open) => !open)}
-              className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors duration-[120ms] ${domainActive || domainsOpen ? "border-border-strong bg-secondary text-foreground" : "border-border text-muted-foreground hover:border-border-strong hover:bg-surface-3 hover:text-foreground"}`}>
-              <Compass aria-hidden="true" className="size-4" />Сферы<ChevronDown aria-hidden="true" className={`size-4 transition-transform duration-[180ms] ${domainsOpen ? "rotate-180" : ""}`} />
+              className={`inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors duration-[120ms] pointer-fine:min-h-8 ${domainActive || domainsOpen ? "border-border-strong bg-surface-2 font-semibold text-foreground" : "border-border text-muted-foreground hover:border-border-strong hover:bg-surface-3 hover:text-foreground"}`}>
+              <Compass aria-hidden="true" className="size-3.5" />Сферы<ChevronDown aria-hidden="true" className={`size-4 transition-transform duration-[180ms] ${domainsOpen ? "rotate-180" : ""}`} />
             </button>
-            <div id={domainsId} hidden={!domainsOpen} className="absolute top-full right-0 z-40 mt-2 w-64 rounded-[14px] border bg-card p-2 shadow-[0_8px_24px_rgb(0_0_0/0.35)]">
+            <div id={domainsId} hidden={!domainsOpen} className="absolute top-full right-0 z-40 mt-2 w-64 rounded-[14px] border bg-card p-2 shadow-popover">
               <DomainLinks domains={domains} onNavigate={closeDomains} />
             </div>
           </div>
@@ -100,7 +97,7 @@ export function SiteNav({ domains }: { domains: readonly NavDomain[] }) {
           {sheetOpen ? <X aria-hidden="true" className="size-4" /> : <Menu aria-hidden="true" className="size-4" />}Меню
         </button>
       </div>
-      <nav id={sheetId} aria-label="Мобильная навигация" hidden={!sheetOpen} className="mx-4 mb-3 rounded-[14px] border bg-card p-2 shadow-[0_8px_24px_rgb(0_0_0/0.35)] sm:mx-6 lg:hidden">
+      <nav id={sheetId} aria-label="Мобильная навигация" hidden={!sheetOpen} className="mx-4 mb-3 rounded-[14px] border bg-card p-2 shadow-popover sm:mx-6 lg:hidden">
         <ul className="grid gap-0.5">
           {SITE_SECTIONS.map((section) => {
             const Icon = icons[section.href];

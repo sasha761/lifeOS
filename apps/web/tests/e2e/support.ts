@@ -11,10 +11,10 @@ export async function login(page: Page, user = "OWNER") {
 }
 export async function create(page: Page, title: string, baseline = "0", target = "50000") {
   await page.goto("/goals/new");
-  await page.getByLabel("Название цели", { exact: true }).fill(title);
-  await page.getByLabel("Сфера", { exact: true }).selectOption("finance");
-  await page.getByLabel("Начальное значение", { exact: true }).fill(baseline);
-  await page.getByLabel("Целевое значение", { exact: true }).fill(target);
+  await page.getByRole("radio", { name: "Финансы", exact: true }).check();
+  await page.getByLabel("Название", { exact: true }).fill(title);
+  await page.getByLabel("Старт", { exact: true }).fill(baseline);
+  await page.getByLabel("Цель", { exact: true }).fill(target);
   await page.getByRole("button", { name: "Создать цель", exact: true }).click();
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   await expect(page.getByText("Недостаточно данных", { exact: true })).toBeVisible();

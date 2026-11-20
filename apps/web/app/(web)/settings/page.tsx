@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
-import { Clock } from "lucide-react";
 import { PreferencesForm } from "@/components/settings/preferences-form";
-import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
+import { StatCard } from "@/components/ui/stat-card";
 import { formatDateTime, localeLabel, localeOptions, timeZoneOptions, utcOffsetLabel } from "@/lib/user-preferences";
 import { requirePageSession } from "@/server/auth";
 import { getUserPreferencesService } from "@/server/core";
 
 export const metadata: Metadata = { title: "Настройки" };
 
+// Mockup 16 for the sections that exist in Stage 2; Telegram (stage 3) and privacy (stage 8) are added with their tasks.
 export default async function SettingsPage() {
   const { user, actor } = await requirePageSession("/settings");
   // The actor comes from the verified session; the service reads only this user's row.
@@ -16,31 +18,24 @@ export default async function SettingsPage() {
   const offset = utcOffsetLabel(now, preferences.timezone);
   return (
     <>
-      <p className="text-sm font-medium text-muted-foreground">Настройки</p>
-      <h1 className="page-title mt-1">Часовой пояс и язык</h1>
-      <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-        Настройки аккаунта <span className="font-medium text-foreground">{user.email}</span>. Даты хранятся в UTC
-        и показываются по выбранному часовому поясу.
-      </p>
-      <Card className="mt-8 max-w-xl rounded-2xl shadow-none [--card-spacing:--spacing(6)]">
-        <CardContent className="flex flex-col items-start gap-4 sm:flex-row">
-          <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-[10px] bg-primary/15 text-primary">
-            <Clock className="size-5" strokeWidth={1.7} />
-          </span>
-          <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
-            <dt className="text-muted-foreground">Часовой пояс</dt>
-            <dd className="font-medium">{preferences.timezone}{offset && <span className="font-normal text-muted-foreground"> · {offset}</span>}</dd>
-            <dt className="text-muted-foreground">Сейчас</dt>
-            <dd><time dateTime={now.toISOString()}>{formatDateTime(now, preferences)}</time></dd>
-            <dt className="text-muted-foreground">Язык и формат</dt>
-            <dd>{localeLabel(preferences.locale)}</dd>
+      <PageHeader title="Настройки" />
+      <div className="mt-4 grid max-w-[936px] gap-3.5">
+        <SectionCard titleId="settings-profile-title" title="Профиль">
+          <dl className="grid gap-x-6 gap-y-3.5 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-1.5"><dt className="field-label">Имя</dt><dd className="text-sm font-medium wrap-anywhere">{user.name}</dd></div>
+            <div className="grid min-w-0 gap-1.5"><dt className="field-label">Email для входа</dt><dd className="text-sm font-medium wrap-anywhere">{user.email}</dd></div>
           </dl>
-        </CardContent>
-      </Card>
-      <section aria-labelledby="preferences-title" className="mt-10 max-w-md">
-        <h2 id="preferences-title" className="mb-5 text-[17px] leading-6 font-semibold">Изменить</h2>
-        <PreferencesForm initial={preferences} timeZones={timeZoneOptions(preferences.timezone)} locales={localeOptions(preferences.locale)} />
-      </section>
+        </SectionCard>
+        <SectionCard titleId="preferences-title" title="Язык и время" contentClassName="grid gap-3.5">
+          <div className="grid gap-2 sm:grid-cols-3">
+            <StatCard label="Часовой пояс" value={preferences.timezone} hint={offset || undefined} />
+            <StatCard label="Сейчас" value={<time dateTime={now.toISOString()}>{formatDateTime(now, preferences)}</time>} />
+            <StatCard label="Язык и формат" value={localeLabel(preferences.locale)} />
+          </div>
+          <PreferencesForm initial={preferences} timeZones={timeZoneOptions(preferences.timezone)} locales={localeOptions(preferences.locale)} />
+          <p className="text-xs leading-5 text-muted-foreground">Даты и статистика по дням считаются в вашем часовом поясе. В базе время хранится в UTC.</p>
+        </SectionCard>
+      </div>
     </>
   );
 }

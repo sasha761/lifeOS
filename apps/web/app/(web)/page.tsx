@@ -1,26 +1,20 @@
-import { ArrowDown } from "lucide-react";
 import { DomainCards } from "@/components/area-navigation";
+import { PageHeader } from "@/components/ui/page-header";
 
+// Public overview: layout of mockup 04 (title with a bold lead, then sections), no personal numbers for guests.
 export default function HomePage() {
   return (
     <>
-      <section aria-labelledby="welcome-title" className="rounded-2xl border bg-card p-6 sm:p-10">
-        <p className="text-sm font-medium text-muted-foreground">Мой обзор</p>
-        <h1 id="welcome-title" className="mt-3 max-w-2xl text-[2rem] leading-10 font-bold tracking-[-0.02em] sm:text-[2.5rem] sm:leading-[3rem]">Важные сферы жизни.<br />В одном месте.</h1>
-        <p className="mt-4 max-w-lg text-sm leading-6 text-muted-foreground sm:text-base sm:leading-7">LifeOS объединит цели и развитие в разных направлениях. Здесь начинается ваше личное пространство.</p>
-        <a href="#areas" className="action-link mt-7">Посмотреть направления <ArrowDown aria-hidden="true" className="size-4" /></a>
-      </section>
-      <section id="areas" aria-labelledby="areas-title" className="mt-10 scroll-mt-8">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 id="areas-title" className="text-[17px] leading-6 font-semibold">Сферы развития</h2>
-            <p className="mt-1 text-[13px] leading-[18px] text-muted-foreground">Шесть направлений для будущих целей и новых привычек.</p>
-          </div>
-          <span className="text-xs font-medium text-muted-foreground">Специализированные модули появятся позже</span>
+      <PageHeader title="Обзор"
+        description={<><strong>Важные сферы жизни. В одном месте.</strong> LifeOS объединит цели и развитие в разных направлениях. Здесь начинается ваше личное пространство.</>} />
+      <section id="areas" aria-labelledby="areas-title" className="mt-6 scroll-mt-8">
+        <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="areas-title" className="text-base leading-[22px] font-bold">Сферы развития</h2>
+          <p className="text-xs text-muted-foreground">Шесть направлений для целей и новых привычек; специализированные модули появятся позже</p>
         </div>
         <DomainCards />
       </section>
-      <footer className="mt-9 flex items-center gap-2 text-xs leading-6 text-muted-foreground">
+      <footer className="mt-8 flex items-center gap-2 text-xs leading-6 text-muted-foreground">
         <span aria-hidden="true" className="size-1.5 rounded-full bg-primary" />
         Сначала — пространство. Затем — ваши цели и реальные результаты.
       </footer>

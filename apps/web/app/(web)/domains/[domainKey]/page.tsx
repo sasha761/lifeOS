@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Target } from "lucide-react";
+import { ArrowLeft, Plus, Target } from "lucide-react";
 import { findLifeDomain, LIFE_DOMAINS } from "@lifeos/domain";
-import { EmptyState } from "@/components/empty-state";
-import { Card, CardContent } from "@/components/ui/card";
-import { domainPresentation } from "@/lib/domain-presentation";
+import { DomainIcon } from "@/components/ui/domain-icon";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
+import { StatusChip } from "@/components/ui/status-chip";
 
 type DomainPageProps = { params: Promise<{ domainKey: string }> };
 
@@ -26,36 +27,29 @@ export async function generateMetadata({ params }: DomainPageProps): Promise<Met
   return { title: domain.name.ru, description: domain.description.ru };
 }
 
+// Public page from the registry (mockup 10 without personal data: goals and actions of a sphere are not shown here yet).
 export default async function DomainPage({ params }: DomainPageProps) {
   const domain = await resolveDomain(params);
   return (
     <>
-      <Link href="/#areas" className="inline-flex min-h-11 items-center gap-2 rounded-full pr-3 text-sm text-muted-foreground transition-colors duration-[120ms] hover:text-foreground">
+      <Link href="/#areas" className="mb-2 inline-flex min-h-11 items-center gap-2 rounded-full pr-3 text-sm text-muted-foreground transition-colors duration-[120ms] hover:text-foreground pointer-fine:min-h-8">
         <ArrowLeft aria-hidden="true" className="size-4" /> Все сферы
       </Link>
-      <EmptyState icon={domainPresentation[domain.key].icon} title={domain.name.ru} description={domain.description.ru} />
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card className="rounded-2xl shadow-none [--card-spacing:--spacing(6)]">
-          <CardContent>
-            <Target aria-hidden="true" className="mb-4 size-5 text-primary" strokeWidth={1.7} />
-            <h2 className="text-[17px] leading-6 font-semibold">Общие ручные цели</h2>
-            <p className="mt-2 text-sm leading-7 text-muted-foreground">
-              Создайте измеримую цель в этой сфере и отмечайте изменения вручную. Прогресс строится по вашим измерениям.
-            </p>
-            <p className="mt-2 text-sm leading-7 text-muted-foreground">Личные данные и прогресс здесь пока не отображаются.</p>
-            <div className="mt-5 flex flex-wrap gap-3"><Link href={`/goals?domain_key=${domain.key}`} className="action-link-secondary">Цели сферы</Link>
-              <Link href={`/goals/new?domain_key=${domain.key}`} className="action-link">Создать цель</Link></div>
-          </CardContent>
-        </Card>
-        <Card className="rounded-2xl shadow-none [--card-spacing:--spacing(6)]">
-          <CardContent>
-            <p className="mb-4 inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">Позже</p>
-            <h2 className="text-[17px] leading-6 font-semibold">Специализированный модуль появится позже</h2>
-            <p className="mt-2 text-sm leading-7 text-muted-foreground">
-              Автоматические трекеры и внешние подключения пока недоступны. Здесь будут только данные из явно указанных источников.
-            </p>
-          </CardContent>
-        </Card>
+      <PageHeader title={domain.name.ru} description={domain.description.ru} icon={<DomainIcon domain={domain.key} size="lg" />}
+        actions={<Link href={`/goals/new?domain_key=${domain.key}`} className="action-link action-compact"><Plus aria-hidden="true" className="size-4" />Цель в сфере</Link>} />
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <SectionCard titleId="domain-goals-title" title="Общие ручные цели" icon={<Target aria-hidden="true" className="size-[18px] text-primary" strokeWidth={1.7} />}>
+          <p className="text-sm leading-6 text-muted-foreground">
+            Создайте измеримую цель в этой сфере и отмечайте изменения вручную. Прогресс строится по вашим измерениям.
+          </p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">Личные данные и прогресс здесь пока не отображаются.</p>
+          <Link href={`/goals?domain_key=${domain.key}`} className="action-link-secondary action-compact mt-4">Цели сферы</Link>
+        </SectionCard>
+        <SectionCard variant="dashed" titleId="domain-module-title" title="Специализированный модуль появится позже" action={<StatusChip>Позже</StatusChip>}>
+          <p className="text-sm leading-6 text-muted-foreground">
+            Автоматические трекеры и внешние подключения пока недоступны. Здесь будут только данные из явно указанных источников.
+          </p>
+        </SectionCard>
       </div>
     </>
   );

@@ -1,16 +1,17 @@
 import { BookOpen, BriefcaseBusiness, FolderKanban, Heart, Lightbulb, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { DomainKey } from "@lifeos/contracts";
+import type { Tone } from "./tones.ts";
 
 /**
  * UI-only metadata. Exhaustive keys keep Web aligned with the framework-independent registry.
- * Tone (ADR-011, spec §16.2): the icon takes the sphere colour on a 15% tint of the same colour.
+ * Tone (ADR-011, spec §16.2) is the sphere colour used by DomainIcon, StatusChip and ProgressBar.
  */
 export const domainPresentation = {
-  languages: { icon: BookOpen, tone: "bg-primary/15 text-primary" },
-  finance: { icon: Wallet, tone: "bg-st-green/15 text-st-green" },
-  work: { icon: BriefcaseBusiness, tone: "bg-st-blue/15 text-st-blue" },
-  projects: { icon: FolderKanban, tone: "bg-st-amber/15 text-st-amber" },
-  skills: { icon: Lightbulb, tone: "bg-st-cyan/15 text-st-cyan" },
-  health: { icon: Heart, tone: "bg-st-red/15 text-st-red" },
-} satisfies Record<DomainKey, { icon: LucideIcon; tone: string }>;
+  languages: { icon: BookOpen, tone: "primary" },
+  finance: { icon: Wallet, tone: "green" },
+  work: { icon: BriefcaseBusiness, tone: "blue" },
+  projects: { icon: FolderKanban, tone: "amber" },
+  skills: { icon: Lightbulb, tone: "cyan" },
+  health: { icon: Heart, tone: "red" },
+} as const satisfies Record<DomainKey, { icon: LucideIcon; tone: Tone }>;

@@ -25,14 +25,14 @@ export function MeasurementForm({ goal, initial, preferences, saved, onBusyChang
     setErrors({});
     await mutation.save({ url: initial ? `/api/v1/goal-measurements/${initial.id}` : `/api/v1/goals/${goal.id}/measurements`, method: initial ? "PATCH" : "POST", body: result?.data }, goalMeasurementSchema, saved);
   }
-  return <form onSubmit={submit} noValidate className="grid gap-5" aria-busy={mutation.pending}>
+  return <form onSubmit={submit} noValidate className="grid gap-3.5" aria-busy={mutation.pending}>
     <MutationError error={mutation.error} uncertain={mutation.uncertain} />
-    {initial && <p className="text-sm leading-6 text-muted-foreground">Проверьте исправленные данные перед подтверждением. Прежнее значение останется в журнале изменений.</p>}
-    <fieldset disabled={mutation.pending || mutation.uncertain} className="grid min-w-0 gap-5"><legend className="sr-only">Данные измерения</legend>
-      <Field id="value" name="value" label={`Значение (${goal.unit === "custom" ? goal.unit_label : GOAL_UNIT_LABELS[goal.unit]})`} type="text" inputMode="decimal" required defaultValue={initial?.value ?? ""} error={errors.value} />
+    {initial && <p className="text-xs leading-5 text-muted-foreground">Проверьте исправленные данные перед подтверждением. Прежнее значение останется в журнале изменений.</p>}
+    <fieldset disabled={mutation.pending || mutation.uncertain} className="grid min-w-0 gap-3.5"><legend className="sr-only">Данные измерения</legend>
+      <Field id="value" name="value" label={`Значение (${goal.unit === "custom" ? goal.unit_label : GOAL_UNIT_LABELS[goal.unit]})`} labelClassName="field-label" type="text" inputMode="decimal" required defaultValue={initial?.value ?? ""} error={errors.value} />
       <DateTimeField name="measured_at" label="Дата и время измерения" initial={initial?.measured_at ?? now} timeZone={preferences.timezone} required errors={errors} />
       <TextArea name="note" label="Заметка (необязательно)" initial={initial?.note} maxLength={1000} errors={errors} />
-      <p className="text-xs leading-5 text-muted-foreground">Источник: ручное измерение, самоотчёт. Можно добавить запись за прошлую дату; будущее ограничено пятью минутами.</p></fieldset>
-    <SubmitButton pending={mutation.pending} pendingLabel="Сохраняем…">{mutation.uncertain ? "Повторить сохранение" : initial ? "Подтвердить изменения измерения" : "Добавить измерение"}</SubmitButton>
+      <p className="rounded-[10px] border bg-surface-2 px-3 py-2.5 text-xs leading-5 text-muted-foreground">Источник: ручной ввод, самоотчёт. Можно добавить запись за прошлую дату; будущее ограничено пятью минутами.</p></fieldset>
+    <div className="flex justify-end pt-1"><SubmitButton className="action-compact" pending={mutation.pending} pendingLabel="Сохраняем…">{mutation.uncertain ? "Повторить сохранение" : initial ? "Подтвердить изменения измерения" : "Добавить измерение"}</SubmitButton></div>
   </form>;
 }

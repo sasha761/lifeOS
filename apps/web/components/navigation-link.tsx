@@ -8,9 +8,9 @@ import type { SectionMatch } from "@/lib/site-sections";
 
 const variants = {
   /** Top bar pill (spec §16.4): the active section is lighter. */
-  pill: (active: boolean) => `inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors duration-[120ms] ${active ? "border-border-strong bg-secondary text-foreground" : "border-border text-muted-foreground hover:border-border-strong hover:bg-surface-3 hover:text-foreground"}`,
+  pill: (active: boolean) => `inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors duration-[120ms] pointer-fine:min-h-8 [&>svg]:size-3.5 ${active ? "border-border-strong bg-surface-2 font-semibold text-foreground" : "border-border text-muted-foreground hover:border-border-strong hover:bg-surface-3 hover:text-foreground"}`,
   /** Icon-only pill (settings gear); needs `label`. */
-  pillIcon: (active: boolean) => `inline-flex size-10 shrink-0 items-center justify-center rounded-full border transition-colors duration-[120ms] ${active ? "border-border-strong bg-secondary text-foreground" : "border-border text-muted-foreground hover:border-border-strong hover:bg-surface-3 hover:text-foreground"}`,
+  pillIcon: (active: boolean) => `inline-flex size-10 shrink-0 items-center justify-center rounded-full border transition-colors duration-[120ms] pointer-fine:size-8 ${active ? "border-border-strong bg-surface-2 text-foreground" : "border-border text-muted-foreground hover:border-border-strong hover:bg-surface-3 hover:text-foreground"}`,
   /** Rows inside the domains menu and the mobile sheet. */
   menu: (active: boolean) => `flex min-h-11 items-center gap-3 rounded-[10px] px-3 py-2 text-sm transition-colors duration-[120ms] ${active ? "bg-secondary font-semibold text-foreground" : "text-muted-foreground hover:bg-surface-3 hover:text-foreground"}`,
 };

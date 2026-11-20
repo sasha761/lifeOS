@@ -34,6 +34,14 @@ route group `(telegram)` сама по себе не добавляет сегм
   создание, `/goals/[id]` — прогресс, metadata edit, archive, история и
   add/edit/delete измерений. Каждая страница проверяет сессию; данные и все
   мутации целей идут через API LFS-207, не через server actions/прямой SQL.
+- LFS-212: «Новая цель» по макету 10. Переход по ссылке на `/goals/new` внутри
+  оболочки `(web)` открывает форму диалогом поверх текущей страницы
+  (parallel slot `app/(web)/@modal` + intercepting route `(.)goals/new`);
+  закрытие (✕, «Отмена», Escape) — `router.back()`. Прямой заход или обновление
+  `/goals/new` показывает ту же форму отдельной страницей. Обе ветки читают
+  сессию и параметры через `app/(web)/goals/new/new-goal-data.ts`; `@modal/default`,
+  `@modal/page` и `@modal/[...catchAll]` возвращают `null`, чтобы диалог закрывался
+  при переходе на другую страницу. Фильтр сфер на `/goals` — вкладки-ссылки.
 - `/telegram`: отдельный компактный layout и явная заглушка Mini App.
 - `GET /api/health`: HTTP 200 с envelope `data/meta/errors`; `data` содержит
   `status`, `service`, `timestamp`, `meta` — request/correlation ID; `no-store`,
@@ -129,7 +137,26 @@ pnpm --filter @lifeos/web exec shadcn add card skeleton --yes
 
 Исходники компонентов хранятся в `components/ui`; там же локальный
 `segmented-tabs.tsx` (pill-переключатель вида на ссылках с `aria-current`).
+UI-kit LFS-212 (соответствие элементам макетов — [UI_GUIDELINES §1](../../docs/UI_GUIDELINES.md)):
+`page-header.tsx`, `section-card.tsx` (на основе `Card`), `stat-card.tsx`,
+`source-label.tsx`, `progress-bar.tsx` (нативный `<progress>`), `domain-icon.tsx`,
+`status-chip.tsx`, `segmented-choice.tsx` (radio-группа в виде `SegmentedTabs`).
+Цвет сферы — `tone` в `lib/domain-presentation.ts`, набор тонов — `lib/tones.ts`.
+В чипах цветной текст только у тонов с контрастом ≥ 4.5:1 (green, amber, orange, cyan);
+у primary/blue/red текст светлый. Размеры кнопок макета — классы `action-compact`
+и `action-sm` (на сенсорных экранах высота остаётся 44px), подпись поля — `field-label`.
 EmptyState, Brand и навигация — локальные presentation-компоненты.
+
+`pnpm lint` запрещает литералы цвета (`#hex`, `rgb(`, `oklch(` …) в `app/**` и
+`components/**`: локальное правило `eslint-rules/no-color-literals.ts`
+(`lifeos-ui/no-color-literals`), подключено в `eslint.config.ts`; цвета и тени живут
+только в `app/globals.css`.
+
+`pnpm ui:shots` (после `pnpm db:test:up`) собирает приложение, поднимает ту же
+изолированную фикстуру, что `test:ui` (`scripts/ui-fixture.ts`), заводит через API
+тестовые цели и снимает `/`, `/dashboard`, `/goals`, `/goals/[id]`, `/domains/finance`,
+диалог «Новая цель» и `/settings` на 1440×900 и 390×844 в ignored `.cache/ui-shots`,
+плюс `<страница>-compare.png` (макет из `docs/reference/ui` | 1440 | 390) и `report.json`.
 Оболочка `(web)` — верхняя полоса `components/site-nav.tsx`: только
 существующие разделы (`lib/site-sections.ts`), меню «Сферы» из registry
 `LIFE_DOMAINS` и мобильная шторка; закрытие по Escape/клику вне меню

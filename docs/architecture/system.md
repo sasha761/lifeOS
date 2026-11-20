@@ -164,6 +164,15 @@ GoalsReader) и нормализованных `activity_events`; чужие с�
 проверкой сессии и Client Component, читающий `GET /api/v1/dashboard`
 (loading/error/retry/empty). Миграций, projection и очереди нет.
 
+LFS-212: только presentation-слой Web. Общий UI-kit в `apps/web/components/ui`
+(PageHeader, SectionCard, StatCard, SourceLabel, ProgressBar, DomainIcon,
+StatusChip, SegmentedChoice) по [UI_GUIDELINES](../UI_GUIDELINES.md); цвета только
+токенами `globals.css`, что проверяет ESLint-правило `lifeos-ui/no-color-literals`.
+«Новая цель» — parallel slot `app/(web)/@modal` с intercepting route `(.)goals/new`:
+та же RSC-проверка сессии и тот же POST `/api/v1/goals`, но форма показывается
+диалогом поверх текущей страницы; прямой заход на `/goals/new` рендерит страницу.
+API, контракты, схема БД и runtime не менялись.
+
 ## Проверка и handoff
 
 Полная цепочка — `pnpm verify`: frozen install, lint/types, unit, test

@@ -203,6 +203,7 @@ pnpm dev
 - `/dashboard` — кабинет после входа: шесть сфер с целями и прогрессом, сроки и последние действия (LFS-204).
 - `/goals`, `/goals/new`, `/goals/:id` — защищённый список, создание и детали;
   ручные измерения, исправление/удаление с подтверждением, metadata и архив.
+  «Новая цель» открывается диалогом поверх текущей страницы; прямой заход на `/goals/new` — отдельная страница (LFS-212).
 - `/settings` — часовой пояс и язык/формат дат текущего пользователя (LFS-202), только после входа.
 - `/telegram` — компактная заглушка Mini App, без linking/SDK.
 - `/api/health` — JSON `{ data, meta, errors }`, текущий timestamp и IDs, no-store.
@@ -268,6 +269,7 @@ TEST_DATABASE_URL. Каждый этап возвращает реальный e
 | `pnpm test:worker` | Отдельные worker/CLI, retry и shutdown на PostgreSQL |
 | `pnpm test:integration` | DB, Web, затем worker suites |
 | `pnpm test:ui` | Сборка + Playwright UI целей в изолированной test schema, desktop/mobile |
+| `pnpm ui:shots` | Сборка + скриншоты страниц Stage 2 на 1440/390 и сравнение с макетами в `.cache/ui-shots` ([UI_GUIDELINES §5](docs/UI_GUIDELINES.md)) |
 | `pnpm build`, затем `pnpm test:build` | Обе production сборки и smoke |
 | `pnpm db:generate` | Offline Drizzle SQL generation без credentials |
 | `pnpm db:test:down` | Остановить только test instance |
