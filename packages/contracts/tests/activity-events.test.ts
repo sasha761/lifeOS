@@ -17,6 +17,7 @@ describe("typed activity events", () => {
   it("accepts goal before/after and reserves typed measurement events without adding measurements", () => {
     for (const event of [created,
       { ...base, event_type: "goal.updated", payload: { before: snapshot, after: snapshot, changed_fields: ["title"] } },
+      { ...base, event_type: "goal.updated", payload: { before: snapshot, after: snapshot, changed_fields: ["unit", "unit_label", "baseline", "target", "direction"] } },
       { ...base, event_type: "goal.archived", payload: { before: snapshot, after: { ...snapshot, status: "archived" } } },
     ]) expect(activityEventDraftSchema.safeParse(event).success).toBe(true);
     const measurement = { value: "12000.01", measured_at: "2026-11-15T10:00:00Z", source: "manual" };

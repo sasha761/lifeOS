@@ -43,6 +43,13 @@
       "when": 1794783379817,
       "tag": "0005_goal_measurements",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795034952732,
+      "tag": "0006_goal_deletion_receipts",
+      "breakpoints": true
     }
   ]
 }

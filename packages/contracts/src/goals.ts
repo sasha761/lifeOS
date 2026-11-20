@@ -89,12 +89,33 @@ function validateDefinition(value: NumericDefinition, context: z.RefinementCtx):
 export const createGoalInputSchema = z.strictObject(definition).superRefine(validateDefinition);
 export type CreateGoalInput = z.infer<typeof createGoalInputSchema>;
 
-/** Measurement definitions are immutable; editing metadata cannot reinterpret past/future measurements. */
+/** The measurable definition of a goal (LFS-217): changeable only while the goal has no measurements. */
+export const GOAL_DEFINITION_FIELDS = Object.freeze(["unit", "unit_label", "baseline", "target", "direction"] as const);
+export const GOAL_METADATA_FIELDS = Object.freeze(["title", "description", "due_at"] as const);
+
+/**
+ * Metadata is always editable. The definition is sent as a whole group (all five fields, `unit_label` may be null) and is
+ * validated by the creation rules; a partial definition is rejected. Whether it may change is decided by the server: a goal
+ * with measurements keeps its definition (ADR-007), so past measurements are never reinterpreted.
+ */
 export const updateGoalInputSchema = z.strictObject({
   title: titleSchema.optional(),
   description: descriptionSchema.optional(),
   due_at: goalInstantSchema.nullable().optional(),
-}).refine((input) => input.title !== undefined || input.description !== undefined || input.due_at !== undefined, { message: "Nothing to update." });
+  unit: goalUnitSchema.optional(),
+  unit_label: z.string().trim().min(1).max(GOAL_UNIT_LABEL_MAX_LENGTH).nullable().optional(),
+  baseline: goalDecimalSchema.optional(),
+  target: goalDecimalSchema.optional(),
+  direction: goalDirectionSchema.optional(),
+}).superRefine((input, context) => {
+  const missing = GOAL_DEFINITION_FIELDS.filter((field) => input[field] === undefined);
+  if (missing.length === GOAL_DEFINITION_FIELDS.length) return;
+  if (missing.length > 0) {
+    context.addIssue({ code: "custom", path: [missing[0]!], message: "Send the whole goal definition." });
+    return;
+  }
+  validateDefinition(input as NumericDefinition, context);
+}).refine((input) => [...GOAL_METADATA_FIELDS, ...GOAL_DEFINITION_FIELDS].some((field) => input[field] !== undefined), { message: "Nothing to update." });
 export type UpdateGoalInput = z.infer<typeof updateGoalInputSchema>;
 
 export const goalIdSchema = z.uuid();

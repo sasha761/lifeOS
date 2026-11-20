@@ -2,7 +2,7 @@
 
 import { useCallback, useId, useRef, useState } from "react";
 import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
-import { activityFeedSchema, goalDetailsSchema, goalMeasurementDeletionSchema, measurementsPageSchema } from "@lifeos/contracts";
+import { activityFeedSchema, goalDeletionSchema, goalDetailsSchema, goalMeasurementDeletionSchema, measurementsPageSchema } from "@lifeos/contracts";
 import type { GoalDetails, GoalMeasurement, MeasurementsPage, UserPreferences } from "@lifeos/contracts";
 import { describeActivity } from "../../lib/activity-presentation.ts";
 import { daysUntil, formatDaysLeft } from "../../lib/dashboard-presentation.ts";
@@ -23,12 +23,12 @@ import { MeasurementForm } from "./measurement-form.tsx";
 import { LoadState, Modal, MutationError, StatusBadge, useGoalData, useGoalMutation } from "./shared.tsx";
 import type { DomainChoice } from "./shared.tsx";
 
-type DialogState = { mode: "goal" | "add" | "archive" } | { mode: "edit" | "delete"; row: GoalMeasurement };
+type DialogState = { mode: "goal" | "add" | "archive" | "deleteGoal" } | { mode: "edit" | "delete"; row: GoalMeasurement };
 const MEASUREMENTS_TITLE = "measurements-title";
 const HISTORY_LIMIT = 10;
 /** Round icon button from mockup 09 (✎, ⋯), named for assistive technology, 44px on touch screens. */
 const iconButton = "inline-flex size-7 shrink-0 items-center justify-center rounded-full border text-muted-foreground transition-colors duration-[120ms] hover:border-border-strong hover:bg-surface-3 hover:text-foreground pointer-coarse:size-11";
-const menuItem = "flex min-h-11 w-full items-center rounded-[10px] px-3 text-left text-sm text-foreground transition-colors duration-[120ms] hover:bg-surface-3 pointer-fine:min-h-9";
+const menuItem = "flex min-h-11 w-full items-center rounded-[10px] px-3 text-left text-sm transition-colors duration-[120ms] hover:bg-surface-3 pointer-fine:min-h-9";
 
 /**
  * Mockup 09, top of the goal panel: big percentage (or «Недостаточно данных»), bar, the tiles Старт / Сейчас / Цель /
@@ -63,7 +63,7 @@ export function GoalProgressPanel({ value, preferences, now = new Date() }: { va
 }
 
 /** «⋯» from mockup 09: a disclosure with the goal commands; choosing one returns focus to the toggle before the dialog opens. */
-function GoalActions({ edit, archive, disabled }: { edit(): void; archive(): void; disabled: boolean }) {
+function GoalActions({ edit, archive, deleteGoal, active, disabled }: { edit(): void; archive(): void; deleteGoal(): void; active: boolean; disabled: boolean }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
@@ -75,8 +75,9 @@ function GoalActions({ edit, archive, disabled }: { edit(): void; archive(): voi
     <button ref={toggle} type="button" aria-label="Действия с целью" aria-expanded={open} aria-controls={id} disabled={disabled}
       onClick={() => setOpen((value) => !value)} className={`${iconButton} size-8 disabled:opacity-50`}><MoreHorizontal aria-hidden="true" className="size-4" /></button>
     <div id={id} hidden={!open} className="absolute top-full right-0 z-30 mt-1.5 grid w-48 gap-0.5 rounded-[14px] border bg-card p-1.5 shadow-popover">
-      <button type="button" className={menuItem} onClick={() => choose(edit)}>Изменить цель</button>
-      <button type="button" className={menuItem} onClick={() => choose(archive)}>В архив</button>
+      {active && <><button type="button" className={menuItem} onClick={() => choose(edit)}>Изменить цель</button>
+        <button type="button" className={menuItem} onClick={() => choose(archive)}>В архив</button></>}
+      <button type="button" className={`${menuItem} text-destructive`} onClick={() => choose(deleteGoal)}>Удалить цель</button>
     </div>
   </div>;
 }
@@ -85,7 +86,7 @@ function GoalActions({ edit, archive, disabled }: { edit(): void; archive(): voi
  * Goal panel of mockup 09: next to the list on /goals from 1024px and the whole page /goals/[id] on narrow screens.
  * Header with chips and «⋯», progress, measurements and the goal's own journal («История изменений»).
  */
-export function GoalPanel({ id, preferences, domains, onChanged }: { id: string; preferences: UserPreferences; domains: DomainChoice[]; onChanged?(): void }) {
+export function GoalPanel({ id, preferences, domains, onChanged, onDeleted }: { id: string; preferences: UserPreferences; domains: DomainChoice[]; onChanged?(): void; onDeleted(): void }) {
   const detail = useGoalData(`/api/v1/goals/${id}`, goalDetailsSchema);
   const history = useGoalData(`/api/v1/goals/${id}/measurements?limit=20`, measurementsPageSchema);
   const journal = useGoalData(`/api/v1/activity?goal_id=${id}&limit=${HISTORY_LIMIT}`, activityFeedSchema);
@@ -125,10 +126,10 @@ export function GoalPanel({ id, preferences, domains, onChanged }: { id: string;
       {goal.due_at && <StatusChip tone="outline">до <time dateTime={goal.due_at}>{formatDate(new Date(goal.due_at), preferences)}</time></StatusChip>}
       <StatusBadge status={goal.status} />
     </span>}
-    action={active && <GoalActions disabled={detail.loading} edit={() => open({ mode: "goal" })} archive={() => open({ mode: "archive" })} />}
+    action={<GoalActions active={active} disabled={detail.loading} edit={() => open({ mode: "goal" })} archive={() => open({ mode: "archive" })} deleteGoal={() => open({ mode: "deleteGoal" })} />}
     contentClassName="grid gap-4">
     {message && <div role="status" className="rounded-[10px] border border-st-green/40 bg-st-green/10 px-3 py-2.5 text-sm">{message}</div>}
-    {!active && <p className="rounded-[10px] border bg-surface-2 px-3 py-2.5 text-sm leading-6">Цель в архиве. Измерения и история сохранены и доступны для просмотра. Новые изменения закрыты.</p>}
+    {!active && <p className="rounded-[10px] border bg-surface-2 px-3 py-2.5 text-sm leading-6">Цель в архиве. Измерения и история сохранены и доступны для просмотра. Редактирование закрыто; цель можно удалить навсегда.</p>}
     <GoalProgressPanel value={value} preferences={preferences} />
     <section aria-labelledby={MEASUREMENTS_TITLE} className="grid gap-2.5">
       <div className="flex flex-wrap items-center gap-2">
@@ -161,9 +162,18 @@ export function GoalPanel({ id, preferences, domains, onChanged }: { id: string;
         </li>)}
       </ol>}
     </section>
-    {dialog && <Modal title={dialog.mode === "goal" ? "Изменить цель" : dialog.mode === "add" ? "Новое измерение" : dialog.mode === "edit" ? "Исправить измерение" : dialog.mode === "delete" ? "Удалить измерение?" : "Архивировать цель?"}
+    {dialog && <Modal title={dialog.mode === "goal" ? "Изменить цель" : dialog.mode === "add" ? "Новое измерение" : dialog.mode === "edit" ? "Исправить измерение" : dialog.mode === "delete" ? "Удалить измерение?" : dialog.mode === "deleteGoal" ? "Удалить цель?" : "Архивировать цель?"}
+      role={dialog.mode === "deleteGoal" ? "alertdialog" : "dialog"} describedBy={dialog.mode === "deleteGoal" ? "delete-goal-description" : undefined}
       busy={dialogBusy || action.pending || action.uncertain} close={() => setDialog(null)}>
-      {dialog.mode === "goal" && <GoalForm initial={goal} domains={domains} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved("Изменения цели сохранены.")}
+      {dialog.mode === "deleteGoal" && <div className="grid gap-5"><MutationError error={action.error} uncertain={action.uncertain} />
+        <p id="delete-goal-description" className="text-sm leading-7">Измерения и история тоже удалятся. Это нельзя отменить.</p>
+        <div className="flex flex-wrap justify-end gap-2.5">
+          <button data-dialog-initial-focus disabled={action.pending || action.uncertain} className="action-link-secondary action-compact disabled:opacity-50" onClick={() => setDialog(null)}>Отмена</button>
+          <button disabled={action.pending} className="action-link-secondary action-compact border-destructive/55 text-destructive hover:bg-destructive/10 disabled:opacity-50"
+            onClick={() => void action.save({ url: `/api/v1/goals/${id}`, method: "DELETE" }, goalDeletionSchema, onDeleted)}>
+            {action.pending ? "Удаляем…" : action.uncertain ? "Повторить запрос" : "Удалить"}</button>
+        </div></div>}
+      {dialog.mode === "goal" && <GoalForm initial={goal} definitionEditable={value.progress.measurementCount === 0} domains={domains} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved("Изменения цели сохранены.")}
         cancel={<button type="button" disabled={dialogBusy} onClick={() => setDialog(null)} className="action-link-secondary action-compact disabled:opacity-50">Отмена</button>} />}
       {(dialog.mode === "add" || dialog.mode === "edit") && <MeasurementForm goal={goal} initial={dialog.mode === "edit" ? dialog.row : undefined} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved(dialog.mode === "add" ? "Измерение добавлено." : "Измерение исправлено.")} />}
       {(dialog.mode === "delete" || dialog.mode === "archive") && <div className="grid gap-5"><MutationError error={action.error} uncertain={action.uncertain} />

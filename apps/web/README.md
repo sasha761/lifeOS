@@ -59,13 +59,15 @@ route group `(telegram)` сама по себе не добавляет сегм
 - `/api/auth/*`: Better Auth; `GET /api/v1/me`: текущий пользователь, 401 без сессии.
 - `GET/PATCH /api/v1/me/preferences` (LFS-202): свои timezone/locale; actor только из
   сессии (`requireApiActor`), body валидирует domain-сервис ([ADR-006](../../docs/adr/006-actor-ownership.md)).
-- LFS-207: `GET/POST /api/v1/goals`, `GET/PATCH /api/v1/goals/:goalId`,
+- LFS-207/216: `GET/POST /api/v1/goals`, `GET/PATCH/DELETE /api/v1/goals/:goalId`,
   `GET/POST /api/v1/goals/:goalId/measurements`,
   `PATCH/DELETE /api/v1/goal-measurements/:measurementId`. `server/goals.ts`
   — HTTP adapter; `server/core.ts` — lazy composition; проценты/ownership —
   в domain, snapshot SQL — в DB. Записи требуют Idempotency-Key,
   POST/PATCH — JSON; archive отдельным PATCH status. Все успехи 200,
-  ошибки 400/401/404/409/500 в общем envelope, no-store.
+  ошибки 400/401/403/404/409/500 в общем envelope, no-store.
+  DELETE цели доступен и в архиве: подтверждение в «⋯», каскадное удаление и
+  успешный повтор с прежним ключом. Origin записей сверяется с BETTER_AUTH_URL.
   [Контракт/пагинация](../../docs/api/contracts.md#http-целей-и-прогресс-lfs-207),
   [ADR-010](../../docs/adr/010-goals-api-progress.md).
 - Неизвестные URL: 404 с возвратом на главную. Предусмотрены loading и

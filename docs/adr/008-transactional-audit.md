@@ -40,7 +40,9 @@ manual/web/telegram/import/ai_proposed, но command context и writer сейч�
 **Минимальный payload.** Before/after содержит unit/baseline/target/direction/
 status/due_at. Названия, описания, custom unit labels, user/email/session/password,
 raw request и response не копируются. Для metadata-правки changed_fields
-показывает изменённые title/description/due_at без текстовых значений.
+показывает изменённые title/description/due_at без текстовых значений; с LFS-217
+в нём же unit/unit_label/baseline/target/direction правки определения
+([ADR-007, дополнение LFS-217](007-goals.md#дополнение-lfs-217--2026-11-19)).
 Reserved measurement snapshot содержит value/measured_at/source, без note.
 SQL ограничивает форму/размер JSON и набор ключей; точные типы и переходы
 проверяет Zod writer. События append-only на уровне порта: update/delete API нет.
@@ -78,6 +80,32 @@ lock по hashtextextended(JSON[user_id,key]). Он автоматически �
 DB возвращает типизированный success/conflict/not_found outcome; domain
 преобразует его в безопасные ошибки. Runtime dependency DB → domain не
 добавляется, используются только типы; domain не импортирует SQL/Node/apps.
+
+## Дополнение LFS-216 · 2026-11-18
+
+Для hard delete выбрана отдельная `goal_deletion_receipts`: owner/key PK,
+SHA-256 fingerprint, target UUID и время. Единственный FK — на владельца с
+CASCADE; ссылки на удалённую цель, free text, audit и response snapshots нет.
+Прежние `goal_command_receipts`, события и измерения каскадно удаляются с целью;
+событие `goal.deleted` не создаётся. Удаление и вставка минимальной квитанции
+фиксируются одной транзакцией, сбой вставки откатывает DELETE и все каскады.
+
+Общий advisory lock `(user_id,key)` сохранён. Все goal/measurement UOW проверяют
+также новую таблицу: её ключ нельзя занять другой операцией, целью или source.
+Повтор DELETE с тем же fingerprint возвращает `{ id, user_id, deleted: true }`
+без lookup отсутствующей цели. Новый ключ для отсутствующей/чужой цели —
+NOT_FOUND. Это сохраняет одновременно безопасный 404 и успешный повтор после
+обрыва связи. Квитанции удаления не истекают в Stage 2; с владельцем удаляются.
+
+`0006_goal_deletion_receipts.sql` добавляет только новую таблицу; существующие
+FK, SQL и fingerprints не меняются. FK в новом SQL неквалифицирован для
+изолированных test schemas. Сначала применяются миграции, затем новый код.
+Откат кода сохраняет таблицу, однако старый код не знает её namespace ключей;
+при откате нельзя повторять незавершённые команды удаления через старый код.
+
+Альтернатива «любой отсутствующий id уже удалён» отклонена: нарушает требование
+404 для неизвестной цели. Nullable FK в прежних receipts усложнил бы инварианты
+существующих команд и сохранение их исторических квитанций при удалении.
 
 ## Миграция и откат
 

@@ -4,7 +4,7 @@ import type { LifeosDatabase } from "../client.ts";
 import { ownedBy } from "../ownership.ts";
 import { activityEvents } from "../schema/activity-events.ts";
 import { goals } from "../schema/goals.ts";
-import { toActivityEvent } from "./activity-events.ts";
+import { goalUnitChangedAt, toActivityEvent, toUnitChangedAt } from "./activity-events.ts";
 import { toGoal } from "./goals.ts";
 import { summarizeGoals } from "./goals-reader.ts";
 
@@ -42,7 +42,7 @@ export function createDashboardReadRepository(database: LifeosDatabase): Dashboa
         const unique = [...new Map([...domainGoals, ...dueGoals].map((goal) => [goal.id, goal])).values()];
         const summaries = new Map((await summarizeGoals(transaction, actor, unique)).map((record) => [record.goal.id, record]));
         // The compound key matches the audit FK (owner, sphere, goal); both sides stay owner-filtered.
-        const events = await transaction.select({ event: activityEvents, goal: goals }).from(activityEvents)
+        const events = await transaction.select({ event: activityEvents, goal: goals, unitChangedAt: goalUnitChangedAt }).from(activityEvents)
           .innerJoin(goals, and(eq(goals.userId, activityEvents.userId), eq(goals.domainKey, activityEvents.domainKey), eq(goals.id, activityEvents.goalId)))
           .where(ownedBy(activityEvents.userId, actor, ownedBy(goals.userId, actor)))
           .orderBy(desc(activityEvents.occurredAt), desc(activityEvents.id)).limit(limits.activity);
@@ -50,7 +50,7 @@ export function createDashboardReadRepository(database: LifeosDatabase): Dashboa
           counts: counts.map((row) => ({ domainKey: row.domainKey, status: row.status, total: count(row.total) })),
           domainGoals: domainGoals.map((goal) => summaries.get(goal.id)!),
           dueGoals: dueGoals.map((goal) => summaries.get(goal.id)!),
-          activity: events.map((row) => ({ event: toActivityEvent(row.event), goal: toGoal(row.goal) })),
+          activity: events.map((row) => ({ event: toActivityEvent(row.event), goal: toGoal(row.goal), unitChangedAt: toUnitChangedAt(row.unitChangedAt) })),
         };
       }, readSnapshot);
     },

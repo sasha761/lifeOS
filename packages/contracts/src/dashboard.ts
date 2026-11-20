@@ -38,8 +38,9 @@ export const dashboardActivitySchema = z.strictObject({
   /** Current goal metadata: the audit log deliberately stores no titles (ADR-008). */
   goal: z.strictObject({ id: goalIdSchema, title: z.string().min(1).max(GOAL_TITLE_MAX_LENGTH), status: goalStatusSchema }),
   measurement: z.strictObject({
-    value: goalDecimalSchema, unit: goalUnitSchema, unitLabel: z.string().min(1).max(GOAL_UNIT_LABEL_MAX_LENGTH).nullable(),
-  }).nullable(),
+    /** null for a measurement recorded before the goal's unit last changed (LFS-217): shown as a plain number. */
+    value: goalDecimalSchema, unit: goalUnitSchema.nullable(), unitLabel: z.string().min(1).max(GOAL_UNIT_LABEL_MAX_LENGTH).nullable(),
+  }).refine((measurement) => measurement.unit !== null || measurement.unitLabel === null).nullable(),
 }).refine((item) => item.type.startsWith("goal_measurement.") === (item.measurement !== null));
 export type DashboardActivity = z.infer<typeof dashboardActivitySchema>;
 

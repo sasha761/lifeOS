@@ -4,20 +4,42 @@ import type { GoalsUnitOfWork } from "@lifeos/domain";
 import type { LifeosDatabase } from "./client.ts";
 import { ownedBy } from "./ownership.ts";
 import { goalCommandReceipts } from "./schema/activity-events.ts";
+import { goalDeletionReceipts } from "./schema/goal-deletion-receipts.ts";
 import { createGoalsRepository } from "./repositories/goals.ts";
 import { createActivityEventWriter } from "./activity-event-writer.ts";
-import { commandFingerprint, lockCommandKey } from "./command-idempotency.ts";
+import { commandFingerprint, findGoalDeletionReceipt, lockCommandKey } from "./command-idempotency.ts";
 
 /** The only domain-command write boundary: business mutation, event and receipt share one transaction. */
 export function createGoalsUnitOfWork(database: LifeosDatabase): GoalsUnitOfWork {
   return {
     goals: createGoalsRepository(database),
+    async runDeletion(actor, command, operation) {
+      if (!goalCommandOptionsSchema.safeParse({ idempotencyKey: command.idempotencyKey, source: command.source }).success) throw new Error("Invalid command context.");
+      const hash = commandFingerprint(command);
+      return database.transaction(async (transaction) => {
+        await lockCommandKey(transaction, actor, command.idempotencyKey);
+        const receipt = await findGoalDeletionReceipt(transaction, actor, command.idempotencyKey);
+        if (receipt) return receipt.requestHash === hash
+          ? { kind: "success", result: { id: receipt.targetId, user_id: actor.userId, deleted: true } }
+          : { kind: "conflict" };
+        const [existing] = await transaction.select().from(goalCommandReceipts)
+          .where(ownedBy(goalCommandReceipts.userId, actor, eq(goalCommandReceipts.idempotencyKey, command.idempotencyKey))).limit(1);
+        if (existing) return { kind: "conflict" };
+        const result = await operation(createGoalsRepository(transaction, { lockRows: true }));
+        if (result.user_id !== actor.userId || result.id !== command.targetId) throw new Error("Invalid deletion command owner or target.");
+        // Existing command receipts/events/measurements have cascaded. Only this retry proof survives.
+        await transaction.insert(goalDeletionReceipts).values({ userId: actor.userId, idempotencyKey: command.idempotencyKey,
+          requestHash: hash, targetId: result.id, createdAt: sql`clock_timestamp()` });
+        return { kind: "success", result };
+      }, { isolationLevel: "read committed" });
+    },
     async run(actor, command, operation) {
       if (!goalCommandOptionsSchema.safeParse({ idempotencyKey: command.idempotencyKey, source: command.source }).success) throw new Error("Invalid command context.");
       const hash = commandFingerprint(command);
       return database.transaction(async (transaction) => {
         // A transaction-scoped key lock also covers no-op commands. Hash collisions merely serialize callers.
         await lockCommandKey(transaction, actor, command.idempotencyKey);
+        if (await findGoalDeletionReceipt(transaction, actor, command.idempotencyKey)) return { kind: "conflict" };
         const repository = createGoalsRepository(transaction, { lockRows: true });
         const [receipt] = await transaction.select().from(goalCommandReceipts)
           .where(ownedBy(goalCommandReceipts.userId, actor, eq(goalCommandReceipts.idempotencyKey, command.idempotencyKey))).limit(1);

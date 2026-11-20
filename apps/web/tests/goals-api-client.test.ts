@@ -40,4 +40,10 @@ describe("browser idempotent write attempts", () => {
     await createGoalCommand(fetcher, () => "delete-key").run({ url: "/api/v1/goal-measurements/id", method: "DELETE" }, schema);
     expect(fetcher.mock.calls[0][1]).toMatchObject({ body: undefined, headers: { "idempotency-key": "delete-key" } });
   });
+  it("treats a safe Origin rejection as definitive so cancellation remains available", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(Response.json({ data: null, meta, errors: [{ code: "FORBIDDEN", message: "private" }] }, { status: 403 })).mockResolvedValueOnce(success());
+    const client = createGoalCommand(fetcher, () => "key");
+    await expect(client.run(command, schema)).rejects.toMatchObject({ status: 403, uncertain: false });
+    await expect(client.run({ ...command, body: { title: "Corrected" } }, schema)).resolves.toEqual({ id: "saved" });
+  });
 });

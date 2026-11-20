@@ -5,9 +5,10 @@ const time = "2026-11-15T10:00:00.000Z";
 const goalId = "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc";
 function entry(type: string, extra: Record<string, unknown> = {}) {
   return { id: "5fe63a56-7a7f-4905-bdc3-c9dff1d439dc", type, occurredAt: time, source: "web", domainKey: "finance",
-    goal: { id: goalId, title: "Savings", status: "active" }, measurement: null, changedFields: null, dueAt: null, ...extra };
+    goal: { id: goalId, title: "Savings", status: "active" }, measurement: null, changedFields: null, dueAt: null, definition: null, ...extra };
 }
 const measurement = (previousValue: string | null) => ({ value: "12000", previousValue, unit: "NOK", unitLabel: null });
+const definition = { before: { unit: "NOK", baseline: "0", target: "5000", direction: "increase" }, after: { unit: "count", baseline: "2", target: "10", direction: "increase" } };
 
 describe("activity journal contract (LFS-213)", () => {
   it("defaults the limit, accepts one filter and normalizes the goal id", () => {
@@ -29,6 +30,9 @@ describe("activity journal contract (LFS-213)", () => {
       entry("goal_measurement.created", { measurement: measurement(null) }),
       entry("goal_measurement.updated", { measurement: measurement("8500") }),
       entry("goal_measurement.deleted", { measurement: measurement(null) }),
+      entry("goal.updated", { changedFields: ["unit", "baseline", "target"], definition }),
+      entry("goal.updated", { changedFields: ["title", "unit_label"] }),
+      entry("goal_measurement.deleted", { measurement: { ...measurement(null), unit: null } }),
     ]) expect(activityEntrySchema.parse(value)).toEqual(value);
   });
   it.each([
@@ -40,6 +44,10 @@ describe("activity journal contract (LFS-213)", () => {
     ["a previous value on a new measurement", entry("goal_measurement.created", { measurement: measurement("1") })],
     ["a measurement on a goal fact", entry("goal.created", { measurement: measurement(null) })],
     ["a user id", entry("goal.created", { user_id: "other" })],
+    ["a definition change without its values", entry("goal.updated", { changedFields: ["target"] })],
+    ["definition values without a definition field", entry("goal.updated", { changedFields: ["title"], definition })],
+    ["a unit label without a unit", entry("goal_measurement.deleted", { measurement: { ...measurement(null), unit: null, unitLabel: "km" } })],
+    ["an unknown changed field", entry("goal.updated", { changedFields: ["status"] })],
   ])("rejects %s", (_name, value) => {
     expect(activityEntrySchema.safeParse(value).success).toBe(false);
   });

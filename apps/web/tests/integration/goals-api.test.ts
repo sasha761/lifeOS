@@ -44,7 +44,7 @@ function raw(route: Route, method: Method, id = "", options: Options = {}): Prom
   const req = request(route, method, id, options);
   const context = { params: Promise.resolve({ goalId: id, measurementId: id }) };
   if (route === "collection") return routes.collection[method as "GET" | "POST"](req);
-  if (route === "goal") return routes.goal[method as "GET" | "PATCH"](req, context);
+  if (route === "goal") return routes.goal[method as "GET" | "PATCH" | "DELETE"](req, context);
   if (route === "measurements") return routes.measurements[method as "GET" | "POST"](req, context);
   return routes.measurement[method as "PATCH" | "DELETE"](req, context);
 }
@@ -85,9 +85,9 @@ async function page(query: URLSearchParams, cookie = owner.cookie) {
 }
 
 describe("goals HTTP and progress", () => {
-  it("guards all eight endpoints before reading malformed bodies, queries or identifiers", async () => {
+  it("guards all nine endpoints before reading malformed bodies, queries or identifiers", async () => {
     for (const [route, method] of [["collection", "GET"], ["collection", "POST"], ["goal", "GET"], ["goal", "PATCH"],
-      ["measurements", "GET"], ["measurements", "POST"], ["measurement", "PATCH"], ["measurement", "DELETE"]] as const) {
+      ["goal", "DELETE"], ["measurements", "GET"], ["measurements", "POST"], ["measurement", "PATCH"], ["measurement", "DELETE"]] as const) {
       for (const cookie of [undefined, "lifeos.session_token=forged.value"]) {
         const response = await raw(route, method, "invalid-id", { cookie, rawBody: ["POST", "PATCH"].includes(method) ? "{bad" : undefined, key: null, query: new URLSearchParams({ limit: "bad" }) });
         expect(response.status).toBe(401);
@@ -138,6 +138,7 @@ describe("goals HTTP and progress", () => {
         { name: "goal read", send: (id, cookie) => raw("goal", "GET", id, { cookie }) },
         { name: "goal edit", send: (id, cookie) => raw("goal", "PATCH", id, { cookie, body: { title: "Forged" } }) },
         { name: "goal archive", send: (id, cookie) => raw("goal", "PATCH", id, { cookie, body: { status: "archived" } }) },
+        { name: "goal delete", send: (id, cookie) => raw("goal", "DELETE", id, { cookie }) },
         { name: "history", send: (id, cookie) => raw("measurements", "GET", id, { cookie }) },
         { name: "measurement create", send: (id, cookie) => raw("measurements", "POST", id, { cookie, body: measurement }) },
       ] });

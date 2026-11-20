@@ -1,7 +1,16 @@
 import { createHash } from "node:crypto";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { Actor } from "@lifeos/domain";
 import type { LifeosTransaction } from "./client.ts";
+import { ownedBy } from "./ownership.ts";
+import { goalDeletionReceipts } from "./schema/goal-deletion-receipts.ts";
+
+/** Called while holding the shared owner/key advisory lock, including by legacy goal/measurement commands. */
+export async function findGoalDeletionReceipt(transaction: LifeosTransaction, actor: Actor, key: string) {
+  const [receipt] = await transaction.select().from(goalDeletionReceipts)
+    .where(ownedBy(goalDeletionReceipts.userId, actor, eq(goalDeletionReceipts.idempotencyKey, key))).limit(1);
+  return receipt;
+}
 function canonical(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;

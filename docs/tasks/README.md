@@ -35,6 +35,18 @@
 | 9a | [LFS-212](LFS-212.md) | UI-kit and mockup comparison |
 | 10 | [LFS-209](LFS-209.md) | E2E, security, acceptance |
 | 10a | [LFS-213](LFS-213.md) | Stage 2 page layout per mockups |
+| 10b | [LFS-216](LFS-216.md) | Goal deletion |
+| 10c | [LFS-217](LFS-217.md) | Edit start and target before first measurement |
+| 10d | [LFS-218](LFS-218.md) | Starter pack on user's choice |
+| 10e | [LFS-219](LFS-219.md) | Onboarding wizard |
+| 10f | [LFS-220](LFS-220.md) | First-login popup and settings entry |
+
+Доработки по рискам LFS-213. Stage 3 не блокируют, место в очереди назначает владелец.
+
+| ID | Короткое название |
+|---|---|
+| [LFS-214](LFS-214.md) | Activity journal pagination |
+| [LFS-215](LFS-215.md) | 404 and redirect status under streaming |
 
 Локальный статус 2026-11-15: LFS-202 проверена повторно (36 Web integration
 tests); LFS-203 выполнена, evidence — в [её отчёте](LFS-203.md#результат-lfs-203--2026-11-15).
@@ -65,3 +77,18 @@ LFS-213 выполнена 2026-11-18: [компоновка страниц по
 `GET /api/v1/activity`, срок цели датой, 404 неизвестных сфер в proxy; 558 unit + 145 PostgreSQL integration +
 28 Playwright desktop/mobile; без миграций. Очередь Stage 2 закрыта. Stage 3 начинается только после решения
 владельца по чек-листу приёмки.
+2026-11-18 риски LFS-213 вынесены в [LFS-214](LFS-214.md) (курсор журнала) и [LFS-215](LFS-215.md) (HTTP-статусы под
+потоковой оболочкой).
+2026-11-18 по запросу владельца перед Stage 3 добавлены [LFS-216](LFS-216.md) (удаление целей),
+[LFS-217](LFS-217.md) (правка старта и цели до первого измерения, срок «необязательно») и [LFS-218](LFS-218.md)
+(стартовый набор целей для новых и существующих аккаунтов).
+2026-11-18 по решению владельца LFS-218 переписана: пример создаётся только по выбору пользователя, автоматически
+его не получает ни один аккаунт. Добавлены [LFS-219](LFS-219.md) (мастер начальной настройки) и [LFS-220](LFS-220.md)
+(попап первого входа и кнопка в Настройках); описание и макеты — [ONBOARDING](../reference/ui/ONBOARDING.md).
+LFS-216 выполнена 2026-11-18: [удаление активных и архивных целей](LFS-216.md#результат-lfs-216--2026-11-18),
+миграция `0006_goal_deletion_receipts`, 562 unit + 152 PostgreSQL integration + 32 Playwright;
+`pnpm verify`, `pnpm test:ui`, `pnpm ui:shots` и независимое визуальное ревью — PASS.
+LFS-217 выполнена 2026-11-19: [правка старта и цели до первого измерения](LFS-217.md#результат-lfs-217--2026-11-19),
+срок «необязательно» и «Убрать срок»; 587 unit + 157 PostgreSQL integration + 34 Playwright; без миграций.
+Оставшаяся очередь до Stage 3: LFS-218 → LFS-219 → LFS-220.
+Следующая задача по очереди — LFS-218, только после проверки владельцем.

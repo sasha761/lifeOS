@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { GoalFields } from "../components/goals/goal-form.tsx";
 import { GoalProgressPanel } from "../components/goals/goal-detail.tsx";
-import { goalDetailsSchema } from "@lifeos/contracts";
+import { goalDetailsSchema, goalSchema } from "@lifeos/contracts";
 import { goalFormInput, measurementFormInput } from "../lib/goal-form-input.ts";
 import { formatGoalValue } from "../lib/goal-presentation.ts";
 import { instantToLocalInput, resolveGoalTime, zonedInstantChoices } from "../lib/goal-time.ts";
@@ -31,8 +31,12 @@ describe("goal form boundary and exact presentation", () => {
   it.each([{ target: "0" }, { target: "1.001" }, { baseline: "-1" }, { target: "1e5" }, { unit: "custom" }, { domain_key: "" }, { title: " " }])(
     "returns field errors before sending invalid goal %j", (change) => { expect(goalFormInput(values({ ...definition, ...change }), "UTC").errors).toBeTruthy(); },
   );
-  it("updates metadata without re-sending the immutable definition and explicitly clears the due date", () => {
-    expect(goalFormInput(values({ ...definition, description: " Changed " }), "UTC", true).data).toEqual({ title: definition.title, description: "Changed", due_at: null });
+  it("sends a definition on edit only when the form shows it (LFS-217) and explicitly clears the due date", () => {
+    const shown = { title: definition.title, baseline: definition.baseline, target: definition.target, unit: definition.unit, direction: definition.direction };
+    expect(goalFormInput(values({ title: definition.title, description: " Changed " }), "UTC", true).data).toEqual({ title: definition.title, description: "Changed", due_at: null });
+    expect(goalFormInput(values({ ...shown, baseline: "1000,5" }), "UTC", true).data)
+      .toEqual({ title: definition.title, description: null, due_at: null, unit: "NOK", unit_label: null, baseline: "1000.5", target: "50000", direction: "increase" });
+    expect(goalFormInput(values({ ...shown, target: "0" }), "UTC", true).errors).toHaveProperty("target");
   });
   it("keeps manual measurement values exact and normalizes account-local time", () => {
     expect(measurementFormInput(values({ value: "9007199254740993,01", measured_at: "2026-01-02T10:00", note: " Note " }), preferences.timezone).data)
@@ -49,6 +53,14 @@ describe("goal form boundary and exact presentation", () => {
     expect(html).toContain('type="text"'); expect(html).toContain('inputMode="decimal"');
     expect(html).toContain('aria-describedby="target-error"'); expect(html).toContain('aria-invalid="true"');
     expect(html).toContain('for="target"'); expect(html).toContain("Europe/Oslo"); expect(html).not.toContain('type="number"');
+  });
+  it("labels the deadline optional and shows the definition on edit only while the goal has no measurements", () => {
+    const goal = goalSchema.parse({ ...definition, id: "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc", user_id: "owner", status: "active",
+      created_at: "2026-11-16T10:00:00.000Z", updated_at: "2026-11-16T10:00:00.000Z" });
+    const render = (definitionEditable: boolean) => renderToStaticMarkup(createElement(GoalFields, { initial: goal, definitionEditable, domains: [], preferences, errors: {} }));
+    expect(render(true)).toContain('id="unit"'); expect(render(true)).toContain('value="50000"'); expect(render(true)).toContain("Срок · необязательно");
+    expect(render(false)).not.toContain('id="unit"'); expect(render(false)).not.toContain('id="baseline"');
+    expect(render(false)).toContain("Старт и цель фиксируются после первого измерения"); expect(render(false)).toContain("Срок · необязательно");
   });
   it("renders the no-data state without a zero-percent progress bar", () => {
     const value = goalDetailsSchema.parse({ goal: { ...definition, id: "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc", user_id: "owner", status: "active", created_at: "2026-11-16T10:00:00Z", updated_at: "2026-11-16T10:00:00Z" },

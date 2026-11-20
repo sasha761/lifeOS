@@ -12,7 +12,7 @@ export type { UserPreferencesRepository, UserPreferencesService } from "./core/u
 export { findLifeDomain, LIFE_DOMAINS } from "./core/domains.ts";
 export type { DomainLocale, LifeDomain, LocalizedDomainText } from "./core/domains.ts";
 export { createGoalsService } from "./core/goals.ts";
-export type { GoalCommand, GoalCommandOutcome, GoalTransaction, GoalsRepository, GoalsService, GoalsUnitOfWork } from "./core/goals.ts";
+export type { GoalCommand, GoalCommandOutcome, GoalDeletionCommand, GoalDeletionOutcome, GoalTransaction, GoalsRepository, GoalsService, GoalsUnitOfWork } from "./core/goals.ts";
 export { goalAuditSnapshot } from "./core/events.ts";
 export type { ActivityEventsRepository, ActivityEventWriter } from "./core/events.ts";
 export { createGoalMeasurementsService } from "./core/goal-measurements.ts";

@@ -85,15 +85,21 @@ export function DateTimeField({ name, label, hint, initial, timeZone, required, 
     {errors[name] && <p id={`${name}-error`} className="text-sm text-destructive">{errors[name]}</p>}</div>;
 }
 /**
- * Date-only deadline (mockup 10, LFS-213). The stored instant is the end of the chosen day in the account's zone;
- * an unchanged date sends the original instant back (`<name>_original`), so older deadlines keep their time.
+ * Date-only, optional deadline (mockup 10, LFS-213/217). The stored instant is the end of the chosen day in the account's
+ * zone; an unchanged date sends the original instant back (`<name>_original`), so older deadlines keep their time.
+ * «Убрать срок» empties the field: an empty date saves a goal without a deadline. The input stays uncontrolled, so a
+ * partly typed date is never overwritten.
  */
 export function DateField({ name, label, describedBy, initial, timeZone, errors }: { name: string; label: string; describedBy?: string; initial?: string | null; timeZone: string; errors: GoalFieldErrors }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [filled, setFilled] = useState(!!initial);
   const described = [describedBy, errors[name] ? `${name}-error` : null].filter(Boolean).join(" ") || undefined;
   return <div className="grid min-w-0 gap-1.5"><label htmlFor={name} className="field-label">{label}</label>
-    <input type="date" id={name} name={name} defaultValue={initial ? instantToLocalDate(initial, timeZone) : ""} className={inputClass}
-      aria-invalid={!!errors[name]} aria-describedby={described} />
+    <input ref={input} type="date" id={name} name={name} defaultValue={initial ? instantToLocalDate(initial, timeZone) : ""} className={inputClass}
+      aria-invalid={!!errors[name]} aria-describedby={described} onChange={(event) => setFilled(event.currentTarget.value !== "")} />
     {initial && <input type="hidden" name={`${name}_original`} value={initial} />}
+    {filled && <button type="button" className="action-link-secondary action-sm justify-self-start"
+      onClick={() => { if (input.current) { input.current.value = ""; input.current.focus(); } setFilled(false); }}>Убрать срок</button>}
     {errors[name] && <p id={`${name}-error`} className="text-sm text-destructive">{errors[name]}</p>}</div>;
 }
 /** «12 000 из 50 000 NOK · 24%» (mockups 09/10); the percentage keeps its own element for tests and screen readers. */
@@ -105,15 +111,17 @@ export function GoalAmount({ value, preferences, percentTestId }: { value: GoalD
     {progress.progressPercent !== null && <> · <span data-testid={percentTestId}>{formatGoalPercent(progress.progressPercent, preferences)}</span></>}
   </span>;
 }
-export function Modal({ title, children, close, busy = false }: { title: string; children: ReactNode; close(): void; busy?: boolean }) {
+export function Modal({ title, children, close, busy = false, role = "dialog", describedBy }: { title: string; children: ReactNode; close(): void; busy?: boolean; role?: "dialog" | "alertdialog"; describedBy?: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const previous = document.activeElement;
     const element = dialog.current;
     element?.showModal();
+    // React's autoFocus runs while the native dialog is still closed. Focus explicitly after showModal.
+    element?.querySelector<HTMLElement>("[data-dialog-initial-focus]")?.focus();
     return () => { element?.close(); if (previous instanceof HTMLElement && previous.isConnected) previous.focus(); };
   }, []);
-  return <dialog ref={dialog} aria-labelledby="goal-dialog-title" onCancel={(event) => { event.preventDefault(); if (!busy) close(); }}
+  return <dialog ref={dialog} role={role} aria-modal="true" aria-labelledby="goal-dialog-title" aria-describedby={describedBy} onCancel={(event) => { event.preventDefault(); if (!busy) close(); }}
     onKeyDown={(event) => {
       if (event.key !== "Tab" || event.ctrlKey || event.altKey || event.metaKey) return;
       const controls = [...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex='-1'])")]

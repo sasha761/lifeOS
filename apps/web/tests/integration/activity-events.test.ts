@@ -168,13 +168,13 @@ describe("transactional goal audit", () => {
     const locked = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
     const secondStarted = Promise.withResolvers<void>();
-    const delayed: GoalsUnitOfWork = { goals: unit.goals, run: (actor, command, operation) => unit.run(actor, command, async (transaction) => {
+    const delayed: GoalsUnitOfWork = { ...unit, run: (actor, command, operation) => unit.run(actor, command, async (transaction) => {
       await transaction.goals.find(actor, goal.id);
       locked.resolve();
       await release.promise;
       return operation(transaction);
     }) };
-    const competing: GoalsUnitOfWork = { goals: unit.goals, run: (actor, command, operation) => unit.run(actor, command, async (transaction) => {
+    const competing: GoalsUnitOfWork = { ...unit, run: (actor, command, operation) => unit.run(actor, command, async (transaction) => {
       const pending = transaction.goals.find(actor, goal.id);
       secondStarted.resolve();
       await pending;

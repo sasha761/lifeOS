@@ -15,6 +15,10 @@ export function goalUnitLabel(goal: Pick<Goal, "unit" | "unit_label">): string {
 export function formatGoalValue(value: string, goal: Pick<Goal, "unit" | "unit_label">, locale: string): string {
   return `${formatGoalNumber(value, locale)} ${goalUnitLabel(goal)}`;
 }
+/** A journal value: `unit: null` marks a measurement entered before the goal's unit changed (LFS-217), shown as a bare number. */
+export function formatLoggedValue(value: string, { unit, unitLabel }: { unit: Goal["unit"] | null; unitLabel: string | null }, locale: string): string {
+  return unit === null ? formatGoalNumber(value, locale) : formatGoalValue(value, { unit, unit_label: unitLabel }, locale);
+}
 export function formatGoalPercent(value: number, preferences: UserPreferences): string {
   try { return new Intl.NumberFormat(preferences.locale, { maximumFractionDigits: 2 }).format(value) + "%"; }
   catch { return String(value) + "%"; }

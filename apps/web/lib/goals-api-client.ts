@@ -5,14 +5,15 @@ export class GoalRequestError extends Error {
   constructor(readonly status: number, readonly uncertain: boolean, message: string) { super(message); }
 }
 const errorMessage = (status: number) => status === 401 ? "Сессия закончилась. Войдите снова." : status === 404 ? "Запись не найдена или недоступна."
-  : status === 409 ? "Данные изменились или цель уже в архиве. Обновите страницу и проверьте запись."
+  : status === 403 ? "Сервер отклонил источник запроса. Откройте приложение по его основному адресу."
+  : status === 409 ? "Данные изменились: цель уже в архиве или у неё появились измерения. Обновите страницу и проверьте запись."
   : status === 400 ? "Сервер отклонил данные. Проверьте значения и дату измерения." : "Не удалось получить ответ сервера. Повторите запрос.";
 async function responseData<T extends z.ZodType>(response: Response, schema: T): Promise<z.infer<T>> {
   let body: unknown;
   try { body = await response.json(); } catch { throw new GoalRequestError(response.status, true, "Не удалось проверить ответ сервера. Повторите запрос."); }
   const parsed = apiSuccessSchema(schema).safeParse(body);
   if (response.ok && parsed.success && body !== null && typeof body === "object" && "data" in body) return schema.parse(body.data);
-  const definitive = [400, 401, 404, 409].includes(response.status) && apiFailureSchema.safeParse(body).success;
+  const definitive = [400, 401, 403, 404, 409].includes(response.status) && apiFailureSchema.safeParse(body).success;
   throw new GoalRequestError(response.status, !definitive, errorMessage(response.status));
 }
 export async function getGoalsData<T extends z.ZodType>(url: string, schema: T, signal?: AbortSignal): Promise<z.infer<T>> {

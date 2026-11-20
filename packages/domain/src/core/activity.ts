@@ -7,6 +7,11 @@ import { InvalidInputError } from "./errors.ts";
 export type ActivityRecord = {
   event: ActivityEvent;
   goal: Pick<Goal, "id" | "user_id" | "domain_key" | "title" | "status" | "unit" | "unit_label">;
+  /**
+   * When the goal's unit or custom unit label last changed (LFS-217), from its own goal.updated events; absent or null
+   * if never. Measurements recorded up to that moment were entered in another unit, which the log does not keep.
+   */
+  unitChangedAt?: string | null;
 };
 export type ActivityFilter = { domainKey: DomainKey | null; goalId: string | null; limit: number };
 /** Owner-scoped, newest first, at most `limit` rows; one query regardless of the journal size. */
@@ -23,18 +28,23 @@ export function newestActivityFirst(a: { occurredAt: string; id: string }, b: { 
 }
 
 /** Everything a person needs to read one fact, taken only from the stored payload and the current goal row. */
-export function toActivityEntry({ event, goal }: ActivityRecord): ActivityEntry {
+export function toActivityEntry({ event, goal, unitChangedAt = null }: ActivityRecord): ActivityEntry {
   let measurement: ActivityEntry["measurement"] = null;
-  const unit = { unit: goal.unit, unitLabel: goal.unit_label };
+  // ISO UTC strings with millisecond precision compare chronologically.
+  const unit = unitChangedAt !== null && event.occurred_at <= unitChangedAt
+    ? { unit: null, unitLabel: null } : { unit: goal.unit, unitLabel: goal.unit_label };
   if (event.event_type === "goal_measurement.created") measurement = { value: event.payload.after.value, previousValue: null, ...unit };
   else if (event.event_type === "goal_measurement.updated") measurement = { value: event.payload.after.value, previousValue: event.payload.before.value, ...unit };
   else if (event.event_type === "goal_measurement.deleted") measurement = { value: event.payload.before.value, previousValue: null, ...unit };
   const changedFields = event.event_type === "goal.updated" ? [...event.payload.changed_fields] : null;
   const dueAt = event.event_type === "goal.updated" && event.payload.changed_fields.includes("due_at")
     ? { before: event.payload.before.due_at, after: event.payload.after.due_at } : null;
+  const definitionOf = ({ unit, baseline, target, direction }: { unit: Goal["unit"]; baseline: string; target: string; direction: Goal["direction"] }) => ({ unit, baseline, target, direction });
+  const definition = event.event_type === "goal.updated" && event.payload.changed_fields.some((field) => ["unit", "baseline", "target", "direction"].includes(field))
+    ? { before: definitionOf(event.payload.before), after: definitionOf(event.payload.after) } : null;
   return {
     id: event.id, type: event.event_type, occurredAt: event.occurred_at, source: event.source, domainKey: event.domain_key,
-    goal: { id: goal.id, title: goal.title, status: goal.status }, measurement, changedFields, dueAt,
+    goal: { id: goal.id, title: goal.title, status: goal.status }, measurement, changedFields, dueAt, definition,
   };
 }
 

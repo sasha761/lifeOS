@@ -38,10 +38,11 @@ export function goalFormInput(values: FormData, timeZone: string, editing = fals
   try { due_at = deadlineValue(values, timeZone); }
   catch (error) { return { data: null, errors: { due_at: (error as Error).message } } as const; }
   const metadata = { title: text(values, "title"), description: nullable(text(values, "description")), due_at };
-  return editing ? validate(updateGoalInputSchema, metadata) : validate(createGoalInputSchema, { ...metadata,
-    domain_key: text(values, "domain_key"), baseline: decimal(text(values, "baseline")), target: decimal(text(values, "target")), unit: text(values, "unit"),
-    unit_label: text(values, "unit") === "custom" ? nullable(text(values, "unit_label")) : null, direction: text(values, "direction"),
-  });
+  const definition = () => ({ baseline: decimal(text(values, "baseline")), target: decimal(text(values, "target")), unit: text(values, "unit"),
+    unit_label: text(values, "unit") === "custom" ? nullable(text(values, "unit_label")) : null, direction: text(values, "direction") });
+  // An edit carries the definition only when the form shows it, i.e. while the goal has no measurements (LFS-217).
+  if (editing) return validate(updateGoalInputSchema, values.has("unit") ? { ...metadata, ...definition() } : metadata);
+  return validate(createGoalInputSchema, { ...metadata, domain_key: text(values, "domain_key"), ...definition() });
 }
 export function measurementFormInput(values: FormData, timeZone: string, editing = false) {
   let measured_at: string | null;

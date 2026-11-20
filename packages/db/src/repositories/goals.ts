@@ -1,9 +1,10 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, notExists, sql } from "drizzle-orm";
 import { goalSchema } from "@lifeos/contracts";
 import type { Goal } from "@lifeos/contracts";
 import type { GoalsRepository } from "@lifeos/domain";
 import type { LifeosDatabase } from "../client.ts";
 import { ownedBy } from "../ownership.ts";
+import { goalMeasurements } from "../schema/goal-measurements.ts";
 import { goals } from "../schema/goals.ts";
 
 // Unconstrained numeric preserves display scale from SQL inserts. Insignificant zeros may exceed
@@ -24,8 +25,12 @@ export function toGoal(row: typeof goals.$inferSelect): Goal {
 }
 
 /** Accepts a database or a transaction-bound adapter; audit composition belongs to LFS-210. */
-export function createGoalsRepository(database: Pick<LifeosDatabase, "select" | "insert" | "update">, options: { lockRows?: boolean } = {}): GoalsRepository {
+export function createGoalsRepository(database: Pick<LifeosDatabase, "select" | "insert" | "update" | "delete">, options: { lockRows?: boolean } = {}): GoalsRepository {
   const repository: GoalsRepository = {
+    async deleteGoal(actor, id) {
+      const [row] = await database.delete(goals).where(ownedBy(goals.userId, actor, eq(goals.id, id))).returning();
+      return row ? toGoal(row) : null;
+    },
     async create(actor, input) {
       const [row] = await database.insert(goals).values({
         userId: actor.userId, domainKey: input.domain_key, title: input.title, description: input.description,
@@ -41,12 +46,23 @@ export function createGoalsRepository(database: Pick<LifeosDatabase, "select" | 
       const [row] = await (options.lockRows ? query.for("update") : query);
       return row ? toGoal(row) : null;
     },
+    async hasMeasurements(actor, id) {
+      const [row] = await database.select({ id: goalMeasurements.id }).from(goalMeasurements)
+        .where(ownedBy(goalMeasurements.userId, actor, eq(goalMeasurements.goalId, id))).limit(1);
+      return row !== undefined;
+    },
     async updateActive(actor, id, input) {
+      // Whitelisted SET (ADR-007). A definition is written only as a whole group and only while no measurement exists
+      // (LFS-217): the guard repeats the service check in SQL, and the (user, goal, unit) FK also rejects a unit change.
+      const redefines = input.unit !== undefined;
       const [row] = await database.update(goals).set({
         title: input.title, description: input.description,
         dueAt: input.due_at === undefined ? undefined : input.due_at === null ? null : new Date(input.due_at),
+        ...(redefines ? { unit: input.unit, unitLabel: input.unit_label ?? null, baseline: input.baseline, target: input.target, direction: input.direction } : {}),
         updatedAt: sql`clock_timestamp()`,
-      }).where(ownedBy(goals.userId, actor, eq(goals.id, id), eq(goals.status, "active"))).returning();
+      }).where(ownedBy(goals.userId, actor, eq(goals.id, id), eq(goals.status, "active"),
+        ...(redefines ? [notExists(database.select({ id: goalMeasurements.id }).from(goalMeasurements)
+          .where(ownedBy(goalMeasurements.userId, actor, eq(goalMeasurements.goalId, id))))] : []))).returning();
       return row ? toGoal(row) : null;
     },
     async archive(actor, id) {

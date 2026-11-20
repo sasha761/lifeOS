@@ -60,7 +60,7 @@ test("the deadline is a date: stored as the end of that day and kept when only t
   await page.getByRole("radio", { name: "Навыки", exact: true }).check();
   await page.getByLabel("Название", { exact: true }).fill(title);
   await page.getByLabel("Цель", { exact: true }).fill("10");
-  await page.getByLabel("Срок", { exact: true }).fill("2027-01-15");
+  await page.getByLabel("Срок · необязательно", { exact: true }).fill("2027-01-15");
   await page.getByRole("button", { name: "Добавить описание" }).click();
   await expect(page.getByLabel("Описание (необязательно)")).toBeFocused();
   await page.getByRole("button", { name: "Создать цель", exact: true }).click();
@@ -72,7 +72,7 @@ test("the deadline is a date: stored as the end of that day and kept when only t
   await expect(page.getByRole("region", { name: title }).getByText(/до 15\.01\.2027|до 15\/01\/2027/)).toBeVisible();
   await goalAction(page, "Изменить цель");
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel("Срок", { exact: true })).toHaveValue("2027-01-15");
+  await expect(dialog.getByLabel("Срок · необязательно", { exact: true })).toHaveValue("2027-01-15");
   await dialog.getByLabel("Название", { exact: true }).fill(`${title} · ред.`);
   await page.getByRole("button", { name: "Сохранить изменения цели" }).click();
   await expect(page.getByRole("heading", { name: `${title} · ред.`, exact: true })).toBeVisible();

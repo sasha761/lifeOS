@@ -7,7 +7,7 @@ import { dashboardSchema } from "@lifeos/contracts";
 import type { Dashboard, DashboardActivity, DashboardDomain, DomainKey, GoalDetails, UserPreferences } from "@lifeos/contracts";
 import { domainPresentation } from "../../lib/domain-presentation.ts";
 import { activityLabel, dashboardTotals, dueState, formatDay, plural, sourceLabel } from "../../lib/dashboard-presentation.ts";
-import { formatGoalValue } from "../../lib/goal-presentation.ts";
+import { formatLoggedValue } from "../../lib/goal-presentation.ts";
 import { formatDate, formatDateTime } from "../../lib/user-preferences.ts";
 import { GoalAmount, LoadState, useGoalData } from "../goals/shared.tsx";
 import { ProgressBar } from "../ui/progress-bar.tsx";
@@ -108,7 +108,7 @@ function ActivityRow({ item, labels, preferences }: { item: DashboardActivity; l
   return <li className="min-w-0 border-b py-2.5 first:pt-0 last:border-b-0 last:pb-0" data-testid="dashboard-activity">
     <p className="text-sm">
       <span className="font-medium">{activityLabel(item.type)}</span>
-      {item.measurement && <span className="font-semibold tabular-nums"> {formatGoalValue(item.measurement.value, { unit: item.measurement.unit, unit_label: item.measurement.unitLabel }, preferences.locale)}</span>}
+      {item.measurement && <span className="font-semibold tabular-nums"> {formatLoggedValue(item.measurement.value, item.measurement, preferences.locale)}</span>}
     </p>
     <Link href={`/goals/${item.goal.id}`} className="mt-0.5 block rounded text-sm text-muted-foreground wrap-anywhere hover:text-foreground hover:underline underline-offset-4">{item.goal.title}</Link>
     <p className="mt-1 text-xs text-muted-foreground"><time dateTime={item.occurredAt}>{formatDateTime(new Date(item.occurredAt), preferences)}</time> · {labels[item.domainKey]} · {sourceLabel(item.source)}</p>
