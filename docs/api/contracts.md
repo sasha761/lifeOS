@@ -437,6 +437,7 @@ no-store в общем envelope. Владелец берётся только и
 | `today.dueGoals` | до 8 (`DASHBOARD_DUE_GOALS_LIMIT`) активных целей со сроком, ближайшие первыми (включая просроченные), `GoalDetails` |
 | `activity` | до 10 (`DASHBOARD_ACTIVITY_LIMIT`) новейших событий `activity_events` владельца: `{ id, type, occurredAt, source, domainKey, goal: { id, title, status }, measurement }`. `measurement` — `{ value, unit, unitLabel }` только у `goal_measurement.*` (для удаления — значение до удаления), иначе null. Title — текущий из goals: audit не хранит названия (ADR-008); заметки и before/after цели не выдаются |
 | `examples` | LFS-218: `{ goals, measurements }` — цели с `origin = starter` (активные и архивные) и измерения с `source = example`; для баннера «Это пример». Два счётчика в том же snapshot, без запроса на цель |
+| `focus_domains` | LFS-219: сферы в фокусе из мастера, в порядке реестра; `[]`, если мастер не пройден. Порядок `domains` не меняется |
 
 У записей `activity` есть `example` (LFS-218): факт загрузки примера
 (`source = starter`) или факт о примерном значении.
@@ -498,6 +499,49 @@ Origin публичного URL (403), обязательный `Idempotency-Key
 регистрации. Журнал: `changedFields` может содержать `origin`, у записи есть
 `example`. Решения — дополнения LFS-218 к [ADR-007](../adr/007-goals.md),
 [ADR-008](../adr/008-transactional-audit.md) и [ADR-009](../adr/009-goal-measurements.md).
+
+## Мастер начальной настройки (LFS-219)
+
+Решения — [ADR-012](../adr/012-onboarding.md). Ресурс всегда принадлежит владельцу сессии: user id нет ни в URL,
+ни в теле.
+
+| Метод | Тело и ответ |
+|---|---|
+| `GET /api/v1/onboarding` | без query; `OnboardingState { status, choice, catalog_version, answers, completed_at, updated_at }`. Без строки — `not_started`, `answers: null`; черновик другой версии каталога — `answers: null` |
+| `PUT /api/v1/onboarding` | `{ answers }` — черновик целиком («Сохранить и выйти»), JSON, Origin публичного URL, без query. `Idempotency-Key` не нужен: черновик заменяется целиком. Статус → `in_progress`; `completed` остаётся `completed`; `choice = wizard`. Цели не создаются |
+| `POST /api/v1/onboarding/complete` | `{ answers, selected }` («Создать N целей»): JSON, Origin, `Idempotency-Key`. Ответ `OnboardingCompleted { catalog_version: 1, created_goals }` |
+
+`OnboardingAnswers` (strict):
+- `step` — `domains` | ключ выбранной сферы | `rhythm` | `summary`;
+- `domains` — ключи реестра без повторов в его порядке («сферы в фокусе»);
+- `spheres` — `{ <sphere>: { skipped, choices[] } }`;
+- `rhythm` — `CHECKIN_RHYTHMS` | null;
+- `timezone` — подтверждённый пояс или null;
+- `extra` — до 6 целей «+ Добавить цель в другой сфере» в формате `CreateGoalInput`;
+- `unchecked` — ключи снятых галочек.
+
+Выбор (`OnboardingChoice`) — `{ option, subject, direction, unit, unit_label, baseline, target, due_at }`. Числа —
+строки как ввели, до 40 символов: «3 000» и «21,1» допустимы в черновике и нормализуются при сборке. Варианты и лимиты —
+`ONBOARDING_OPTIONS` и `ONBOARDING_CHOICE_LIMITS` (Здоровье — до 3, остальные — 1). Ключ предложенной цели —
+`<sphere>.<option>` или `extra.<n>`.
+
+`complete` заново строит цели из ответов и создаёт только отмеченные в `selected`:
+- одной транзакцией создаются цели с `origin = onboarding` и `goal.created` с `source = web` (ключ у первого факта);
+- в профиль пишутся `focus_domains` и `checkin_rhythm` (null сохраняет прежнее значение) и подтверждённый пояс;
+- состояние становится `completed`, создаётся квитанция `onboarding_receipts`;
+- измерений нет.
+
+Ошибки:
+- цель, которая не проходит контракт создания, неизвестный ключ в `selected` или неизвестный пояс — 400
+  `VALIDATION_ERROR` с `errors[0].field` (`health.own`, `skills.chess`, `timezone`); ничего не создаётся;
+- повтор с тем же ключом возвращает тот же ответ, тот же ключ с другими данными — 409; ключ занят другой командой
+  целей или примера — 409.
+
+`ApiError` (общий envelope, с LFS-219) — `{ code, message, field? }`. `field` — фиксированный ключ из структуры
+запроса (`^[a-z0-9_.]{1,64}$`), никогда не введённый текст.
+
+Dashboard (LFS-219): `focus_domains` — сферы в фокусе в порядке реестра, по умолчанию `[]`. UI показывает их первыми,
+`domains` остаются в порядке `DOMAIN_KEYS`.
 
 ## Официальные API
 

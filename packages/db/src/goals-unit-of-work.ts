@@ -8,7 +8,7 @@ import { goalDeletionReceipts } from "./schema/goal-deletion-receipts.ts";
 import { createGoalsRepository } from "./repositories/goals.ts";
 import { createGoalMeasurementsRepository } from "./repositories/goal-measurements.ts";
 import { createActivityEventWriter } from "./activity-event-writer.ts";
-import { commandFingerprint, findGoalDeletionReceipt, findStarterPackReceipt, lockCommandKey } from "./command-idempotency.ts";
+import { commandFingerprint, findGoalDeletionReceipt, findOnboardingReceipt, findStarterPackReceipt, lockCommandKey } from "./command-idempotency.ts";
 
 /** The only domain-command write boundary: business mutation, event and receipt share one transaction. */
 export function createGoalsUnitOfWork(database: LifeosDatabase): GoalsUnitOfWork {
@@ -19,7 +19,8 @@ export function createGoalsUnitOfWork(database: LifeosDatabase): GoalsUnitOfWork
       const hash = commandFingerprint(command);
       return database.transaction(async (transaction) => {
         await lockCommandKey(transaction, actor, command.idempotencyKey);
-        if (await findStarterPackReceipt(transaction, actor, command.idempotencyKey)) return { kind: "conflict" };
+        if (await findStarterPackReceipt(transaction, actor, command.idempotencyKey)
+          || await findOnboardingReceipt(transaction, actor, command.idempotencyKey)) return { kind: "conflict" };
         const receipt = await findGoalDeletionReceipt(transaction, actor, command.idempotencyKey);
         if (receipt) return receipt.requestHash === hash
           ? { kind: "success", result: { id: receipt.targetId, user_id: actor.userId, deleted: true } }
@@ -42,7 +43,8 @@ export function createGoalsUnitOfWork(database: LifeosDatabase): GoalsUnitOfWork
         // A transaction-scoped key lock also covers no-op commands. Hash collisions merely serialize callers.
         await lockCommandKey(transaction, actor, command.idempotencyKey);
         if (await findGoalDeletionReceipt(transaction, actor, command.idempotencyKey)
-          || await findStarterPackReceipt(transaction, actor, command.idempotencyKey)) return { kind: "conflict" };
+          || await findStarterPackReceipt(transaction, actor, command.idempotencyKey)
+          || await findOnboardingReceipt(transaction, actor, command.idempotencyKey)) return { kind: "conflict" };
         const repository = createGoalsRepository(transaction, { lockRows: true });
         const [receipt] = await transaction.select().from(goalCommandReceipts)
           .where(ownedBy(goalCommandReceipts.userId, actor, eq(goalCommandReceipts.idempotencyKey, command.idempotencyKey))).limit(1);

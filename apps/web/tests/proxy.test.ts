@@ -29,4 +29,13 @@ describe("proxy (LFS-201 guard, LFS-213 sphere keys)", () => {
     expect(new URL(response.headers.get("location")!).pathname).toBe("/auth/sign-in");
     expect(proxy(request("/goals", "lifeos.session_token=value")).headers.get("x-middleware-next")).toBe("1");
   });
+  it("redirects a guest from the onboarding wizard and keeps the way back (LFS-219)", async () => {
+    const response = proxy(request("/onboarding"));
+    expect(response.status).toBe(307);
+    const location = new URL(response.headers.get("location")!);
+    expect(location.pathname).toBe("/auth/sign-in");
+    expect(location.searchParams.get("next")).toBe("/onboarding");
+    const { config } = await import("../proxy.ts");
+    expect(config.matcher).toContain("/onboarding/:path*");
+  });
 });

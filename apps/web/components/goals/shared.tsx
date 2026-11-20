@@ -35,12 +35,12 @@ export function useGoalData<T extends z.ZodType>(url: string, schema: T) {
 export function useGoalMutation() {
   const client = useRef<ReturnType<typeof createGoalCommand> | null>(null);
   const lock = useRef(false);
-  const retry = useRef<{ url: string; method: "POST" | "PATCH" | "DELETE"; body?: unknown } | null>(null);
+  const retry = useRef<{ url: string; method: "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown } | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uncertain, setUncertain] = useState(false);
   return { pending, error, uncertain,
-    async save<T extends z.ZodType>(command: { url: string; method: "POST" | "PATCH" | "DELETE"; body?: unknown }, schema: T, saved: (value: z.infer<T>) => void) {
+    async save<T extends z.ZodType>(command: { url: string; method: "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown }, schema: T, saved: (value: z.infer<T>) => void) {
       if (lock.current) return;
       lock.current = true; setPending(true); setError(null);
       client.current ??= createGoalCommand();

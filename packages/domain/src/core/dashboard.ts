@@ -22,6 +22,8 @@ export type DashboardReadRecord = {
   activity: DashboardActivityRecord[];
   /** The owner's example measurements (`source = example`), counted in the same snapshot. */
   exampleMeasurements: number;
+  /** «Сферы в фокусе» from the onboarding wizard (LFS-219); null when not chosen. */
+  focusDomains: readonly string[] | null;
 };
 /** One consistent read snapshot with a fixed number of owner-scoped queries (no query per goal). */
 export type DashboardReadRepository = { read(actor: Actor, limits: DashboardLimits): Promise<DashboardReadRecord> };
@@ -69,6 +71,8 @@ export function createDashboardReader(repository: DashboardReadRepository, limit
         today: { dueGoals },
         activity,
         examples: { goals: exampleGoals, measurements: count(record.exampleMeasurements) },
+        // Registry order, registry keys only: the stored array is ordered by the wizard and checked by SQL.
+        focus_domains: LIFE_DOMAINS.map(({ key }) => key).filter((key) => record.focusDomains?.includes(key) ?? false),
       };
     },
   };

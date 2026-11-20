@@ -1,4 +1,4 @@
-import { ERROR_MESSAGES } from "@lifeos/contracts";
+import { apiErrorFieldSchema, ERROR_MESSAGES } from "@lifeos/contracts";
 import type { ApiErrorBody, ErrorCode } from "@lifeos/contracts";
 import { isDomainError } from "@lifeos/domain";
 
@@ -24,6 +24,8 @@ function errorCode(error: unknown): ErrorCode {
 
 export function mapApiError(error: unknown): { status: number; error: ApiErrorBody } {
   const code = errorCode(error);
-  // The public message is always the fixed one for the code, never the thrown error's text.
-  return { status: statusCodes[code], error: { code, message: ERROR_MESSAGES[code] } };
+  // The public message is always the fixed one for the code, never the thrown error's text. A domain error may name a
+  // fixed key of the request (LFS-219, e.g. `health.own`); anything that does not look like such a key is dropped.
+  const field = isDomainError(error) ? apiErrorFieldSchema.safeParse(error.field) : null;
+  return { status: statusCodes[code], error: { code, message: ERROR_MESSAGES[code], ...(field?.success ? { field: field.data } : {}) } };
 }

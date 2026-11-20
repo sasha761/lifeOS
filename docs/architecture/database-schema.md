@@ -86,6 +86,21 @@ public 1 → 5 таблиц, journal 1 → 2, pgboss 13 → 13).
 `@lifeos/db` экспортирует client/schema; migrator — отдельный entry
 `@lifeos/db/migrations`, чтобы Next.js bundle не включал SQL и migrator.
 
+## Начальная настройка · LFS-219
+
+Миграция `0008_onboarding.sql`:
+
+- `onboarding_state`: `user_id text` PK, FK `user.id CASCADE`; `status text NOT NULL DEFAULT 'not_started'` + CHECK
+  `not_started|in_progress|completed|dismissed`; `choice` null или `example|wizard|blank`; `answers jsonb` null или
+  объект до 64 КБ; `catalog_version integer ≥ 1`; `completed_at timestamptz(3)`, обязателен при `completed`;
+  `updated_at timestamptz(3)`.
+- `onboarding_receipts`: PK `(user_id, idempotency_key)`, SHA-256 `request_hash`, `goals ≥ 1`,
+  `created_at timestamptz(3)`. FK `user_id → user.id CASCADE`, FK на цели нет.
+- `user.focus_domains text[]` (null или до 6 ключей реестра) и `user.checkin_rhythm text`
+  (null или `daily|few_per_week|weekly|self`). Существующие строки получают null.
+
+Отсутствие строки `onboarding_state` означает `not_started`. Политика — [ADR-012](../adr/012-onboarding.md).
+
 ## User preferences (LFS-202)
 
 `0002_user_preferences.sql` добавляет к `user` две колонки, которые Better Auth

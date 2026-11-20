@@ -64,5 +64,11 @@ export const dashboardSchema = z.strictObject({
    * for the banner and «Удалить все примеры». Two counts of owned rows, no query per goal.
    */
   examples: z.strictObject({ goals: countSchema, measurements: countSchema }),
+  /**
+   * «Сферы в фокусе» chosen in the onboarding wizard (LFS-219), in registry order. The UI shows them first; `domains` keeps
+   * registry order. Older fixtures without the field read as none.
+   */
+  focus_domains: z.array(domainKeySchema).max(DOMAIN_KEYS.length)
+    .refine((keys) => keys.every((key, index) => index === 0 || DOMAIN_KEYS.indexOf(keys[index - 1]!) < DOMAIN_KEYS.indexOf(key))).default([]),
 });
 export type Dashboard = z.infer<typeof dashboardSchema>;

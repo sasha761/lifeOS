@@ -215,6 +215,8 @@ pnpm dev
 - `/api/v1/activity` — `GET` журнала действий владельца, фильтр `domain_key` или `goal_id`, `limit` до 50; [DTO](docs/api/contracts.md#журнал-действий-lfs-213).
 - `/api/v1/goals/:goalId/measurements` — `GET` истории с cursor/limit, `POST` измерения; `/api/v1/goal-measurements/:measurementId` — `PATCH`/`DELETE`. Все записи требуют `Idempotency-Key`; [DTO и примеры](docs/api/contracts.md#http-целей-и-прогресс-lfs-207).
 - `/api/v1/starter-pack` — `POST` загружает пример по выбору пользователя, `DELETE` — «Удалить все примеры» (LFS-218); [DTO](docs/api/contracts.md#пример-по-выбору-пользователя-lfs-218).
+- `/onboarding` — мастер начальной настройки: сферы, вопрос на каждую выбранную сферу, ритм и итог; цели создаются только кнопкой «Создать N целей», без измерений (LFS-219). Только после входа.
+- `/api/v1/onboarding` — `GET` состояния и `PUT` черновика; `/api/v1/onboarding/complete` — `POST` создаёт отмеченные цели одной транзакцией (LFS-219); [DTO](docs/api/contracts.md#мастер-начальной-настройки-lfs-219).
 
 Для локального `MAIL_TRANSPORT=outbox` используйте `pnpm dev`. Команда `start`
 запускает production и требует `MAIL_TRANSPORT=smtp` с рабочим `SMTP_URL`.
@@ -305,7 +307,7 @@ Stage 2 выполняется по [STAGE-02-README](docs/tasks/STAGE-02-README
 preferences/ownership, реестр сфер, ручные цели, измерения и аудит реализованы.
 API, прогресс, UI целей и Dashboard сфер реализованы; следующая задача — LFS-209 (E2E, security, приёмка).
 При обновлении другой локальной копии примените `pnpm db:migrate`
-(актуальная миграция `0007_starter_pack`, LFS-218). Dashboard показывает только
+(актуальная миграция `0008_onboarding`, LFS-219). Dashboard показывает только
 реальные цели и измерения, а пример, который пользователь загрузил сам, помечен
 «Пример»; фиктивного общего процента жизни нет. Каждый
 следующий LFS-ID начинается только после решения пользователя.

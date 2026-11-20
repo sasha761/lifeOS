@@ -4,10 +4,12 @@ import { goalMeasurementSchema, goalMeasurementDeletionSchema } from "./goal-mea
 import { dashboardSchema } from "./dashboard.ts";
 import { activityFeedSchema } from "./activity.ts";
 import { starterPackAppliedSchema, starterPackRemovedSchema } from "./starter-pack.ts";
+import { onboardingCompletedSchema, onboardingStateSchema } from "./onboarding.ts";
 export * from "./goals-api.ts";
 export * from "./dashboard.ts";
 export * from "./activity.ts";
 export * from "./starter-pack.ts";
+export * from "./onboarding.ts";
 
 export { DOMAIN_KEYS, domainKeySchema } from "./domains.ts";
 export type { DomainKey } from "./domains.ts";
@@ -58,7 +60,12 @@ export const apiMetaSchema = requestContextSchema;
 export type ApiMeta = z.infer<typeof apiMetaSchema>;
 // Contract only: persistence/replay and ownership scope belong to later tasks.
 export { idempotencyKeySchema } from "./idempotency.ts";
-export const apiErrorSchema = z.strictObject({ code: errorCodeSchema, message: z.string().min(1) });
+/**
+ * `field` (LFS-219) names what was rejected when one request carries several items, e.g. the proposed goal `health.own`
+ * of the onboarding wizard. It is a fixed key from the request structure, never a value the person typed.
+ */
+export const apiErrorFieldSchema = z.string().min(1).max(64).regex(/^[a-z0-9_.]+$/);
+export const apiErrorSchema = z.strictObject({ code: errorCodeSchema, message: z.string().min(1), field: apiErrorFieldSchema.optional() });
 export type ApiErrorBody = z.infer<typeof apiErrorSchema>;
 export const apiFailureSchema = z.strictObject({
   data: z.null(), meta: apiMetaSchema, errors: z.array(apiErrorSchema).min(1),
@@ -214,3 +221,5 @@ export const dashboardResponseSchema = apiResponseSchema(dashboardSchema);
 export const activityFeedResponseSchema = apiResponseSchema(activityFeedSchema);
 export const starterPackAppliedResponseSchema = apiResponseSchema(starterPackAppliedSchema);
 export const starterPackRemovedResponseSchema = apiResponseSchema(starterPackRemovedSchema);
+export const onboardingStateResponseSchema = apiResponseSchema(onboardingStateSchema);
+export const onboardingCompletedResponseSchema = apiResponseSchema(onboardingCompletedSchema);
