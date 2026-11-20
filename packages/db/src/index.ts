@@ -14,3 +14,4 @@ export * as schema from "./schema/index.ts";
 // Next.js bundle must not pull in the migrator or the SQL folder.
 export { createGoalsReadRepository } from "./repositories/goals-reader.ts";
 export { createDashboardReadRepository } from "./repositories/dashboard-reader.ts";
+export { createActivityReadRepository } from "./repositories/activity-reader.ts";

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowUpRight, CalendarClock, History, Plus } from "lucide-react";
+import { CalendarClock, History, Plus } from "lucide-react";
 import { dashboardSchema } from "@lifeos/contracts";
 import type { Dashboard, DashboardActivity, DashboardDomain, DomainKey, GoalDetails, UserPreferences } from "@lifeos/contracts";
 import { domainPresentation } from "../../lib/domain-presentation.ts";
@@ -10,15 +10,17 @@ import { activityLabel, dashboardTotals, dueState, formatDay, plural, sourceLabe
 import { formatGoalValue } from "../../lib/goal-presentation.ts";
 import { formatDate, formatDateTime } from "../../lib/user-preferences.ts";
 import { GoalAmount, LoadState, useGoalData } from "../goals/shared.tsx";
-import { DomainIcon } from "../ui/domain-icon.tsx";
 import { ProgressBar } from "../ui/progress-bar.tsx";
 import { SectionCard } from "../ui/section-card.tsx";
 import { Skeleton } from "../ui/skeleton.tsx";
 import { SourceLabel } from "../ui/source-label.tsx";
 import { StatusChip } from "../ui/status-chip.tsx";
+import { ToneDot } from "../ui/tone-dot.tsx";
 
 type DomainLabels = Record<DomainKey, string>;
 const GOAL_FORMS = ["активная цель", "активные цели", "активных целей"] as const;
+/** The right card of the first row stays about as tall as «Сегодня» (LFS-213); the API keeps its own limit. */
+const DASHBOARD_ACTIVITY_SHOWN = 5;
 
 /** Bold lead under the page title, as in mockup 04 («23 задачи за неделю. …»), counted from real goals only. */
 function Summary({ dashboard }: { dashboard: Dashboard }) {
@@ -33,40 +35,50 @@ function Summary({ dashboard }: { dashboard: Dashboard }) {
   </p>;
 }
 
-function GoalLine({ value, preferences }: { value: GoalDetails; preferences: UserPreferences }) {
+/** Newest active goal of the sphere: its bar and «X из Y · %», or why there is no percentage. */
+function SphereGoal({ value, preferences }: { value: GoalDetails; preferences: UserPreferences }) {
   const { goal, progress } = value;
-  return <li className="grid min-w-0 gap-1.5" data-testid="dashboard-goal">
-    <Link href={`/goals/${goal.id}`} className="block rounded text-sm leading-5 font-semibold wrap-anywhere hover:underline underline-offset-4">{goal.title}</Link>
-    {progress.progressPercent === null
-      ? <p className="text-xs leading-5 text-muted-foreground">{progress.explanation}</p>
-      : <>
-        <ProgressBar value={progress.progressPercent} tone={domainPresentation[goal.domain_key].tone} label={`Прогресс: ${goal.title}`} />
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-          <GoalAmount value={value} preferences={preferences} percentTestId="dashboard-goal-percent" />
-          <SourceLabel className="ml-auto">ручной ввод{progress.provenance && <> · <time dateTime={progress.provenance.measuredAt}>{formatDate(new Date(progress.provenance.measuredAt), preferences)}</time></>}</SourceLabel>
-        </div>
-      </>}
+  return progress.progressPercent === null
+    ? <p className="col-span-full text-xs leading-5 text-muted-foreground sm:col-span-2 sm:text-right" data-testid="dashboard-goal">{progress.explanation}</p>
+    : <>
+      <ProgressBar value={progress.progressPercent} tone={domainPresentation[goal.domain_key].tone} label={`Прогресс: ${goal.title}`}
+        className="col-span-full row-start-2 sm:col-span-1 sm:col-start-3 sm:row-start-1" />
+      <p className="text-right text-xs leading-5 text-muted-foreground" data-testid="dashboard-goal"><GoalAmount value={value} preferences={preferences} percentTestId="dashboard-goal-percent" /></p>
+    </>;
+}
+
+/**
+ * One row of «Сферы жизни» (mockup 04): colour dot, sphere name, bar and value of the newest active goal (LFS-213).
+ * There is no sphere percentage or score: a sphere without measurements says so, an empty one offers a goal.
+ */
+function SphereRow({ domain, label, preferences }: { domain: DashboardDomain; label: string; preferences: UserPreferences }) {
+  const [newest] = domain.goals;
+  const more = domain.activeCount - (newest ? 1 : 0);
+  const href = `/goals?domain_key=${domain.key}${domain.activeCount === 0 && domain.archivedCount > 0 ? "&status=archived" : ""}`;
+  return <li data-testid={`dashboard-domain-${domain.key}`}
+    className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 gap-y-1.5 py-2 sm:grid-cols-[auto_92px_minmax(0,1fr)_210px] sm:py-1.5">
+    <ToneDot tone={domainPresentation[domain.key].tone} />
+    <span className="flex min-w-0 items-center gap-1.5">
+      <Link href={href} aria-label={newest ? `${label}: ${newest.goal.title}` : `${label}: цели сферы`} title={newest?.goal.title}
+        className="rounded text-[13px] leading-5 font-semibold hover:underline underline-offset-4">{label}</Link>
+      {more > 0 && newest && <span className="text-xs text-muted-foreground tabular-nums" title={`Ещё ${more} ${plural(more, ["цель", "цели", "целей"])}`}>+{more}</span>}
+    </span>
+    {newest
+      ? <SphereGoal value={newest} preferences={preferences} />
+      : <p className="col-span-full flex flex-wrap items-center justify-end gap-x-2.5 text-xs leading-5 text-muted-foreground sm:col-span-2">
+        {domain.archivedCount > 0 ? "Активных целей нет" : "Нет целей"}
+        <Link href={`/goals/new?domain_key=${domain.key}`} className="inline-flex min-h-8 items-center gap-1 rounded font-medium text-primary pointer-coarse:min-h-11">
+          <Plus aria-hidden="true" className="size-3.5" />Создать цель</Link>
+      </p>}
   </li>;
 }
 
-function DomainCard({ domain, label, preferences }: { domain: DashboardDomain; label: string; preferences: UserPreferences }) {
-  const more = domain.activeCount - domain.goals.length;
-  return <SectionCard role="article" titleId={`dashboard-${domain.key}-title`} headingLevel={3} title={label} data-testid={`dashboard-domain-${domain.key}`}
-    icon={<DomainIcon domain={domain.key} />}
-    action={domain.activeCount > 0 && <StatusChip tone="outline"><span className="tabular-nums">{domain.activeCount}</span> {plural(domain.activeCount, ["активная", "активные", "активных"])}</StatusChip>}
-    contentClassName="flex flex-1 flex-col gap-4">
-    {domain.goals.length > 0
-      ? <ul className="grid gap-4">{domain.goals.map((value) => <GoalLine key={value.goal.id} value={value} preferences={preferences} />)}</ul>
-      : <div className="flex-1">
-        <p className="text-sm font-semibold">Нет целей</p>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">{domain.archivedCount > 0 ? "Активных целей нет, архив сохранён." : "Здесь появятся цели этой сферы и их прогресс по вашим измерениям."}</p>
-        <Link href={`/goals/new?domain_key=${domain.key}`} className="action-link-secondary action-compact mt-3.5"><Plus aria-hidden="true" className="size-4" />Создать цель</Link>
-      </div>}
-    {(more > 0 || domain.activeCount + domain.archivedCount > 0) && <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-xs text-muted-foreground">
-      <span>{more > 0 ? `Ещё ${more} ${plural(more, ["цель", "цели", "целей"])}` : domain.archivedCount > 0 ? `${domain.archivedCount} в архиве` : ""}</span>
-      <Link href={`/goals?domain_key=${domain.key}${domain.activeCount === 0 ? "&status=archived" : ""}`} className="inline-flex min-h-8 items-center gap-1 rounded-full font-medium text-primary">
-        Цели сферы <ArrowUpRight aria-hidden="true" className="size-3.5" /></Link>
-    </div>}
+/** «Сферы жизни» as the full-width block of bars in mockup 04: all six registry spheres in order. */
+function SpheresCard({ dashboard, labels, preferences }: { dashboard: Dashboard; labels: DomainLabels; preferences: UserPreferences }) {
+  return <SectionCard titleId="dashboard-spheres-title" title="Сферы жизни" className="mt-4"
+    description={<span className="sm:hidden">прогресс целей, не «уровень жизни»</span>}
+    action={<span className="hidden text-xs font-normal text-muted-foreground sm:inline">прогресс целей, не «уровень жизни»</span>}>
+    <ul className="grid divide-y sm:divide-y-0">{dashboard.domains.map((domain) => <SphereRow key={domain.key} domain={domain} label={labels[domain.key]} preferences={preferences} />)}</ul>
   </SectionCard>;
 }
 
@@ -83,7 +95,7 @@ function TodayCard({ dashboard, labels, preferences, now }: { dashboard: Dashboa
         return <li key={goal.id} className="min-w-0 rounded-xl border bg-surface-2 px-3.5 py-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <StatusChip tone={DUE_TONES[state]}>{state === "overdue" ? "Просрочено" : state === "today" ? "Сегодня" : "Срок"}</StatusChip>
-            <span className="text-xs text-muted-foreground"><time dateTime={goal.due_at!}>{formatDateTime(new Date(goal.due_at!), preferences)}</time> · {labels[goal.domain_key]}</span>
+            <span className="text-xs text-muted-foreground">до <time dateTime={goal.due_at!}>{formatDate(new Date(goal.due_at!), preferences)}</time> · {labels[goal.domain_key]}</span>
           </div>
           <Link href={`/goals/${goal.id}`} className="mt-1 block rounded text-sm font-semibold wrap-anywhere hover:underline underline-offset-4">{goal.title}</Link>
         </li>;
@@ -108,7 +120,7 @@ function ActivityCard({ dashboard, labels, preferences }: { dashboard: Dashboard
     action={<SourceLabel>журнал действий</SourceLabel>}>
     {dashboard.activity.length === 0
       ? <p className="text-xs leading-5 text-muted-foreground">Действий пока нет. Здесь появятся созданные цели и измерения.</p>
-      : <ol>{dashboard.activity.map((item) => <ActivityRow key={item.id} item={item} labels={labels} preferences={preferences} />)}</ol>}
+      : <ol>{dashboard.activity.slice(0, DASHBOARD_ACTIVITY_SHOWN).map((item) => <ActivityRow key={item.id} item={item} labels={labels} preferences={preferences} />)}</ol>}
   </SectionCard>;
 }
 
@@ -117,8 +129,8 @@ function DashboardSkeleton() {
     <span className="sr-only">Загружаем обзор целей…</span>
     <div aria-hidden="true">
       <Skeleton className="h-5 w-72" />
-      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]"><Skeleton className="h-56 rounded-2xl" /><Skeleton className="h-56 rounded-2xl" /></div>
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-48 rounded-2xl" />)}</div>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)]"><Skeleton className="h-56 rounded-2xl" /><Skeleton className="h-56 rounded-2xl" /></div>
+      <Skeleton className="mt-4 h-60 rounded-2xl" />
     </div>
   </div>;
 }
@@ -132,18 +144,10 @@ export function DashboardView({ preferences, labels }: { preferences: UserPrefer
   const dashboard = resource.data;
   return <>
     <Summary dashboard={dashboard} />
-    <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+    <div className="mt-4 grid items-start gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
       <TodayCard dashboard={dashboard} labels={labels} preferences={preferences} now={now} />
       <ActivityCard dashboard={dashboard} labels={labels} preferences={preferences} />
     </div>
-    <section aria-labelledby="dashboard-spheres-title" className="mt-8">
-      <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="dashboard-spheres-title" className="text-base leading-[22px] font-bold">Сферы жизни</h2>
-        <p className="text-xs text-muted-foreground">прогресс конкретных целей по вашим измерениям, не «уровень жизни»</p>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {dashboard.domains.map((domain) => <DomainCard key={domain.key} domain={domain} label={labels[domain.key]} preferences={preferences} />)}
-      </div>
-    </section>
+    <SpheresCard dashboard={dashboard} labels={labels} preferences={preferences} />
   </>;
 }

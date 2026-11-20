@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { add, create, login, noOverflow } from "./support.ts";
+import { add, create, login, noOverflow, sphereRow } from "./support.ts";
 
 const SPHERES = ["languages", "finance", "work", "projects", "skills", "health"] as const;
 
@@ -11,14 +11,19 @@ test("create goal → measurement → dashboard shows the same progress as goal 
   await add(page, "12000"); await expect(page.getByTestId("goal-percent")).toHaveText("24%");
 
   await page.goto("/dashboard");
-  const item = page.getByTestId("dashboard-domain-finance").getByTestId("dashboard-goal").filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  // «Сферы жизни» shows the newest active goal of each sphere in one row (mockup 04, LFS-213).
+  const item = sphereRow(page, "finance", "Финансы", title);
   await expect(item.getByTestId("dashboard-goal-percent")).toHaveText("24%");
   await expect(item).toContainText(/12[\s,.]?000 из 50[\s,.]?000 NOK/);
   const latest = page.getByTestId("dashboard-activity").first();
   await expect(latest).toContainText("Добавлено измерение"); await expect(latest).toContainText(title); await expect(latest).toContainText("веб");
   await expect(page.getByTestId("dashboard-summary")).toBeVisible();
 
-  await item.getByRole("link", { name: title, exact: true }).click();
+  // The row opens the sphere's goals; the goal itself is chosen in that list (beside the panel from 1024px).
+  await item.getByRole("link", { name: `Финансы: ${title}`, exact: true }).click();
+  await expect(page).toHaveURL(/\/goals\?domain_key=finance$/);
+  await page.getByRole("region", { name: "Список целей" }).getByRole("link", { name: title, exact: true }).click();
+  await expect(page).toHaveURL(/\/goals\/[0-9a-f-]{36}\?domain_key=finance$/);
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   await page.getByTestId("measurement-row").first().getByRole("button", { name: "Изменить", exact: true }).click();
   await page.getByRole("dialog").getByLabel("Значение (NOK)", { exact: true }).fill("15000");

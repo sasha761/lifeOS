@@ -25,7 +25,8 @@ export function plural(count: number, forms: readonly [one: string, few: string,
   return forms[2];
 }
 
-function calendarDay(instant: Date, timeZone: string): string {
+/** YYYY-MM-DD of an instant in the account time zone. */
+export function calendarDay(instant: Date, timeZone: string): string {
   try { return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(instant); }
   catch { return instant.toISOString().slice(0, 10); }
 }
@@ -50,4 +51,16 @@ export function formatDay(instant: Date, preferences: { timezone: string; locale
   const options = { weekday: "short", day: "numeric", month: "long" } as const;
   try { return new Intl.DateTimeFormat(preferences.locale, { ...options, timeZone: preferences.timezone }).format(instant); }
   catch { return new Intl.DateTimeFormat("ru", { ...options, timeZone: "UTC" }).format(instant); }
+}
+
+/** Whole calendar days from today to the deadline in the account zone: 0 today, negative once it has passed. */
+export function daysUntil(dueAt: string, now: Date, timeZone: string): number {
+  const day = (value: Date) => Date.parse(`${calendarDay(value, timeZone)}T00:00:00Z`);
+  return Math.round((day(new Date(dueAt)) - day(now)) / 86_400_000);
+}
+/** «44 дня», «сегодня», «срок прошёл» for the «Осталось» tile. */
+export function formatDaysLeft(days: number): string {
+  if (days === 0) return "сегодня";
+  if (days < 0) return "срок прошёл";
+  return `${days} ${plural(days, ["день", "дня", "дней"])}`;
 }

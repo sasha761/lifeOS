@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { add, create, login, noOverflow, signInWithForm } from "./support.ts";
+import { add, create, login, noOverflow, signInWithForm, sphereRow } from "./support.ts";
 
 // Stage 2 acceptance in the browser (LFS-209): the main flow through the real sign-in form, the progress formulas
 // on screen against the API, and a manual goal in each of the six spheres.
@@ -13,8 +13,9 @@ async function apiProgress(page: Page, goalPath: string): Promise<GoalProgressVi
   expect(response.status()).toBe(200);
   return ((await response.json()) as { data: { progress: GoalProgressView } }).data.progress;
 }
+/** The sphere row of «Сферы жизни» while it shows this goal as the sphere's newest active one (LFS-213). */
 function dashboardGoal(page: Page, domainKey: string, title: string) {
-  return page.getByTestId(`dashboard-domain-${domainKey}`).getByTestId("dashboard-goal").filter({ has: page.getByRole("link", { name: title, exact: true }) });
+  return sphereRow(page, domainKey, SPHERES.find(([key]) => key === domainKey)![1], title);
 }
 /** `datetime-local` value at noon `days` days ago in the owner's time zone (Europe/Oslo in the fixture). */
 function osloNoon(days: number): string {
@@ -29,7 +30,7 @@ test("guest signs in with the form, the dashboard follows create/edit/delete of 
   await noOverflow(page);
   await signInWithForm(page);
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByText(process.env.LFS209_E2E_OWNER_EMAIL!, { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Мой кабинет", level: 1 })).toBeVisible();
 
   const title = `Сквозной сценарий · ${testInfo.project.name}`;
   const path = await create(page, title);
@@ -41,7 +42,7 @@ test("guest signs in with the form, the dashboard follows create/edit/delete of 
   await expect(item).toContainText(/12[\s,.]?000 из 50[\s,.]?000 NOK/);
   await expect(page.getByTestId("dashboard-activity").first()).toContainText("Добавлено измерение");
 
-  await item.getByRole("link", { name: title, exact: true }).click();
+  await page.goto(path);
   const row = page.getByTestId("measurement-row").first();
   await row.getByRole("button", { name: "Изменить", exact: true }).click();
   await page.getByRole("dialog").getByLabel("Значение (NOK)", { exact: true }).fill("15000");
@@ -51,7 +52,7 @@ test("guest signs in with the form, the dashboard follows create/edit/delete of 
   await expect(item.getByTestId("dashboard-goal-percent")).toHaveText("30%");
   await expect(page.getByTestId("dashboard-activity").first()).toContainText("Исправлено измерение");
 
-  await item.getByRole("link", { name: title, exact: true }).click();
+  await page.goto(path);
   await row.getByRole("button", { name: "Удалить", exact: true }).click();
   await page.getByRole("button", { name: "Подтвердить удаление" }).click();
   await expect(page.getByTestId("measurement-row")).toHaveCount(0);
@@ -67,6 +68,9 @@ test("guest signs in with the form, the dashboard follows create/edit/delete of 
 
   const session = (await page.context().cookies()).find((cookie) => cookie.name.endsWith(".session_token"));
   expect(session).toBeDefined();
+  // Email and «Выйти» live in /settings (mockup 16, LFS-213).
+  await page.goto("/settings");
+  await expect(page.getByLabel("Email для входа", { exact: true })).toHaveValue(process.env.LFS209_E2E_OWNER_EMAIL!);
   await page.getByRole("button", { name: "Выйти", exact: true }).click();
   await expect(page).toHaveURL(/\/auth\/sign-in$/);
   expect((await page.context().cookies()).some((cookie) => cookie.name.endsWith(".session_token"))).toBe(false);

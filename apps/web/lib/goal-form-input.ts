@@ -1,6 +1,6 @@
 import { createGoalInputSchema, createGoalMeasurementInputSchema, updateGoalInputSchema, updateGoalMeasurementInputSchema } from "@lifeos/contracts";
 import type { z } from "zod";
-import { resolveGoalTime } from "./goal-time.ts";
+import { endOfLocalDay, instantToLocalDate, resolveGoalTime } from "./goal-time.ts";
 
 export type GoalFieldErrors = Record<string, string>;
 export type FormResult<T> = { data: T; errors: null } | { data: null; errors: GoalFieldErrors };
@@ -22,9 +22,20 @@ function dateValue(values: FormData, name: string, timeZone: string): string | n
   const value = text(values, name);
   return value ? resolveGoalTime(value, timeZone, nullable(text(values, `${name}_offset`))) : null;
 }
+/**
+ * Date-only deadline (LFS-213): the end of the chosen day in the account's zone. A stored deadline whose
+ * calendar date was not changed is sent back unchanged, so older deadlines with a time of day keep it.
+ */
+function deadlineValue(values: FormData, timeZone: string): string | null {
+  const date = text(values, "due_at");
+  if (!date) return null;
+  const original = nullable(text(values, "due_at_original"));
+  if (original && instantToLocalDate(original, timeZone) === date) return original;
+  return endOfLocalDay(date, timeZone);
+}
 export function goalFormInput(values: FormData, timeZone: string, editing = false) {
   let due_at: string | null;
-  try { due_at = dateValue(values, "due_at", timeZone); }
+  try { due_at = deadlineValue(values, timeZone); }
   catch (error) { return { data: null, errors: { due_at: (error as Error).message } } as const; }
   const metadata = { title: text(values, "title"), description: nullable(text(values, "description")), due_at };
   return editing ? validate(updateGoalInputSchema, metadata) : validate(createGoalInputSchema, { ...metadata,

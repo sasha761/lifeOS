@@ -19,7 +19,8 @@ export type GoalsRouteDependencies = {
   resolveReader(): GoalsReader;
   log?: HttpLogger;
 };
-function query(request: Request): Record<string, string> {
+/** Query parameters as a plain record; a repeated key is a validation error, never "first wins". */
+export function query(request: Request): Record<string, string> {
   const result: Record<string, string> = Object.create(null) as Record<string, string>;
   for (const [key, value] of new URL(request.url).searchParams) {
     if (Object.hasOwn(result, key)) throw new ApiError("VALIDATION_ERROR");
