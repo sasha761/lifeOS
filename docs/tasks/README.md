@@ -56,4 +56,7 @@ LFS-204 выполнена 2026-11-17: [Dashboard шести сфер](LFS-204.m
 LFS-212 выполнена 2026-11-17: [UI-kit и сравнение с макетами](LFS-212.md#результат-lfs-212--2026-11-17),
 `pnpm ui:shots`, правило lint против литералов цвета, «Новая цель» диалогом; 524 unit + 139 PostgreSQL
 integration + 16 Playwright desktop/mobile; без миграций и изменений API.
-Следующая задача по очереди — LFS-209; она не начата. Hosted CI отдельно не запускался.
+Hosted CI: LFS-212 — PASS на PR #2, LFS-209 — PASS на PR #3.
+LFS-209 выполнена 2026-11-17: [E2E, security и приёмка Stage 2](LFS-209.md#результат-lfs-209--2026-11-17),
+[чек-лист приёмки](STAGE-02-ACCEPTANCE.md) заполнен; 524 unit + 140 PostgreSQL integration + 22 Playwright desktop/mobile; без миграций и изменений API/UI.
+Очередь Stage 2 закрыта. Stage 3 начинается только после решения владельца по чек-листу приёмки.

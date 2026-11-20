@@ -107,6 +107,11 @@ Edge channel используется на Windows, Chromium на Linux (нуж�
 390×844 и 1280×900: empty/auth/ownership, create→24%, edit/delete/archive,
 точные NOK, потерянный ответ после server commit с тем же key/одной записью,
 блокировка до завершения navigation и Tab/Shift+Tab/Escape с возвратом фокуса.
+Приёмка Stage 2 (LFS-209, `tests/e2e/stage2-acceptance.spec.ts`): вход через
+форму → цель → измерение → Dashboard → правка/удаление → «Выйти» с отзывом
+сессии на сервере; долг 20%, измерение задним числом и clamp 100% со сверкой
+с `GET /api/v1/goals/:id`; ручная цель в каждой из 6 сфер. Для формы входа
+фикстура передаёт одноразовые email/пароль владельца (`LFS209_E2E_OWNER_*`).
 Unit/component/form tests включают TSX без нового DOM/testing dependency.
 Runner и manual mode: `scripts/test-goals-ui.ts`; артефакты только в ignored
 `.cache/lfs208`. `--serve` создаёт временную БД-схему и печатает loopback URL

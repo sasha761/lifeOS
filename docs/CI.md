@@ -96,8 +96,9 @@ Cleanup завершает собственный server и удаляет то�
 
 Playwright ещё не добавлен в hosted workflow: это не заменяется локальным
 PASS. `pnpm verify` сохраняет прежнюю общую цепочку с расширенным production
-smoke guards для `/goals/new`/`goals/:id`. Полный Stage 2 E2E/security audit —
-LFS-209; этот focused suite реализует acceptance LFS-208.
+smoke guards для `/goals/new`/`goals/:id`. Тот же suite дополнен сценариями
+приёмки Stage 2 (LFS-209, `stage2-acceptance.spec.ts`); итог приёмки —
+[STAGE-02-ACCEPTANCE](tasks/STAGE-02-ACCEPTANCE.md).
 
 `pnpm ui:shots` (LFS-212) использует ту же изолированную фикстуру
 (`apps/web/scripts/ui-fixture.ts`) и снимает страницы Stage 2 рядом с макетами
