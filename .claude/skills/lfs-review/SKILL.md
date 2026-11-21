@@ -1,5 +1,5 @@
 ---
-description: Независимо проверить работу другого исполнителя (Codex или Claude Code) по задаче LFS-XXX до коммита. Только чтение и замечания.
+description: Независимо проверить работу другого исполнителя (Codex или Claude Code) по задаче LFS-XXX до вливания PR. Только чтение и замечания.
 argument-hint: "LFS-XXX"
 disable-model-invocation: true
 allowed-tools: Read Grep Glob Bash(git status *) Bash(git diff *) Bash(git log *) Bash(git show *) Bash(git ls-files *)
@@ -12,7 +12,7 @@ allowed-tools: Read Grep Glob Bash(git status *) Bash(git diff *) Bash(git log *
 ## Что собрать
 
 1. `docs/tasks/<ID>.md`: scope, acceptance criteria, раздел «Результат», если он уже есть. Связанные ADR и `AGENTS.md`.
-2. Изменения: `git status --short`, `git diff --stat`, `git diff`. Новые файлы `git diff` не показывает, поэтому прочитай каждый из `git ls-files --others --exclude-standard`, который относится к задаче.
+2. Изменения. Исполнитель коммитит и пушит сам, поэтому сначала смотри коммиты задачи: `git log --oneline main..HEAD` и `git diff main...HEAD` (если ветка задачи создана не от `main`, подставь её базу). Незакоммиченное: `git status --short`, `git diff`; новые файлы `git diff` не показывает, поэтому прочитай каждый из `git ls-files --others --exclude-standard`, который относится к задаче.
 3. Если в дереве есть изменения других задач, отдели их и не оценивай.
 
 ## Что проверить
@@ -29,6 +29,6 @@ allowed-tools: Read Grep Glob Bash(git status *) Bash(git diff *) Bash(git log *
 
 ## Ответ
 
-1. Вердикт одной строкой: «можно коммитить» или «нужны правки».
+1. Вердикт одной строкой: «можно вливать» или «нужны правки».
 2. Замечания по важности (блокер, важно, мелочь), у каждого `файл:строка` и что не так.
 3. Готовый текст для исполнителя со списком правок, чтобы владелец мог передать его как есть.

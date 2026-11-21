@@ -8,24 +8,18 @@
       "Bash(git show *)",
       "Bash(git ls-files *)",
       "Bash(git branch --show-current)",
-      "Bash(pnpm lint*)",
-      "Bash(pnpm typecheck*)",
-      "Bash(pnpm test*)",
-      "Bash(pnpm build*)",
-      "Bash(pnpm verify*)",
-      "Bash(pnpm db:test:up*)"
-    ],
-    "ask": [
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git push *)",
       "Bash(git switch *)",
+      "Bash(pnpm *)",
+      "Bash(pnpm.cmd *)"
+    ],
+    "ask": [
       "Bash(git checkout *)",
       "Bash(git stash *)",
       "Bash(pnpm add *)",
-      "Bash(pnpm install *)",
-      "Bash(pnpm db:generate*)",
-      "Bash(pnpm db:migrate*)"
+      "Bash(pnpm.cmd add *)"
     ],
     "deny": [
       "Read(./.env)",
@@ -34,6 +28,11 @@
       "Bash(git reset --hard*)",
       "Bash(git clean *)",
       "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f *)",
+      "Bash(git push origin main*)",
+      "Bash(git push origin HEAD:main*)",
       "Bash(docker volume rm *)",
       "Bash(docker compose down -v*)"
     ]
