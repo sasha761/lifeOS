@@ -25,6 +25,13 @@ export type {
   StarterPackCommand, StarterPackOutcome, StarterPackRepository, StarterPackResult, StarterPackService, StarterPackTransaction,
   StarterPackUnitOfWork,
 } from "./core/starter-pack.ts";
+export { createOnboardingService } from "./core/onboarding.ts";
+export type {
+  OnboardingCommand, OnboardingOutcome, OnboardingProfileRepository, OnboardingResult, OnboardingService, OnboardingStateRecord,
+  OnboardingStateRepository, OnboardingTransaction, OnboardingUnitOfWork,
+} from "./core/onboarding.ts";
+// The catalog and the goal builder are also the separate browser-safe entry point `@lifeos/domain/onboarding`.
+export * from "./core/onboarding-catalog.ts";
 export { calculateGoalProgress } from "./core/goal-progress.ts";
 export { createGoalsReader, goalDetailsFromRecord } from "./core/goals-reader.ts";
 export type { GoalReadRecord, GoalsReadQuery, MeasurementsReadQuery, GoalsReadRepository, GoalsReader } from "./core/goals-reader.ts";

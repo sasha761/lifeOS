@@ -1,8 +1,8 @@
 import "server-only";
 import { readWebEnv } from "@lifeos/config/env";
-import { createUserPreferencesRepository, createGoalsUnitOfWork, createGoalMeasurementsUnitOfWork, createGoalsReadRepository, createDashboardReadRepository, createActivityReadRepository, createStarterPackUnitOfWork } from "@lifeos/db";
-import { createUserPreferencesService, createGoalsService, createGoalMeasurementsService, createGoalsReader, createDashboardReader, createActivityReader, createStarterPackService } from "@lifeos/domain";
-import type { UserPreferencesService, GoalsService, GoalMeasurementsService, GoalsReader, DashboardReader, ActivityReader, StarterPackService } from "@lifeos/domain";
+import { createUserPreferencesRepository, createGoalsUnitOfWork, createGoalMeasurementsUnitOfWork, createGoalsReadRepository, createDashboardReadRepository, createActivityReadRepository, createStarterPackUnitOfWork, createOnboardingUnitOfWork } from "@lifeos/db";
+import { createUserPreferencesService, createGoalsService, createGoalMeasurementsService, createGoalsReader, createDashboardReader, createActivityReader, createStarterPackService, createOnboardingService } from "@lifeos/domain";
+import type { UserPreferencesService, GoalsService, GoalMeasurementsService, GoalsReader, DashboardReader, ActivityReader, StarterPackService, OnboardingService } from "@lifeos/domain";
 import { getDatabase } from "./db.ts";
 
 // Composition of core domain services (lazy: never during `next build`). Cached per module, not on
@@ -16,6 +16,7 @@ let goalsReader: GoalsReader | undefined;
 let dashboardReader: DashboardReader | undefined;
 let activityReader: ActivityReader | undefined;
 let starterPack: StarterPackService | undefined;
+let onboarding: OnboardingService | undefined;
 
 export function getUserPreferencesService(): UserPreferencesService {
   userPreferences ??= createUserPreferencesService(
@@ -48,4 +49,9 @@ export function getActivityReader(): ActivityReader {
 export function getStarterPackService(): StarterPackService {
   starterPack ??= createStarterPackService(createStarterPackUnitOfWork(getDatabase(readWebEnv(process.env).DATABASE_URL).db));
   return starterPack;
+}
+/** The onboarding wizard (LFS-219): drafts and «Создать N целей». */
+export function getOnboardingService(): OnboardingService {
+  onboarding ??= createOnboardingService(createOnboardingUnitOfWork(getDatabase(readWebEnv(process.env).DATABASE_URL).db));
+  return onboarding;
 }

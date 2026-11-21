@@ -28,14 +28,18 @@ export function query(request: Request): Record<string, string> {
   }
   return result;
 }
-function noQuery(request: Request): void {
+export function noQuery(request: Request): void {
   if (Object.keys(query(request)).length) throw new ApiError("VALIDATION_ERROR");
 }
-/** Origin, no query and a valid Idempotency-Key for every goal write; shared with the example commands (LFS-218). */
-export function commandContext(request: Request, publicBaseURL: string) {
+/** A browser write from another origin is refused; also used by the onboarding draft, which needs no key (LFS-219). */
+export function requireSameOrigin(request: Request, publicBaseURL: string): void {
   const origin = request.headers.get("origin");
   // Next may reconstruct request.url with its internal host. Trust the configured public URL, never Host/X-Forwarded-Host.
   if (origin !== null && origin !== new URL(publicBaseURL).origin) throw new ApiError("FORBIDDEN");
+}
+/** Origin, no query and a valid Idempotency-Key for every goal write; shared with the example commands (LFS-218). */
+export function commandContext(request: Request, publicBaseURL: string) {
+  requireSameOrigin(request, publicBaseURL);
   noQuery(request);
   const key = idempotencyKeySchema.safeParse(request.headers.get(HTTP_HEADERS.idempotencyKey));
   if (!key.success) throw new ApiError("VALIDATION_ERROR");
@@ -45,7 +49,7 @@ export function commandContext(request: Request, publicBaseURL: string) {
 export async function requireEmptyBody(request: Request): Promise<void> {
   if (request.body !== null && (await request.text()).length !== 0) throw new ApiError("VALIDATION_ERROR");
 }
-async function json(request: Request) {
+export async function json(request: Request) {
   // JSON + the mandatory custom header require preflight for cross-origin browser writes.
   if (request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !== "application/json") throw new ApiError("VALIDATION_ERROR");
   return parseJsonBody(request, z.unknown());

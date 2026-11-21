@@ -12,7 +12,11 @@ const domainErrorCodes: ReadonlySet<string> = new Set(DOMAIN_ERROR_CODES);
 
 /** Expected rule violations. Messages are fixed and never contain input values or other users' data. */
 export class DomainError extends Error {
-  constructor(readonly code: DomainErrorCode, message: string) {
+  /**
+   * `field` (LFS-219): a fixed key of the request structure that was rejected, e.g. the proposed goal `health.own` of the
+   * onboarding wizard; never an input value. The HTTP adapter passes it on only if it matches the public field syntax.
+   */
+  constructor(readonly code: DomainErrorCode, message: string, readonly field?: string) {
     super(message);
     this.name = "DomainError";
     Object.defineProperty(this, DOMAIN_ERROR_BRAND, { value: true });
@@ -36,8 +40,8 @@ export class NotFoundError extends DomainError {
 }
 
 export class InvalidInputError extends DomainError {
-  constructor() {
-    super("VALIDATION_ERROR", "Invalid input.");
+  constructor(field?: string) {
+    super("VALIDATION_ERROR", "Invalid input.", field);
     this.name = "InvalidInputError";
   }
 }

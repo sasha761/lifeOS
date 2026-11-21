@@ -14,7 +14,7 @@ function details(overrides: { domain_key?: string; status?: string; due_at?: str
   };
 }
 const empty = () => ({ domains: DOMAIN_KEYS.map((key) => ({ key, activeCount: 0, archivedCount: 0, goals: [] as unknown[] })), today: { dueGoals: [] as unknown[] }, activity: [] as unknown[],
-  examples: { goals: 0, measurements: 0 } });
+  examples: { goals: 0, measurements: 0 }, focus_domains: [] as string[] });
 function action(type: string, occurredAt = time, measurement: unknown = null) {
   return { id: uuid(), type, occurredAt, source: "web", domainKey: "finance", goal: { id: uuid(), title: "Savings", status: "active" }, measurement, example: false };
 }

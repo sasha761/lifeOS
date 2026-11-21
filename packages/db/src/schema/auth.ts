@@ -1,5 +1,9 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { CHECKIN_RHYTHMS, DOMAIN_KEYS } from "@lifeos/contracts";
+
+// DDL cannot contain bind parameters: only trusted registry constants are inlined (LFS-219).
+const choices = (values: readonly string[]) => sql.raw(values.map((value) => `'${value.replace(/'/g, "''")}'`).join(", "));
 
 // Better Auth 1.7.18 core schema for email/password (LFS-201).
 // Mirrors the official Drizzle generator for provider "pg": text ids, snake_case columns,
@@ -20,9 +24,15 @@ export const user = pgTable("user", {
   // preferences service changes them, with IANA/BCP 47 validation. The CHECKs are a coarse backstop.
   timezone: text("timezone").default("UTC").notNull(),
   locale: text("locale").default("ru").notNull(),
+  // LFS-219 onboarding (0008_onboarding), written only by the wizard's completion: «сферы в фокусе» shown first on the
+  // dashboard, in registry order, and how often the person is ready to record progress. Null until chosen.
+  focusDomains: text("focus_domains").array(),
+  checkinRhythm: text("checkin_rhythm", { enum: CHECKIN_RHYTHMS }),
 }, (table) => [
   check("user_timezone_length_check", sql`char_length(${table.timezone}) BETWEEN 1 AND 64`),
   check("user_locale_length_check", sql`char_length(${table.locale}) BETWEEN 2 AND 35`),
+  check("user_focus_domains_check", sql`${table.focusDomains} IS NULL OR (cardinality(${table.focusDomains}) <= ${sql.raw(String(DOMAIN_KEYS.length))} AND ${table.focusDomains} <@ ARRAY[${choices(DOMAIN_KEYS)}]::text[])`),
+  check("user_checkin_rhythm_check", sql`${table.checkinRhythm} IS NULL OR ${table.checkinRhythm} IN (${choices(CHECKIN_RHYTHMS)})`),
 ]);
 
 export const session = pgTable("session", {

@@ -29,7 +29,7 @@ function activity(value: Goal, type: Parameters<typeof event>[1], occurredAt: st
   return { event: event(value, type, occurredAt, userId), goal: value };
 }
 function reader(data: Partial<DashboardReadRecord>) {
-  const repository: DashboardReadRepository = { read: vi.fn(async () => ({ counts: [], domainGoals: [], dueGoals: [], activity: [], exampleMeasurements: 0, ...data })) };
+  const repository: DashboardReadRepository = { read: vi.fn(async () => ({ counts: [], domainGoals: [], dueGoals: [], activity: [], exampleMeasurements: 0, focusDomains: null, ...data })) };
   return { repository, service: createDashboardReader(repository) };
 }
 

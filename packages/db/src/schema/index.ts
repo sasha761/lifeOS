@@ -5,3 +5,4 @@ export { activityEvents, goalCommandReceipts } from "./activity-events.ts";
 export { goalMeasurements } from "./goal-measurements.ts";
 export { goalDeletionReceipts } from "./goal-deletion-receipts.ts";
 export { starterPackReceipts } from "./starter-pack-receipts.ts";
+export { onboardingReceipts, onboardingState } from "./onboarding.ts";

@@ -39,6 +39,14 @@ export function dueState(dueAt: string, now: Date, timeZone: string): "overdue" 
 }
 
 /** Exact counts only; no percentages or scores across spheres. */
+/**
+ * «Сферы в фокусе» from the onboarding wizard first (LFS-219), each group in registry order. Only the view is sorted:
+ * the DTO keeps registry order.
+ */
+export function focusFirst(dashboard: Pick<Dashboard, "domains" | "focus_domains">): Dashboard["domains"] {
+  const focus = new Set<string>(dashboard.focus_domains);
+  return [...dashboard.domains.filter((domain) => focus.has(domain.key)), ...dashboard.domains.filter((domain) => !focus.has(domain.key))];
+}
 export function dashboardTotals(dashboard: Dashboard) {
   const active = dashboard.domains.reduce((sum, domain) => sum + domain.activeCount, 0);
   const archived = dashboard.domains.reduce((sum, domain) => sum + domain.archivedCount, 0);

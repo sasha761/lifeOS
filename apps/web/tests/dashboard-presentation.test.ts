@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ACTIVITY_EVENT_TYPES, ACTIVITY_SOURCES, DOMAIN_KEYS } from "@lifeos/contracts";
-import { activityLabel, dashboardTotals, dueState, formatDay, plural, sourceLabel } from "../lib/dashboard-presentation.ts";
+import { activityLabel, dashboardTotals, dueState, focusFirst, formatDay, plural, sourceLabel } from "../lib/dashboard-presentation.ts";
 
 describe("dashboard presentation (LFS-204)", () => {
   it("chooses Russian plural forms", () => {
@@ -23,7 +23,12 @@ describe("dashboard presentation (LFS-204)", () => {
   });
   it("sums exact counts only", () => {
     const domains = DOMAIN_KEYS.map((key, index) => ({ key, activeCount: index === 1 ? 3 : index === 5 ? 1 : 0, archivedCount: index === 2 ? 2 : 0, goals: [] }));
-    expect(dashboardTotals({ domains, today: { dueGoals: [] }, activity: [], examples: { goals: 0, measurements: 0 } })).toEqual({ active: 4, archived: 2, spheres: 2 });
+    expect(dashboardTotals({ domains, today: { dueGoals: [] }, activity: [], examples: { goals: 0, measurements: 0 }, focus_domains: [] })).toEqual({ active: 4, archived: 2, spheres: 2 });
+  });
+  it("shows «сферы в фокусе» first, each group in registry order (LFS-219)", () => {
+    const domains = DOMAIN_KEYS.map((key) => ({ key, activeCount: 0, archivedCount: 0, goals: [] }));
+    expect(focusFirst({ domains, focus_domains: ["finance", "health"] }).map((domain) => domain.key)).toEqual(["finance", "health", "languages", "work", "projects", "skills"]);
+    expect(focusFirst({ domains, focus_domains: [] }).map((domain) => domain.key)).toEqual([...DOMAIN_KEYS]);
   });
   it("formats the current day in the account zone and survives an unknown zone", () => {
     expect(formatDay(new Date("2026-11-16T23:30:00Z"), { timezone: "Europe/Oslo", locale: "ru" })).toContain("17");

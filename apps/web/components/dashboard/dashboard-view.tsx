@@ -7,7 +7,7 @@ import { CalendarClock, History, LayoutList, Plus } from "lucide-react";
 import { dashboardSchema, starterPackRemovedSchema } from "@lifeos/contracts";
 import type { Dashboard, DashboardActivity, DashboardDomain, DomainKey, GoalDetails, UserPreferences } from "@lifeos/contracts";
 import { domainPresentation } from "../../lib/domain-presentation.ts";
-import { activityLabel, dashboardTotals, dueState, formatDay, plural, sourceLabel } from "../../lib/dashboard-presentation.ts";
+import { activityLabel, dashboardTotals, dueState, focusFirst, formatDay, plural, sourceLabel } from "../../lib/dashboard-presentation.ts";
 import { formatLoggedValue } from "../../lib/goal-presentation.ts";
 import { useDismiss } from "../../lib/use-dismiss.ts";
 import { formatDate, formatDateTime } from "../../lib/user-preferences.ts";
@@ -84,12 +84,12 @@ function SphereRow({ domain, label, preferences, examples }: { domain: Dashboard
   </li>;
 }
 
-/** «Сферы жизни» as the full-width block of bars in mockup 04: all six registry spheres in order. */
+/** «Сферы жизни» as the full-width block of bars in mockup 04: all six spheres, those in focus (LFS-219) first. */
 function SpheresCard({ dashboard, labels, preferences }: { dashboard: Dashboard; labels: DomainLabels; preferences: UserPreferences }) {
   return <SectionCard titleId="dashboard-spheres-title" title="Сферы жизни" className="mt-4"
     description={<span className="sm:hidden">прогресс целей, не «уровень жизни»</span>}
     action={<span className="hidden text-xs font-normal text-muted-foreground sm:inline">прогресс целей, не «уровень жизни»</span>}>
-    <ul className="grid divide-y sm:divide-y-0">{dashboard.domains.map((domain) => <SphereRow key={domain.key} domain={domain} label={labels[domain.key]} preferences={preferences} examples={dashboard.examples.goals > 0} />)}</ul>
+    <ul className="grid divide-y sm:divide-y-0">{focusFirst(dashboard).map((domain) => <SphereRow key={domain.key} domain={domain} label={labels[domain.key]} preferences={preferences} examples={dashboard.examples.goals > 0} />)}</ul>
   </SectionCard>;
 }
 

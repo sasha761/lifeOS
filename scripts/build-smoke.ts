@@ -123,7 +123,8 @@ async function main(): Promise<void> {
       ["GET", `/api/v1/goals/${resourceId}`], ["PATCH", `/api/v1/goals/${resourceId}`],
       ["GET", `/api/v1/goals/${resourceId}/measurements`], ["POST", `/api/v1/goals/${resourceId}/measurements`],
       ["PATCH", `/api/v1/goal-measurements/${resourceId}`], ["DELETE", `/api/v1/goal-measurements/${resourceId}`],
-      ["GET", "/api/v1/dashboard"], ["POST", "/api/v1/starter-pack"], ["DELETE", "/api/v1/starter-pack"]]) {
+      ["GET", "/api/v1/dashboard"], ["POST", "/api/v1/starter-pack"], ["DELETE", "/api/v1/starter-pack"],
+      ["GET", "/api/v1/onboarding"], ["PUT", "/api/v1/onboarding"], ["POST", "/api/v1/onboarding/complete"]]) {
       const denied = await fetch(base + path, { method, signal: AbortSignal.timeout(5_000) });
       assert.equal(denied.status, 401);
       assert.equal(denied.headers.get("cache-control"), "no-store");

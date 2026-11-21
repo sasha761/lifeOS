@@ -3,7 +3,7 @@ import { goalCommandOptionsSchema } from "@lifeos/contracts";
 import type { StarterPackUnitOfWork } from "@lifeos/domain";
 import type { LifeosDatabase } from "./client.ts";
 import { createActivityEventWriter } from "./activity-event-writer.ts";
-import { commandFingerprint, findGoalDeletionReceipt, lockCommandKey, lockStarterPack } from "./command-idempotency.ts";
+import { commandFingerprint, findGoalDeletionReceipt, findOnboardingReceipt, lockCommandKey, lockStarterPack } from "./command-idempotency.ts";
 import { ownedBy } from "./ownership.ts";
 import { createGoalMeasurementsRepository } from "./repositories/goal-measurements.ts";
 import { createGoalsRepository } from "./repositories/goals.ts";
@@ -30,7 +30,8 @@ export function createStarterPackUnitOfWork(database: LifeosDatabase): StarterPa
           : { kind: "conflict" };
         const [goalReceipt] = await transaction.select({ key: goalCommandReceipts.idempotencyKey }).from(goalCommandReceipts)
           .where(ownedBy(goalCommandReceipts.userId, actor, eq(goalCommandReceipts.idempotencyKey, command.idempotencyKey))).limit(1);
-        if (goalReceipt || await findGoalDeletionReceipt(transaction, actor, command.idempotencyKey)) return { kind: "conflict" };
+        if (goalReceipt || await findGoalDeletionReceipt(transaction, actor, command.idempotencyKey)
+          || await findOnboardingReceipt(transaction, actor, command.idempotencyKey)) return { kind: "conflict" };
         await lockStarterPack(transaction, actor);
         const result = await operation({
           goals: createGoalsRepository(transaction, { lockRows: true }),

@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./onboarding": { "types": "./dist/core/onboarding-catalog.d.ts", "import": "./dist/core/onboarding-catalog.js" }
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
