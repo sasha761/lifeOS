@@ -1,44 +1,32 @@
-# LifeOS · Foundation + Stage 2 (в работе)
+# LifeOS
 
 LifeOS — модульная платформа целей и развития в сферах Languages, Finance,
 Work, Projects, Skills и Health. Языковой учитель — будущий модуль платформы.
-Реализован технический Foundation (Web shell, PostgreSQL/Drizzle, demo-worker
-pg-boss, контракты/env, atomicity tests, CI workflow) и из Stage 2 — аккаунты
-LFS-201: закрытая регистрация по allowlist, вход/выход, восстановление доступа,
-защищённые `/dashboard` и `/goals` ([ADR-005](docs/adr/005-auth.md)).
-LFS-202 добавила настройки профиля и ownership ([ADR-006](docs/adr/006-actor-ownership.md));
-LFS-203 — типизированный реестр шести сфер с навигацией и страницами метаданных.
-LFS-205 добавила таблицу и domain-сервис ручных целей ([ADR-007](docs/adr/007-goals.md)).
-LFS-210 связала изменения целей с транзакционным аудитом и защитой повторов
-([ADR-008](docs/adr/008-transactional-audit.md)).
-LFS-206 добавила ручные измерения, историю и выбор current с аудитом
-([ADR-009](docs/adr/009-goal-measurements.md)).
-LFS-207 открыла защищённый HTTP API целей/измерений и точный расчёт прогресса
-([ADR-010](docs/adr/010-goals-api-progress.md)).
-LFS-208 добавила Web UI целей и ручных измерений: список, создание, детали,
-исправление истории и архив. LFS-211 перевела UI на Design System v2
-([ADR-011](docs/adr/011-design-system-v2.md)). LFS-204 добавила Dashboard шести
-сфер: точные счётчики, прогресс конкретных целей, сроки и последние действия
-из аудита — без общего процента. Telegram SDK и AI ещё не реализованы.
 
-LFS-101–109 проверены по [листу приёмки](docs/tasks/STAGE-01-ACCEPTANCE.md).
-Локальная полная цепочка проходит; hosted GitHub Actions, visual/keyboard/mobile
-и воспроизведение всего Foundation из remote clone пока не подтверждены.
-Stage 2 автоматически не начинается. Продуктовый источник:
+Сейчас готовы технический Foundation (Stage 1: Web shell, PostgreSQL/Drizzle, demo-worker pg-boss, контракты
+и env, atomicity tests, CI) и ядро Stage 2: аккаунты с закрытой регистрацией, шесть сфер, ручные цели
+и измерения с аудитом, Dashboard без общего процента, пример по выбору пользователя и мастер начальной
+настройки. Telegram и AI ещё не реализованы. Что сделано по задачам, что следующее и что не проверено —
+[статус и очередь задач](docs/tasks/README.md). Продуктовый источник —
 [Master Plan v0.4](docs/reference/LifeOS_Master_Plan_v0.4.md), без изменения его формулировок.
 
 ## Документация
 
 | Документ | Содержание |
 |---|---|
-| [System](docs/architecture/system.md) | Процессы, package/import boundaries, реальные и будущие потоки |
-| [Database](docs/architecture/database-schema.md) | Технические таблицы, test-only schemas и отдельно план Stage 2 |
+| [AGENTS.md](AGENTS.md) | Правила для ИИ-исполнителей, карта документов, образцы кода |
+| [Задачи и статус](docs/tasks/README.md) | Очередь, статус задач, что сейчас и что следующее |
+| [System](docs/architecture/system.md) | Процессы, package/import boundaries, маршруты, что каждая задача добавила |
+| [Database](docs/architecture/database-schema.md) | Миграции и таблицы, test-only schemas |
 | [Worker](docs/architecture/worker.md) | Demo lifecycle, retries/shutdown, atomic enqueue и ограничения |
-| [API contracts](docs/api/contracts.md) | Envelope, errors, IDs, health и env |
+| [API contracts](docs/api/contracts.md) | Envelope, errors, IDs, env и DTO всех HTTP-маршрутов |
+| [ADR](docs/adr/README.md) | Индекс принятых решений |
+| [UI guidelines](docs/UI_GUIDELINES.md) | Токены, компоненты, макеты и визуальная проверка |
 | [CI](docs/CI.md) | Общая verify chain, PostgreSQL service, cache и реальные статусы |
 | [Development workflow](docs/DEVELOPMENT_WORKFLOW.md) | Один LFS-ID, ветки/commits/PR, review и handoff |
+| [ИИ-исполнители](docs/AI_AGENTS.md) | Как Codex и Claude Code делят работу |
 
-## Каркас LFS-101
+## Структура
 
 pnpm workspaces + Turborepo, strict TypeScript. Один Next.js App Router
 обслуживает Web, будущий Mini App и API; worker — отдельный Node процесс.
@@ -46,10 +34,10 @@ PostgreSQL + Drizzle + pg-boss, без Redis и отдельного backend fra
 
 | Путь | Workspace | Сейчас |
 |---|---|---|
-| `apps/web` | @lifeos/web | UI shell, /telegram placeholder, health и HTTP adapters |
+| `apps/web` | @lifeos/web | Страницы, HTTP API `/api/v1`, Better Auth, композиция сервисов, /telegram placeholder |
 | `apps/worker` | @lifeos/worker | PgBoss demo runtime и producer CLI |
-| `packages/db` | @lifeos/db | Drizzle schema/client/migrator; business repositories позже |
-| `packages/domain` | @lifeos/domain | Framework-independent auth/core, ownership, preferences и реестр шести сфер |
+| `packages/db` | @lifeos/db | Drizzle schema/client/migrator, actor-scoped repositories и unit of work |
+| `packages/domain` | @lifeos/domain | Framework-independent правила: auth, ownership, preferences, сферы, цели, измерения, прогресс, Dashboard, начальная настройка |
 | `packages/contracts` | @lifeos/contracts | Zod DTO, errors, health и request/job context |
 | `packages/config` | @lifeos/config | TS/ESLint и отдельный серверный env export |
 
@@ -129,13 +117,7 @@ Node 24.22.2. Инструкции package manager: [pnpm 10](https://pnpm.io/10
 
 ## Получение исходников
 
-В текущем рабочем дереве код Foundation есть, но он пока не опубликован.
-Проверенный remote HEAD `8058a4e6a61a3b90a906ac2874f1cd9d59b2900c` содержит
-только AGENTS.md, README.md и docs — без package.json/CI workflow.
-Полное прохождение следующих инструкций из remote clone станет возможно
-после review и публикации Foundation. Существующее дерево не заменяйте клоном.
-
-После публикации, для новой рабочей копии:
+Для новой рабочей копии:
 
 ```sh
 git clone https://github.com/sasha761/lifeOS.git lifeos
@@ -210,7 +192,7 @@ pnpm dev
 - `/api/health` — JSON `{ data, meta, errors }`, текущий timestamp и IDs, no-store.
 - `/api/v1/me` — текущий пользователь; 401 без сессии.
 - `/api/v1/me/preferences` — `GET`/`PATCH` своих `timezone`/`locale`; 401 без сессии, 400 для невалидных значений и `userId` в body.
-- `/api/v1/goals` — `GET` списка с прогрессом, `POST` ручной цели; `/api/v1/goals/:goalId` — `GET`/`PATCH` metadata или archive.
+- `/api/v1/goals` — `GET` списка с прогрессом, `POST` ручной цели; `/api/v1/goals/:goalId` — `GET`/`PATCH` metadata или archive, `DELETE` — удаление цели (LFS-216).
 - `/api/v1/dashboard` — `GET` read model Dashboard владельца; [DTO](docs/api/contracts.md#dashboard-сфер-lfs-204).
 - `/api/v1/activity` — `GET` журнала действий владельца, фильтр `domain_key` или `goal_id`, `limit` до 50; [DTO](docs/api/contracts.md#журнал-действий-lfs-213).
 - `/api/v1/goals/:goalId/measurements` — `GET` истории с cursor/limit, `POST` измерения; `/api/v1/goal-measurements/:measurementId` — `PATCH`/`DELETE`. Все записи требуют `Idempotency-Key`; [DTO и примеры](docs/api/contracts.md#http-целей-и-прогресс-lfs-207).
@@ -307,13 +289,8 @@ git status. Сначала контракт/типы → реализация �
 веток/commits/PR и ADR: [development workflow](docs/DEVELOPMENT_WORKFLOW.md).
 Прежние незакоммиченные изменения не удаляются и не смешиваются с новым scope.
 
-Stage 2 выполняется по [STAGE-02-README](docs/tasks/STAGE-02-README.md): аккаунты,
-preferences/ownership, реестр сфер, ручные цели, измерения и аудит реализованы.
-API, прогресс, UI целей и Dashboard сфер реализованы; следующая задача — LFS-209 (E2E, security, приёмка).
-При обновлении другой локальной копии примените `pnpm db:migrate`
-(актуальная миграция `0008_onboarding`, LFS-219). Dashboard показывает только
-реальные цели и измерения, а пример, который пользователь загрузил сам, помечен
-«Пример»; фиктивного общего процента жизни нет. Каждый
-следующий LFS-ID начинается только после решения пользователя.
-Текущие PASS/NOT RUN и необходимые ручные действия —
-[список задач](docs/tasks/README.md) и отчёты соответствующих LFS-ID.
+После обновления локальной копии примените `pnpm db:migrate`; список миграций —
+[Database](docs/architecture/database-schema.md#миграции-и-таблицы). Текущий этап, следующая задача
+и состояние миграций основной базы — блок «Сейчас» в [списке задач](docs/tasks/README.md);
+PASS/NOT RUN и ручные действия — в разделе «Результат» каждой задачи. Каждый следующий LFS-ID
+начинается только после решения владельца.

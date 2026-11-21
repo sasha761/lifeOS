@@ -1,38 +1,41 @@
-# LifeOS Foundation: система и границы
+# LifeOS: система и границы
 
-Состояние LFS-202: технический Foundation плюс аккаунты (Better Auth:
-закрытая регистрация, вход/выход, восстановление доступа, защищённые маршруты;
-[ADR-005](../adr/005-auth.md)), timezone/locale пользователя и общее правило
-actor/ownership ([ADR-006](../adr/006-actor-ownership.md)). Рабочих модулей Languages/Finance/Work/Projects/
-Skills/Health, целей и персонального Dashboard пока нет. Названия шести сфер в
-UI — presentation-only anchor links, а не доменный registry. Источник продуктового плана —
-[Master Plan v0.4](../reference/LifeOS_Master_Plan_v0.4.md); его формулировки здесь не меняются.
+Сейчас реализованы технический Foundation (Stage 1) и ядро Stage 2: аккаунты Better Auth с закрытой регистрацией
+([ADR-005](../adr/005-auth.md)), actor/ownership и timezone/locale ([ADR-006](../adr/006-actor-ownership.md)),
+кодовый реестр шести сфер, ручные цели и измерения с транзакционным аудитом и квитанциями повторов
+([ADR-007](../adr/007-goals.md)–[ADR-010](../adr/010-goals-api-progress.md)), Dashboard и журнал действий, пример
+по выбору пользователя и мастер начальной настройки ([ADR-012](../adr/012-onboarding.md)). Специализированных модулей
+Languages/Finance/Work/Projects/Skills/Health, Telegram и AI пока нет. Ниже — общая схема, затем по задачам: что каждая
+добавила в архитектуру. Источник продуктового плана — [Master Plan v0.4](../reference/LifeOS_Master_Plan_v0.4.md);
+его формулировки здесь не меняются.
 
 ## Процессы и поток данных
 
 ```mermaid
 flowchart LR
-  browser["Browser"] --> web["Next.js Web / API<br/>apps/web"]
-  web --> health["GET /api/health<br/>HTTP adapter"]
-  health --> contracts["packages/contracts<br/>Zod DTO / IDs / errors"]
+  browser["Browser"] --> pages["Страницы: RSC и Client Components<br/>apps/web/app, components"]
+  server["HTTP-адаптеры, сессия, композиция<br/>apps/web/server"]
+  pages -- "fetch /api/v1/*" --> api["Route handlers<br/>apps/web/app/api"]
+  pages -- "RSC: сессия, preferences" --> server
+  api --> server
+  server --> contracts["packages/contracts<br/>Zod DTO / IDs / errors"]
+  server --> auth["Better Auth<br/>apps/web/server/auth"]
+  auth --> mail["Mail sender<br/>outbox (dev) / SMTP (prod)"]
+  server --> domain["packages/domain<br/>сервисы, readers, правила"]
+  domain -- "порты репозиториев" --> db["packages/db<br/>repositories, unit of work"]
+  auth --> db
+  db --> appdb["PostgreSQL<br/>application tables"]
+  cli["Node migration CLI"] --> db
   producer["Node demo CLI"] --> queue["pg-boss"]
   worker["Node worker<br/>apps/worker"] --> queue
   queue --> pg["PostgreSQL<br/>queue schema"]
-  cli["Node migration CLI"] --> db["packages/db<br/>Drizzle / pg / migrator"]
-  db --> appdb["PostgreSQL<br/>fixture + migration journal"]
-  web --> authroute["/api/auth/* · /api/v1/me<br/>Better Auth (apps/web/server/auth)"]
-  authroute --> domain["packages/domain<br/>signup allowlist policy"]
-  authroute --> db
-  authroute --> mail["Mail sender<br/>outbox (dev) / SMTP (prod)"]
-  health -. "future application use cases" .-> domain
-  domain -. "future repository ports" .-> db
   domain -. "future enqueue composition" .-> queue
 ```
 
-Сплошные связи исполняются сейчас. Пунктир показывает направление будущей
-композиции и не обозначает готовые use cases или HTTP producer. Обе части
-PostgreSQL находятся в одной application DB; локальная test DB — отдельный
-instance. HTTP health не выполняет SQL и не проверяет доступность очереди.
+Сплошные связи исполняются сейчас. Пунктир — будущая постановка фоновых задач из use cases; HTTP producer
+пока нет. Domain не импортирует `packages/db`: он объявляет порты репозиториев, `packages/db` их реализует,
+а `apps/web/server/core.ts` соединяет одно с другим. Обе части PostgreSQL находятся в одной application DB;
+локальная test DB — отдельный instance. HTTP health не выполняет SQL и не проверяет доступность очереди.
 
 Web, worker и producer CLI — отдельные Node процессы. `pnpm dev` запускает
 только Web и build его dependencies; worker запускается отдельно через
@@ -44,17 +47,17 @@ React render или instrumentation. Доменная логика не долж
 
 | Путь | Текущая роль | Граница |
 |---|---|---|
-| `apps/web` | React UI, Next routes/layouts, HTTP helper/error mapper, startup composition; Better Auth composition, mail transports, auth pages и guards | Transport/auth adapters; бизнес-правила остаются в пакетах |
+| `apps/web` | React UI, Next routes/layouts; HTTP-адаптеры `server/*.ts` (`apiRoute`, error mapper, session guards); композиция сервисов `server/core.ts`; Better Auth, mail transports, auth pages | Transport/auth adapters; бизнес-правила остаются в пакетах |
 | `apps/worker` | PgBoss lifecycle, demo handler, producer CLI, безопасные технические логи | Не импортирует Web; будущие application/domain functions подключаются через пакеты |
-| `packages/contracts` | Zod schemas, inferred DTO/types, health envelope, IDs и demo payload | Нет зависимости от apps, React, Next или env; можно использовать в browser |
+| `packages/contracts` | Zod schemas и inferred DTO: health envelope, IDs, ошибки, цели, измерения, журнал, Dashboard, пример, начальная настройка, demo payload | Нет зависимости от apps, React, Next или env; можно использовать в browser |
 | `packages/config` | Strict tsconfig, ESLint config; отдельный Node export `./env` | Tooling exports не читают env; runtime parser вызывается явно |
-| `packages/db` | Drizzle schema (fixture + Better Auth tables), pg client factory, защитные DB helpers; migrator — отдельный entry `@lifeos/db/migrations` | Репозитории бизнес-моделей ещё не реализованы; module import не открывает соединение |
-| `packages/domain` | Framework-independent правила: закрытая регистрация (`createSignupPolicy`); build/test/lint/typecheck | Нет Next/React/apps imports, Node API в исходниках (build без Node types), SQL и обхода repositories |
+| `packages/db` | Drizzle schema (Better Auth, цели, измерения, события, квитанции, начальная настройка, техническая fixture), actor-scoped repositories (`src/repositories`) и unit of work (`src/*-unit-of-work.ts`), pg client factory; migrator — отдельный entry `@lifeos/db/migrations` | Персональные записи фильтруются по владельцу (`ownership.ts`); module import не открывает соединение |
+| `packages/domain` | Framework-independent правила и сервисы: закрытая регистрация, actor/ownership, реестр сфер, цели, измерения, прогресс, Dashboard, журнал, пример, начальная настройка; порты репозиториев | Нет Next/React/apps imports, Node API в исходниках (build без Node types), SQL и обхода repositories; зависит только от contracts |
 
 Web и worker объявляют зависимости на DB/config/contracts в manifests.
-В текущем production Web нет использования DB client. Production worker
+Web обращается к DB только через repositories и unit of work, которые собирает `server/core.ts`. Production worker
 обращается к очереди через pg-boss, а не через application Drizzle client;
-общая Drizzle transaction продемонстрирована только integration fixture.
+общая транзакция DB и очереди продемонстрирована только integration fixture.
 Пакеты не зависят от приложений; приложения не экспортируются как библиотеки.
 
 Application layer — правило размещения будущих use cases внутри packages,
@@ -67,18 +70,25 @@ NestJS/Prisma, микросервисы или другой стек требу�
 | URL | Файл | Текущее поведение |
 |---|---|---|
 | `/` | `apps/web/app/(web)/page.tsx` | Обзор шести сфер из кодового реестра, без персональных чисел/процентов |
-| `/domains/<key>` (ровно 6 ключей) | `apps/web/app/(web)/domains/[domainKey]/page.tsx` | Публичные страницы метаданных; заглушки общих целей и будущего специализированного модуля; неизвестный ключ — 404 |
+| `/domains/<key>` (ровно 6 ключей) | `apps/web/app/(web)/domains/[domainKey]/page.tsx` | Гостю — описание сферы; после входа — цели сферы и последние действия в ней (LFS-213). Неизвестный ключ — 404 (`proxy.ts`) |
+| `/dashboard` | `apps/web/app/(web)/dashboard` | «Мой кабинет»: шесть сфер, сроки, последние действия (LFS-204, 213), сферы в фокусе (LFS-219) |
+| `/goals`, `/goals/[id]` | `apps/web/app/(web)/goals/(browse)` | Список в `layout.tsx`, панель цели в страницах (LFS-208, 213) |
+| `/goals/new` | `apps/web/app/(web)/goals/new`, `(web)/@modal/(.)goals/new` | Прямой заход — страница, переход внутри приложения — диалог (LFS-212) |
+| `/settings` | `apps/web/app/(web)/settings` | Профиль, выход, timezone/locale (LFS-202, 213) |
+| `/onboarding` | `apps/web/app/(onboarding)/onboarding` | Мастер начальной настройки (LFS-219) |
+| `/auth/sign-in`, `/auth/sign-up`, `/auth/forgot-password`, `/auth/reset-password` | `apps/web/app/(auth)/auth/*` | Формы через Better Auth client; валидация `@lifeos/contracts` |
 | `/telegram` | `apps/web/app/(telegram)/telegram/page.tsx` | Компактная заглушка Mini App, без Telegram SDK/linking |
 | `/api/health` | `apps/web/app/api/health/route.ts` | Dynamic JSON envelope, текущий ISO timestamp, no-store, request/correlation ID |
 | `/api/auth/*` | `apps/web/app/api/auth/[...all]/route.ts` | Better Auth: sign-up/sign-in/sign-out/session/password reset |
-| `/api/v1/me` | `apps/web/app/api/v1/me/route.ts` | Текущий пользователь в envelope; 401 без сессии |
-| `/auth/sign-in`, `/auth/sign-up`, `/auth/forgot-password`, `/auth/reset-password` | `apps/web/app/(auth)/auth/*` | Формы через Better Auth client; валидация `@lifeos/contracts` |
-| `/dashboard`, `/goals` | `apps/web/app/(web)/dashboard`, `goals` | Только с сессией: `requirePageUser()`/`requirePageSession()` на странице + оптимистичный `proxy.ts` (307 гостю). `/dashboard` — шесть сфер, сроки и последние действия (LFS-204) |
-| `/api/v1/dashboard` | `apps/web/app/api/v1/dashboard/route.ts` | Read model Dashboard владельца; 401 без сессии, 400 на любой query |
+| `/api/v1/*` | `apps/web/app/api/v1/**/route.ts` → `apps/web/server/*.ts` | me, preferences, goals, goal-measurements, dashboard, activity, starter-pack, onboarding; 401 без сессии. Список методов — [README](../../README.md#web), DTO — [contracts](../api/contracts.md) |
 | Неизвестный URL | `apps/web/app/not-found.tsx` | HTML 404 |
 
-Единственный root layout — `app/layout.tsx`; `(web)` и `(telegram)` выбирают
-внутренние layouts, но не добавляют URL segments. Явная папка `telegram`
+Защищённые страницы (`/dashboard`, `/goals*`, `/settings`, `/onboarding`, личная часть `/domains/*`) проверяют
+сессию на сервере (`requirePageUser()`/`requirePageSession()`/`getPageSession()`), а оптимистичный `proxy.ts`
+отправляет гостя на вход (307).
+
+Единственный root layout — `app/layout.tsx`; route groups `(web)`, `(auth)`, `(onboarding)` и `(telegram)`
+выбирают внутренние layouts, но не добавляют URL segments. Явная папка `telegram`
 создаёт реальный путь `/telegram`; будущие Mini App routes должны быть
 `/telegram/*`. Путь `/(telegram)/telegram` не является маршрутом.
 Есть loading/error boundaries, skip-link, focus styles и responsive CSS.
@@ -88,8 +98,8 @@ LFS-203: `DOMAIN_KEYS` и Zod `domainKeySchema` находятся в contracts;
 domain строит по ним `LIFE_DOMAINS` с локализуемыми названиями/описаниями,
 статусом, capabilities и стабильными URL. `available` относится к общей
 модели ручных целей, `specializedAvailable` во всём Stage 2 — false.
-Web отдельно сопоставляет ключам иконки/цвета. Общие цели и Dashboard
-реализуются следующими задачами; страницы реестра не читают БД. Дополнительной
+Web отдельно сопоставляет ключам иконки/цвета. В LFS-203 страницы сфер не читали БД;
+с LFS-213 после входа они показывают цели и журнал своей сферы. Дополнительной
 страницы-обзора `/domains`, таблицы `domains` или плагинной системы нет.
 
 ## Env, сборка и imports
@@ -135,7 +145,7 @@ LFS-206: measurement service и DB UOW используют ту же transactio
 Parent goal блокируется перед child; actor/parent unit защищены compound FK.
 Точные измерения, current по measured_at/created_at/id и минимальный аудит
 не требуют projection/worker. Общий receipt расширен target/resource полями
-для replay удаления. Без измерений current=null, проценты ещё не считаются.
+для replay удаления. Без измерений current=null; проценты в LFS-206 ещё не считались, их добавил LFS-207.
 [ADR-009](../adr/009-goal-measurements.md).
 
 LFS-207: восемь HTTP операций `/api/v1/goals*` и
@@ -173,6 +183,32 @@ StatusChip, SegmentedChoice) по [UI_GUIDELINES](../UI_GUIDELINES.md); цвет
 диалогом поверх текущей страницы; прямой заход на `/goals/new` рендерит страницу.
 API, контракты, схема БД и runtime не менялись.
 
+LFS-213: журнал действий `GET /api/v1/activity` — contracts `activity.ts`, DB `createActivityReadRepository`
+(один owner-scoped запрос на существующих индексах), domain `createActivityReader` с общей для Dashboard
+нормализацией записей. `/goals` разделён на route group `goals/(browse)`: список в layout, панель цели в страницах.
+Неизвестная сфера отвечает 404 через rewrite в `proxy.ts`. Миграций нет.
+
+LFS-216: `GoalsService.deleteGoal` и `DELETE /api/v1/goals/:goalId` удаляют активную или архивную цель в одной
+транзакции; FK CASCADE убирает её измерения, события и прежние квитанции. Повтор с тем же ключом отвечает по
+`goal_deletion_receipts` (миграция 0006). Проверка Origin всех записей сравнивает его с `BETTER_AUTH_URL`.
+[ADR-007, дополнение LFS-216](../adr/007-goals.md#дополнение-lfs-216--2026-11-18).
+
+LFS-217: `PATCH` цели принимает определение целиком (единица, старт, цель, направление) и только до первого
+измерения, иначе `CONFLICT`; проверка идёт под той же блокировкой строки цели. Миграций нет.
+[ADR-007, дополнение LFS-217](../adr/007-goals.md#дополнение-lfs-217--2026-11-19).
+
+LFS-218: пример по выбору пользователя — `createStarterPackService` (`apply`, `remove`),
+`POST`/`DELETE /api/v1/starter-pack`. `Goal.origin` (`manual` | `starter` | `onboarding`) ставит только сервер;
+источник измерений `example`, флаг `example` в журнале и Dashboard, квитанции `starter_pack_receipts`
+(миграция 0007). Автоматически пример не получает ни один аккаунт. Дополнения LFS-218 к ADR-007, 008, 009.
+
+LFS-219: мастер начальной настройки. Каталог вопросов v1 — данные в domain (`ONBOARDING_QUESTIONS`; для браузера
+отдельный вход `@lifeos/domain/onboarding` без сервисов). `createOnboardingService` (`get`, `saveDraft`, `complete`)
+и `createOnboardingUnitOfWork`: отмеченные цели (`origin = onboarding`), профиль, состояние и квитанция в одной
+транзакции. Таблицы `onboarding_state`, `onboarding_receipts`, колонки `user.focus_domains` и `user.checkin_rhythm`
+(миграция 0008). HTTP `GET`/`PUT /api/v1/onboarding`, `POST /api/v1/onboarding/complete`; страница `/onboarding`
+в route group `(onboarding)`, защищена в `proxy.ts`. [ADR-012](../adr/012-onboarding.md).
+
 ## Проверка и handoff
 
 Полная цепочка — `pnpm verify`: frozen install, lint/types, unit, test
@@ -180,5 +216,5 @@ migrations, PostgreSQL integration, builds и build smoke. CI и огранич�
 [CI](../CI.md). Модель данных: [database schema](database-schema.md).
 Очередь/транзакции: [worker](worker.md). Процесс работы:
 [development workflow](../DEVELOPMENT_WORKFLOW.md).
-Фактическая приёмка и незакрытые пункты —
-[Stage 1 acceptance](../tasks/STAGE-01-ACCEPTANCE.md).
+Текущий статус и следующая задача — [docs/tasks/README.md](../tasks/README.md). Приёмка и незакрытые пункты —
+[Stage 1](../tasks/STAGE-01-ACCEPTANCE.md), [Stage 2](../tasks/STAGE-02-ACCEPTANCE.md).

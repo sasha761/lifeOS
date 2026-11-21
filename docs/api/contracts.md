@@ -1,4 +1,4 @@
-# API-контракты · Foundation
+# API-контракты
 
 Источник схем и типов — `@lifeos/contracts` (Zod 4.6.7, `z.infer`). Пакет
 не зависит от приложений, Node.js или env; DTO пригодны для браузера и worker.
