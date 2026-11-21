@@ -9,7 +9,7 @@ import { SettingsNav } from "@/components/settings/settings-nav";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { localeOptions, timeZoneOptions } from "@/lib/user-preferences";
-import { requirePageSession } from "@/server/auth";
+import { getSignupMode, requirePageSession } from "@/server/auth";
 import { getOnboardingService, getUserPreferencesService } from "@/server/core";
 
 export const metadata: Metadata = { title: "Настройки" };
@@ -39,7 +39,11 @@ export default async function SettingsPage() {
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <Link href="/auth/forgot-password" className="action-link-secondary action-compact">Изменить пароль</Link>
-              <p className="min-w-0 flex-1 basis-64 text-xs leading-5 text-muted-foreground">Регистрация закрыта: войти могут только адреса из списка доступа. Пароль меняется по ссылке из письма.</p>
+              <p className="min-w-0 flex-1 basis-64 text-xs leading-5 text-muted-foreground">
+                {/* Mockup 16 shows the closed-registration note; with open registration (LFS-221) it is omitted. */}
+                {getSignupMode() === "allowlist" && "Регистрация закрыта: новые аккаунты создаются только для адресов из списка доступа. "}
+                Пароль меняется по ссылке из письма.
+              </p>
             </div>
             <div className="flex border-t pt-3.5"><SignOutButton /></div>
           </SectionCard>

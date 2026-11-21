@@ -20,7 +20,7 @@
 | [002, дополнение](002-queue-atomicity.md) | Атомарность записи в БД и постановки в pg-boss, идемпотентность | Accepted | 2026-11-12 | LFS-107 |
 | [003](003-runtime-boundaries.md) | Один Next.js app и отдельный Node.js worker | Accepted | 2026-11-08 | LFS-102, 103, 105, 109 |
 | [004](004-next-routing.md) | Явные Mini App URL и общий root layout | Accepted | 2026-11-12 | LFS-103, 109 |
-| [005](005-auth.md) | Better Auth, закрытая регистрация, сброс пароля | Accepted | 2026-11-14 | LFS-201 |
+| [005](005-auth.md) | Better Auth, режим регистрации (открытая по умолчанию или allowlist), сброс пароля | Accepted, дополнение LFS-221 | 2026-11-14 | LFS-201, 221 |
 | [006](006-actor-ownership.md) | Actor из сессии, ownership ресурсов, timezone/locale | Accepted | 2026-11-15 | LFS-202 |
 | [007](007-goals.md) | Ручные цели, точные decimal-значения, неизменяемое определение | Accepted, дополнения LFS-216–219 | 2026-11-15 | LFS-205, 216–219 |
 | [008](008-transactional-audit.md) | Транзакционный аудит целей и квитанции повторных команд | Accepted, дополнения LFS-216, 218 | 2026-11-15 | LFS-210, 216, 218 |

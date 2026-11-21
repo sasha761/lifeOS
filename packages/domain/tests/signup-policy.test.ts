@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { createSignupPolicy, normalizeEmail } from "../src/index.ts";
+import { createOpenSignupPolicy, createSignupPolicy, normalizeEmail } from "../src/index.ts";
+
+describe("open registration policy", () => {
+  it("allows any non-empty email and rejects blank input", () => {
+    const policy = createOpenSignupPolicy();
+    expect(policy.mode).toBe("open");
+    for (const email of ["owner@example.com", "  Someone@Example.ORG "]) expect(policy.isAllowed(email)).toBe(true);
+    for (const email of ["", "   "]) expect(policy.isAllowed(email)).toBe(false);
+  });
+});
 
 describe("closed registration policy", () => {
   it("matches allowlisted emails case-insensitively after trimming", () => {
     const policy = createSignupPolicy([" Owner@Example.COM ", "second@example.org"]);
+    expect(policy.mode).toBe("allowlist");
     expect(policy.size).toBe(2);
     for (const email of ["owner@example.com", "  OWNER@example.com", "Second@Example.org "]) expect(policy.isAllowed(email)).toBe(true);
   });

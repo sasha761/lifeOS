@@ -40,7 +40,7 @@ export function SignUpForm() {
     setPending(true);
     let navigating = false;
     try {
-      // The allowlist is enforced by the server; this form cannot bypass it.
+      // Who may register (open or allowlist mode) is decided by the server; this form cannot bypass it.
       const { error } = await authClient.signUp.email(parsed.data);
       if (error) {
         setFormError(signUpErrorMessage(error));

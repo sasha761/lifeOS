@@ -108,12 +108,14 @@ HTTP Idempotency-Key protocol или user-scoped replay ответов. Его �
 | Config | Обязательные | Необязательные |
 |---|---|---|
 | database | `DATABASE_URL` | — |
-| web | `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `MAIL_TRANSPORT`, `MAIL_FROM`; `MAIL_OUTBOX_DIR` при outbox, `SMTP_URL` при smtp | `NODE_ENV`: development/test/production, default development; `AUTH_SIGNUP_ALLOWLIST`: default пусто (регистрация закрыта) |
+| web | `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `MAIL_TRANSPORT`, `MAIL_FROM`; `MAIL_OUTBOX_DIR` при outbox, `SMTP_URL` при smtp | `NODE_ENV`: development/test/production, default development; `AUTH_SIGNUP_MODE`: open/allowlist, default open; `AUTH_SIGNUP_ALLOWLIST`: default пусто (в режиме allowlist — регистрация закрыта) |
 | worker | `DATABASE_URL` | `NODE_ENV`, `WORKER_QUEUE_SCHEMA`: default pgboss |
 
 Auth/mail (LFS-201): `BETTER_AUTH_SECRET` — 32–512 символов без пробелов и
 placeholder-значений; `BETTER_AUTH_URL` — http(s) origin без path/query/
-credentials; `AUTH_SIGNUP_ALLOWLIST` — до 100 email через запятую;
+credentials; `AUTH_SIGNUP_MODE` — `open` (регистрируется любой email) или
+`allowlist` (LFS-221); `AUTH_SIGNUP_ALLOWLIST` — до 100 email через запятую,
+читается только в режиме `allowlist`;
 `MAIL_TRANSPORT=outbox` запрещён при `NODE_ENV=production`; `SMTP_URL` —
 `smtp://` или `smtps://`. Web читает результат как `mail: { transport, from,
 directory | url }`. Значения, включая SMTP credentials, в ошибки не попадают.
@@ -146,7 +148,7 @@ Better Auth 1.7.18 обслуживает `/api/auth/*` своим JSON-форм
 
 | Endpoint | Назначение | Основные ответы |
 |---|---|---|
-| `POST /api/auth/sign-up/email` | Регистрация `{ name, email, password }` | 200 + cookie; 403 `SIGNUP_NOT_ALLOWED` вне allowlist; 422 `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL`; 400 длина пароля |
+| `POST /api/auth/sign-up/email` | Регистрация `{ name, email, password }` | 200 + cookie; 403 `SIGNUP_NOT_ALLOWED` только в режиме `allowlist` для email вне списка; 422 `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL`; 400 длина пароля |
 | `POST /api/auth/sign-in/email` | Вход `{ email, password }` | 200 + cookie; 401 `INVALID_EMAIL_OR_PASSWORD` |
 | `POST /api/auth/sign-out` | Удаляет серверную сессию | 200 |
 | `POST /api/auth/request-password-reset` | `{ email, redirectTo: "/auth/reset-password" }` | 200 одинаково для известных и неизвестных email; 503 `EMAIL_DELIVERY_FAILED`, если письмо не отправлено |

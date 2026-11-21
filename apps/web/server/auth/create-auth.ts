@@ -73,7 +73,7 @@ export function createAuth(dependencies: AuthDependencies) {
       }),
     },
     user: {
-      // Server-side closed registration. Runs for every user creation path; sign-in is not affected.
+      // Server-side registration rule (open or allowlist). Runs for every user creation path; sign-in is not affected.
       validateUserInfo: ({ user, source }) => {
         if (source.action !== "create-user") return;
         if (typeof user.email === "string" && signupPolicy.isAllowed(user.email)) return;

@@ -7,7 +7,7 @@ import { SignInForm } from "@/components/auth/sign-in-form";
 import { safeRedirectPath } from "@/lib/safe-redirect";
 import { firstParam } from "@/lib/search-params";
 import type { SearchParams } from "@/lib/search-params";
-import { getPageUser } from "@/server/auth";
+import { getPageUser, getSignupMode } from "@/server/auth";
 
 export const metadata: Metadata = { title: "Вход" };
 
@@ -24,7 +24,9 @@ export default async function SignInPage({ searchParams }: { searchParams: Searc
         <>
           <Link href="/auth/forgot-password" className={textLinkClass}>Забыли пароль?</Link>
           <p className="text-muted-foreground">
-            Нет аккаунта? <Link href="/auth/sign-up" className={textLinkClass}>Регистрация по приглашению</Link>
+            Нет аккаунта? <Link href="/auth/sign-up" className={textLinkClass}>
+              {getSignupMode() === "open" ? "Зарегистрироваться" : "Регистрация по приглашению"}
+            </Link>
           </p>
         </>
       )}

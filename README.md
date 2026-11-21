@@ -161,9 +161,12 @@ lifeos_test. Это отдельные instances/roles/passwords/volumes. Миг
 
 `pnpm db:env` для нового `.env` генерирует и `BETTER_AUTH_SECRET`. Если `.env`
 создан раньше, добавьте ключи из [.env.example](.env.example): секрет 32+
-символов, `BETTER_AUTH_URL`, `MAIL_*`. Регистрация закрыта: впишите свой email в
-`AUTH_SIGNUP_ALLOWLIST` (через запятую, регистр не важен) и выполните
-`pnpm db:migrate`. Затем откройте `/auth/sign-up`.
+символов, `BETTER_AUTH_URL`, `MAIL_*`. Выполните `pnpm db:migrate` и откройте
+`/auth/sign-up`: по умолчанию (`AUTH_SIGNUP_MODE=open`) зарегистрироваться
+может любой email, подтверждения адреса нет. Чтобы закрыть регистрацию,
+задайте `AUTH_SIGNUP_MODE=allowlist` и перечислите разрешённые адреса в
+`AUTH_SIGNUP_ALLOWLIST` (через запятую, регистр не важен; пусто — никто).
+Вход уже зарегистрированных пользователей режим не ограничивает.
 
 Письма восстановления доступа в dev/test не отправляются наружу: с
 `MAIL_TRANSPORT=outbox` каждое письмо — JSON-файл в `.cache/dev-mail`
@@ -258,7 +261,7 @@ TEST_DATABASE_URL. Каждый этап возвращает реальный e
 | `pnpm test` | Unit suites шести workspace (web, config, contracts, db, domain, worker) |
 | `pnpm db:migrate:test` | Только dedicated TEST_DATABASE_URL, без удаления DB |
 | `pnpm test:db` | Migration/CLI/atomicity/dedupe/replay на PostgreSQL |
-| `pnpm test:web` | Better Auth + PostgreSQL: allowlist, сессии, logout, reset, 401 |
+| `pnpm test:web` | Better Auth + PostgreSQL: открытая регистрация и allowlist, сессии, logout, reset, 401 |
 | `pnpm test:worker` | Отдельные worker/CLI, retry и shutdown на PostgreSQL |
 | `pnpm test:integration` | DB, Web, затем worker suites |
 | `pnpm test:ui` | Сборка + Playwright UI целей в изолированной test schema, desktop/mobile |

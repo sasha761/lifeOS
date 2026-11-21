@@ -7,7 +7,7 @@ import { currentUserResponseSchema, EMAIL_DELIVERY_FAILED, SIGNUP_NOT_ALLOWED } 
 import { createDatabase, databaseErrorMessage, readTestDatabaseUrl } from "@lifeos/db";
 import { applyMigrations } from "@lifeos/db/migrations";
 import type { DatabaseClient } from "@lifeos/db";
-import { createSignupPolicy } from "@lifeos/domain";
+import { createOpenSignupPolicy, createSignupPolicy } from "@lifeos/domain";
 import { AUTH_COOKIE_PREFIX, createAuth } from "../../server/auth/create-auth.ts";
 import type { Auth, AuthDependencies } from "../../server/auth/create-auth.ts";
 import { createCurrentUserRoute } from "../../server/auth/session.ts";
@@ -177,6 +177,23 @@ describe("closed registration", () => {
     const response = await signIn(allowed.owner, "wrong-password-123");
     expect(response.status).toBe(401);
     expect(response.headers.getSetCookie().some((value) => value.startsWith(`${AUTH_COOKIE_PREFIX}.session_token=`))).toBe(false);
+  });
+});
+
+describe("open registration (LFS-221)", () => {
+  it("registers an email outside any list, still rejects a duplicate and keeps sign-in unchanged", async () => {
+    const open = createAuth({ ...dependencies, signupPolicy: createOpenSignupPolicy() });
+    const newcomer = `newcomer-${run}@example.test`;
+    const response = await signUp(`Newcomer-${run}@Example.TEST`, open);
+    expect(response.status).toBe(200);
+    sessionCookie(response);
+    const rows = await databaseOperation(() => connection().pool.query<{ count: number }>(`SELECT count(*)::int AS count FROM "user" WHERE email = $1`, [newcomer]));
+    expect(rows.rows[0]?.count).toBe(1);
+    const duplicate = await signUp(newcomer, open);
+    expect(duplicate.status).toBe(422);
+    expect(duplicate.headers.getSetCookie().some((value) => value.startsWith(`${AUTH_COOKIE_PREFIX}.session_token=`))).toBe(false);
+    expect((await signIn(newcomer, password, open)).status).toBe(200);
+    expect((await signIn(allowed.owner, password, open)).status).toBe(200);
   });
 });
 

@@ -52,7 +52,7 @@ React render или instrumentation. Доменная логика не долж
 | `packages/contracts` | Zod schemas и inferred DTO: health envelope, IDs, ошибки, цели, измерения, журнал, Dashboard, пример, начальная настройка, demo payload | Нет зависимости от apps, React, Next или env; можно использовать в browser |
 | `packages/config` | Strict tsconfig, ESLint config; отдельный Node export `./env` | Tooling exports не читают env; runtime parser вызывается явно |
 | `packages/db` | Drizzle schema (Better Auth, цели, измерения, события, квитанции, начальная настройка, техническая fixture), actor-scoped repositories (`src/repositories`) и unit of work (`src/*-unit-of-work.ts`), pg client factory; migrator — отдельный entry `@lifeos/db/migrations` | Персональные записи фильтруются по владельцу (`ownership.ts`); module import не открывает соединение |
-| `packages/domain` | Framework-independent правила и сервисы: закрытая регистрация, actor/ownership, реестр сфер, цели, измерения, прогресс, Dashboard, журнал, пример, начальная настройка; порты репозиториев | Нет Next/React/apps imports, Node API в исходниках (build без Node types), SQL и обхода repositories; зависит только от contracts |
+| `packages/domain` | Framework-independent правила и сервисы: политика регистрации (open/allowlist), actor/ownership, реестр сфер, цели, измерения, прогресс, Dashboard, журнал, пример, начальная настройка; порты репозиториев | Нет Next/React/apps imports, Node API в исходниках (build без Node types), SQL и обхода repositories; зависит только от contracts |
 
 Web и worker объявляют зависимости на DB/config/contracts в manifests.
 Web обращается к DB только через repositories и unit of work, которые собирает `server/core.ts`. Production worker
