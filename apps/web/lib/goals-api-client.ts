@@ -2,7 +2,8 @@ import type { z } from "zod";
 import { apiFailureSchema, apiSuccessSchema } from "@lifeos/contracts";
 
 export class GoalRequestError extends Error {
-  constructor(readonly status: number, readonly uncertain: boolean, message: string) { super(message); }
+  /** `field`: the rejected item named by the server (LFS-219: the proposed goal of the onboarding wizard). */
+  constructor(readonly status: number, readonly uncertain: boolean, message: string, readonly field?: string) { super(message); }
 }
 const errorMessage = (status: number) => status === 401 ? "Сессия закончилась. Войдите снова." : status === 404 ? "Запись не найдена или недоступна."
   : status === 403 ? "Сервер отклонил источник запроса. Откройте приложение по его основному адресу."
@@ -13,13 +14,14 @@ async function responseData<T extends z.ZodType>(response: Response, schema: T):
   try { body = await response.json(); } catch { throw new GoalRequestError(response.status, true, "Не удалось проверить ответ сервера. Повторите запрос."); }
   const parsed = apiSuccessSchema(schema).safeParse(body);
   if (response.ok && parsed.success && body !== null && typeof body === "object" && "data" in body) return schema.parse(body.data);
-  const definitive = [400, 401, 403, 404, 409].includes(response.status) && apiFailureSchema.safeParse(body).success;
-  throw new GoalRequestError(response.status, !definitive, errorMessage(response.status));
+  const failure = apiFailureSchema.safeParse(body);
+  const definitive = [400, 401, 403, 404, 409].includes(response.status) && failure.success;
+  throw new GoalRequestError(response.status, !definitive, errorMessage(response.status), failure.success ? failure.data.errors[0]?.field : undefined);
 }
 export async function getGoalsData<T extends z.ZodType>(url: string, schema: T, signal?: AbortSignal): Promise<z.infer<T>> {
   return responseData(await fetch(url, { credentials: "same-origin", cache: "no-store", signal }), schema);
 }
-type Command = { url: string; method: "POST" | "PATCH" | "DELETE"; body?: unknown };
+type Command = { url: string; method: "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown };
 /** An unresolved attempt is immutable. A retry uses the exact body and key, including after a 500. */
 export function createGoalCommand(fetcher: typeof fetch = fetch, key: () => string = () => crypto.randomUUID()) {
   let attempt: { signature: string; key: string; command: Command } | undefined;

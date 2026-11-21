@@ -4,6 +4,7 @@ import type { Actor } from "@lifeos/domain";
 import type { LifeosTransaction } from "./client.ts";
 import { ownedBy } from "./ownership.ts";
 import { goalDeletionReceipts } from "./schema/goal-deletion-receipts.ts";
+import { onboardingReceipts } from "./schema/onboarding.ts";
 import { starterPackReceipts } from "./schema/starter-pack-receipts.ts";
 
 /** Called while holding the shared owner/key advisory lock, including by legacy goal/measurement commands. */
@@ -17,6 +18,16 @@ export async function findStarterPackReceipt(transaction: LifeosTransaction, act
   const [receipt] = await transaction.select().from(starterPackReceipts)
     .where(ownedBy(starterPackReceipts.userId, actor, eq(starterPackReceipts.idempotencyKey, key))).limit(1);
   return receipt;
+}
+/** «Создать N целей» of the onboarding wizard (LFS-219) shares the owner/key namespace too. */
+export async function findOnboardingReceipt(transaction: LifeosTransaction, actor: Actor, key: string) {
+  const [receipt] = await transaction.select().from(onboardingReceipts)
+    .where(ownedBy(onboardingReceipts.userId, actor, eq(onboardingReceipts.idempotencyKey, key))).limit(1);
+  return receipt;
+}
+/** One lock per owner for completing the wizard: two completions (other keys, other tabs) run one after the other. */
+export async function lockOnboarding(transaction: LifeosTransaction, actor: Actor): Promise<void> {
+  await transaction.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${JSON.stringify(["onboarding", actor.userId])}, 0))`);
 }
 /** One lock per owner for the example: two loads (other keys, other tabs) never produce two sets. */
 export async function lockStarterPack(transaction: LifeosTransaction, actor: Actor): Promise<void> {

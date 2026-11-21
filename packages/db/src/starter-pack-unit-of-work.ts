@@ -3,10 +3,11 @@ import { goalCommandOptionsSchema } from "@lifeos/contracts";
 import type { StarterPackUnitOfWork } from "@lifeos/domain";
 import type { LifeosDatabase } from "./client.ts";
 import { createActivityEventWriter } from "./activity-event-writer.ts";
-import { commandFingerprint, findGoalDeletionReceipt, lockCommandKey, lockStarterPack } from "./command-idempotency.ts";
+import { commandFingerprint, findGoalDeletionReceipt, findOnboardingReceipt, lockCommandKey, lockStarterPack } from "./command-idempotency.ts";
 import { ownedBy } from "./ownership.ts";
 import { createGoalMeasurementsRepository } from "./repositories/goal-measurements.ts";
 import { createGoalsRepository } from "./repositories/goals.ts";
+import { createOnboardingStateRepository } from "./repositories/onboarding.ts";
 import { createStarterPackRepository } from "./repositories/starter-pack.ts";
 import { goalCommandReceipts } from "./schema/activity-events.ts";
 import { starterPackReceipts } from "./schema/starter-pack-receipts.ts";
@@ -30,13 +31,15 @@ export function createStarterPackUnitOfWork(database: LifeosDatabase): StarterPa
           : { kind: "conflict" };
         const [goalReceipt] = await transaction.select({ key: goalCommandReceipts.idempotencyKey }).from(goalCommandReceipts)
           .where(ownedBy(goalCommandReceipts.userId, actor, eq(goalCommandReceipts.idempotencyKey, command.idempotencyKey))).limit(1);
-        if (goalReceipt || await findGoalDeletionReceipt(transaction, actor, command.idempotencyKey)) return { kind: "conflict" };
+        if (goalReceipt || await findGoalDeletionReceipt(transaction, actor, command.idempotencyKey)
+          || await findOnboardingReceipt(transaction, actor, command.idempotencyKey)) return { kind: "conflict" };
         await lockStarterPack(transaction, actor);
         const result = await operation({
           goals: createGoalsRepository(transaction, { lockRows: true }),
           measurements: createGoalMeasurementsRepository(transaction),
           examples: createStarterPackRepository(transaction),
           events: createActivityEventWriter(transaction, actor, { idempotencyKey: command.idempotencyKey, source: command.eventSource }),
+          onboarding: createOnboardingStateRepository(transaction),
         });
         for (const value of [result.goals, result.measurements]) if (!Number.isSafeInteger(value) || value < 0) throw new Error("Invalid starter pack result.");
         await transaction.insert(starterPackReceipts).values({ userId: actor.userId, idempotencyKey: command.idempotencyKey, requestHash: hash,

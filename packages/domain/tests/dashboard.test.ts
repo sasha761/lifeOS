@@ -29,7 +29,7 @@ function activity(value: Goal, type: Parameters<typeof event>[1], occurredAt: st
   return { event: event(value, type, occurredAt, userId), goal: value };
 }
 function reader(data: Partial<DashboardReadRecord>) {
-  const repository: DashboardReadRepository = { read: vi.fn(async () => ({ counts: [], domainGoals: [], dueGoals: [], activity: [], exampleMeasurements: 0, ...data })) };
+  const repository: DashboardReadRepository = { read: vi.fn(async (): Promise<DashboardReadRecord> => ({ counts: [], domainGoals: [], dueGoals: [], activity: [], exampleMeasurements: 0, focusDomains: null, onboardingStatus: null, ...data })) };
   return { repository, service: createDashboardReader(repository) };
 }
 
@@ -42,6 +42,17 @@ describe("dashboard of the six registry spheres", () => {
     expect(dashboard.today.dueGoals).toEqual([]); expect(dashboard.activity).toEqual([]);
     expect(dashboardSchema.parse(dashboard)).toEqual(dashboard);
     expect(repository.read).toHaveBeenCalledExactlyOnceWith(actor, DASHBOARD_LIMITS);
+  });
+
+  it("shows the first-visit popup only without any goal and with a setup not started or in progress (LFS-220)", async () => {
+    const show = async (data: Partial<DashboardReadRecord>) => (await reader(data).service.get(actor)).onboarding;
+    expect(await show({})).toEqual({ status: "not_started", show_start: true });
+    expect(await show({ onboardingStatus: "in_progress" })).toEqual({ status: "in_progress", show_start: true });
+    expect(await show({ onboardingStatus: "dismissed" })).toEqual({ status: "dismissed", show_start: false });
+    expect(await show({ onboardingStatus: "completed" })).toEqual({ status: "completed", show_start: false });
+    // An archived goal counts as a goal: the account is not empty.
+    expect(await show({ counts: [{ domainKey: "work", status: "archived", origin: "manual", total: 1 }] })).toEqual({ status: "not_started", show_start: false });
+    expect(dashboardSchema.parse(await reader({}).service.get(actor)).onboarding.show_start).toBe(true);
   });
 
   it("uses exact counts and the same GoalDetails as the goal page, newest first and bounded per sphere", async () => {

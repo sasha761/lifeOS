@@ -1,10 +1,29 @@
-# Database: реализованная схема и следующий этап
+# Database: реализованная схема
 
 Источник application schema — `packages/db/src/schema`; SQL и история
 генерации — `packages/db/drizzle`. Источник текущих данных не следует путать
 с таблицами, перечисленными как будущие в Master Plan.
 
-## Application DB: реализовано
+## Миграции и таблицы
+
+Разделы ниже дописывались по ходу задач, поэтому идут не по порядку миграций. Навигация:
+
+| Миграция | Задача | Что добавляет | Раздел |
+|---|---|---|---|
+| `0000_smiling_reavers` | LFS-104 | `foundation_migration_fixture` | [Техническая fixture](#техническая-fixture-и-журнал-миграций) |
+| `0001_better_auth` | LFS-201 | `user`, `session`, `account`, `verification` | [Auth](#auth-lfs-201) |
+| `0002_user_preferences` | LFS-202 | `user.timezone`, `user.locale` | [User preferences](#user-preferences-lfs-202) |
+| `0003_goals` | LFS-205 | `goals` | [Goals](#goals--lfs-205) |
+| `0004_activity_events` | LFS-210 | `activity_events`, `goal_command_receipts` | [Activity events](#activity-events-и-command-receipts--lfs-210) |
+| `0005_goal_measurements` | LFS-206 | `goal_measurements`; `goal_command_receipts.resource_type`, `target_id` | [Goal measurements](#goal-measurements--lfs-206) |
+| `0006_goal_deletion_receipts` | LFS-216 | `goal_deletion_receipts` | [Квитанции удаления](#квитанции-удаления-целей--lfs-216) |
+| `0007_starter_pack` | LFS-218 | `goals.origin`, `starter_pack_receipts` | [Пример по выбору](#пример-по-выбору--lfs-218) |
+| `0008_onboarding` | LFS-219 | `onboarding_state`, `onboarding_receipts`; `user.focus_domains`, `user.checkin_rhythm` | [Начальная настройка](#начальная-настройка--lfs-219) |
+
+Очередь pg-boss создаёт свои объекты сама — [Queue schema](#queue-schema). Новая миграция добавляет строку
+в эту таблицу и свой раздел.
+
+## Техническая fixture и журнал миграций
 
 `0000_smiling_reavers.sql` создаёт только `public.foundation_migration_fixture`:
 
@@ -85,6 +104,23 @@ journal и pg-boss не меняются (проверено тестом и н�
 public 1 → 5 таблиц, journal 1 → 2, pgboss 13 → 13).
 `@lifeos/db` экспортирует client/schema; migrator — отдельный entry
 `@lifeos/db/migrations`, чтобы Next.js bundle не включал SQL и migrator.
+
+## Начальная настройка · LFS-219
+
+Миграция `0008_onboarding.sql`:
+
+- `onboarding_state`: `user_id text` PK, FK `user.id CASCADE`; `status text NOT NULL DEFAULT 'not_started'` + CHECK
+  `not_started|in_progress|completed|dismissed`; `choice` null или `example|wizard|blank`; `answers jsonb` null или
+  объект до 64 КБ; `catalog_version integer ≥ 1`; `completed_at timestamptz(3)`, обязателен при `completed`;
+  `updated_at timestamptz(3)`.
+- `onboarding_receipts`: PK `(user_id, idempotency_key)`, SHA-256 `request_hash`, `goals ≥ 1`,
+  `created_at timestamptz(3)`. FK `user_id → user.id CASCADE`, FK на цели нет.
+- `user.focus_domains text[]` (null или до 6 ключей реестра) и `user.checkin_rhythm text`
+  (null или `daily|few_per_week|weekly|self`). Существующие строки получают null.
+
+Отсутствие строки `onboarding_state` означает `not_started`. Политика — [ADR-012](../adr/012-onboarding.md).
+С LFS-220 в ту же таблицу пишут попап первого входа (`in_progress`/`wizard`, `dismissed`/`blank`) и загрузка примера
+(`completed`/`example`), а `user.checkin_rhythm` меняется ещё и в Настройках. Схема не менялась.
 
 ## User preferences (LFS-202)
 
@@ -283,7 +319,7 @@ Legacy goal target_id=null остаётся валидным, fingerprint пре
 goals/events/receipts не переписываются, вымышленных измерений/backfill нет.
 Measurement mutation/event/receipt атомарны; note contents не аудируются.
 
-## Stage 2: следующие модели и API
+## Чтение целей, ownership и будущие модели
 
 LFS-207 читает goal/count/latest/audit-time в едином READ ONLY REPEATABLE READ
 snapshot, без нового DDL. `progress.updatedAt` учитывает max audit occurred_at,
@@ -292,7 +328,7 @@ History HTTP использует cursor/limit и возвращает count в�
 старый domain history method LFS-206 остаётся bounded reader до 100.
 [ADR-010](../adr/010-goals-api-progress.md).
 
-Goals UI появится в следующей задаче. Каждая персональная
+Каждая персональная
 запись должна иметь user_id или проверяемую связь с владельцем; repositories
 проверяют ownership на сервере. Реестр шести сфер реализован в коде (LFS-203),
 не как универсальная таблица domains. Общего «процента успешности жизни» нет.
@@ -301,4 +337,4 @@ Telegram identities, conversations, AI runs и учебные модели от�
 
 Технический API client/migrator: [DB README](../../packages/db/README.md).
 Команды запуска: [root README](../../README.md). Состояние проверок:
-[Stage 1 acceptance](../tasks/STAGE-01-ACCEPTANCE.md).
+[Stage 1 acceptance](../tasks/STAGE-01-ACCEPTANCE.md), [Stage 2 acceptance](../tasks/STAGE-02-ACCEPTANCE.md).

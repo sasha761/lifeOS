@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import type { z } from "zod";
 import type { DomainKey, Goal, GoalDetails, UserPreferences } from "@lifeos/contracts";
 import { FormAlert } from "../auth/form-parts.tsx";
+import { ModalDialog } from "../ui/modal-dialog.tsx";
 import { StatusChip } from "../ui/status-chip.tsx";
 import { createGoalCommand, getGoalsData, GoalRequestError } from "../../lib/goals-api-client.ts";
 import { formatGoalNumber, formatGoalPercent, formatGoalValue } from "../../lib/goal-presentation.ts";
@@ -35,14 +36,16 @@ export function useGoalData<T extends z.ZodType>(url: string, schema: T) {
 export function useGoalMutation() {
   const client = useRef<ReturnType<typeof createGoalCommand> | null>(null);
   const lock = useRef(false);
-  const retry = useRef<{ url: string; method: "POST" | "PATCH" | "DELETE"; body?: unknown } | null>(null);
+  const retry = useRef<{ url: string; method: "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown } | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uncertain, setUncertain] = useState(false);
-  return { pending, error, uncertain,
-    async save<T extends z.ZodType>(command: { url: string; method: "POST" | "PATCH" | "DELETE"; body?: unknown }, schema: T, saved: (value: z.infer<T>) => void) {
+  // HTTP status of the last definitive failure (LFS-220: a 409 of the example or the setup gets its own message).
+  const [status, setStatus] = useState<number | null>(null);
+  return { pending, error, uncertain, status,
+    async save<T extends z.ZodType>(command: { url: string; method: "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown }, schema: T, saved: (value: z.infer<T>) => void) {
       if (lock.current) return;
-      lock.current = true; setPending(true); setError(null);
+      lock.current = true; setPending(true); setError(null); setStatus(null);
       client.current ??= createGoalCommand();
       try {
         const value = await client.current.run(retry.current ?? command, schema);
@@ -53,6 +56,7 @@ export function useGoalMutation() {
         const unresolved = error instanceof GoalRequestError && error.uncertain;
         retry.current = unresolved ? retry.current ?? command : null;
         setUncertain(unresolved);
+        setStatus(error instanceof GoalRequestError && !unresolved ? error.status : null);
         setError(error instanceof GoalRequestError ? error.message : "Не удалось сохранить изменения.");
       } finally { lock.current = false; setPending(false); }
     },
@@ -112,28 +116,10 @@ export function GoalAmount({ value, preferences, percentTestId }: { value: GoalD
   </span>;
 }
 export function Modal({ title, children, close, busy = false, role = "dialog", describedBy }: { title: string; children: ReactNode; close(): void; busy?: boolean; role?: "dialog" | "alertdialog"; describedBy?: string }) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const previous = document.activeElement;
-    const element = dialog.current;
-    element?.showModal();
-    // React's autoFocus runs while the native dialog is still closed. Focus explicitly after showModal.
-    element?.querySelector<HTMLElement>("[data-dialog-initial-focus]")?.focus();
-    return () => { element?.close(); if (previous instanceof HTMLElement && previous.isConnected) previous.focus(); };
-  }, []);
-  return <dialog ref={dialog} role={role} aria-modal="true" aria-labelledby="goal-dialog-title" aria-describedby={describedBy} onCancel={(event) => { event.preventDefault(); if (!busy) close(); }}
-    onKeyDown={(event) => {
-      if (event.key !== "Tab" || event.ctrlKey || event.altKey || event.metaKey) return;
-      const controls = [...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex='-1'])")]
-        .filter((control) => control.getClientRects().length > 0);
-      const first = controls[0]; const last = controls.at(-1);
-      if (!first || !last) { event.preventDefault(); return; }
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    }}
-    className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[560px] overflow-y-auto rounded-[20px] border bg-card px-5 py-5 text-foreground shadow-dialog backdrop:bg-background/75 sm:px-6 sm:py-[22px]">
+  return <ModalDialog role={role} labelledBy="goal-dialog-title" describedBy={describedBy} busy={busy} onClose={close}
+    className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[560px] rounded-[20px] px-5 py-5 sm:px-6 sm:py-[22px]">
     <div className="mb-3.5 flex items-center justify-between gap-4"><h2 id="goal-dialog-title" className="text-base leading-[22px] font-bold">{title}</h2>
-      <CloseButton disabled={busy} onClick={close} /></div>{children}</dialog>;
+      <CloseButton disabled={busy} onClick={close} /></div>{children}</ModalDialog>;
 }
 /** Round ✕ button of dialogs (mockup `.ib`); the accessible name stays «Закрыть». */
 export function CloseButton({ onClick, disabled }: { onClick(): void; disabled?: boolean }) {

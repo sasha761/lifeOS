@@ -1,4 +1,4 @@
-import { createGoalInputSchema, goalCommandOptionsSchema, goalValueMatchesUnit, STARTER_PACK_VERSION } from "@lifeos/contracts";
+import { createGoalInputSchema, goalCommandOptionsSchema, goalValueMatchesUnit, ONBOARDING_CATALOG_VERSION, STARTER_PACK_VERSION } from "@lifeos/contracts";
 import type { Goal, GoalCommandOptions, StarterPackApplied, StarterPackRemoved } from "@lifeos/contracts";
 import type { Actor } from "./actor.ts";
 import { ConflictError, InvalidInputError } from "./errors.ts";
@@ -6,6 +6,7 @@ import { goalAuditSnapshot, measurementSnapshot } from "./events.ts";
 import type { ActivityEventWriter } from "./events.ts";
 import type { GoalMeasurementsRepository } from "./goal-measurements.ts";
 import type { GoalsRepository } from "./goals.ts";
+import type { OnboardingStateRepository } from "./onboarding.ts";
 import { requireFound, requireOwned } from "./ownership.ts";
 
 /** Note of every example measurement: it says what to do with it, it is never presented as the person's data. */
@@ -38,6 +39,8 @@ export type StarterPackTransaction = {
   measurements: Pick<GoalMeasurementsRepository, "create">;
   examples: StarterPackRepository;
   events: ActivityEventWriter;
+  /** «Заполнить примером» is a start choice (LFS-220): it completes a setup that is not completed yet. */
+  onboarding: Pick<OnboardingStateRepository, "completeWithExample">;
 };
 /** `eventSource` stamps the audit facts the command writes: loading the example is a `starter` fact. */
 export type StarterPackCommand = GoalCommandOptions & {
@@ -86,7 +89,7 @@ export function createStarterPackService(unit: StarterPackUnitOfWork, clock: () 
     async apply(actor, options) {
       const command: StarterPackCommand = { ...commandOptions(options), operation: "starter_pack.apply", targetId: null,
         input: { version: STARTER_PACK_VERSION }, eventSource: "starter" };
-      const result = await execute(actor, command, async ({ goals, measurements, examples, events }) => {
+      const result = await execute(actor, command, async ({ goals, measurements, examples, events, onboarding }) => {
         // «Пример уже в аккаунте»: a second set is never added next to the first.
         if (await examples.countExamples(actor) > 0) throw new ConflictError();
         const measuredAt = clock().toISOString();
@@ -105,6 +108,10 @@ export function createStarterPackService(unit: StarterPackUnitOfWork, clock: () 
           await events.append({ goal_id: goal.id, domain_key: goal.domain_key, target_type: "goal_measurement", target_id: measurement.id, schema_version: 1,
             event_type: "goal_measurement.created", payload: { before: null, after: measurementSnapshot(measurement) } });
         }
+        // Same transaction as the set: no example without the completed start, no completed start without the example.
+        // A setup completed before (the wizard, then the example from Settings) keeps its status, choice and date.
+        const state = await onboarding.completeWithExample(actor, ONBOARDING_CATALOG_VERSION);
+        if (state !== null) requireOwned(actor, { userId: state.user_id });
         return { goals: created.length, measurements: created.length };
       });
       return { version: STARTER_PACK_VERSION, created_goals: result.goals, created_measurements: result.measurements };

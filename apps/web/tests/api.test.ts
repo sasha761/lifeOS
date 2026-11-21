@@ -95,6 +95,11 @@ describe("error mapping", () => {
     expect(mapApiError(new InvalidInputError())).toEqual({ status: 400, error: { code: "VALIDATION_ERROR", message: "Invalid request." } });
     expect(mapApiError(new DomainError("CONFLICT", "goal title_42 already exists"))).toEqual({ status: 409, error: { code: "CONFLICT", message: "Resource conflict." } });
   });
+  it("passes on the fixed key of a rejected item, never free text (LFS-219)", () => {
+    expect(mapApiError(new InvalidInputError("health.own"))).toEqual({ status: 400, error: { code: "VALIDATION_ERROR", message: "Invalid request.", field: "health.own" } });
+    expect(mapApiError(new InvalidInputError("Пробежать полумарафон"))).toEqual({ status: 400, error: { code: "VALIDATION_ERROR", message: "Invalid request." } });
+    expect(mapApiError(new DomainError("CONFLICT", "x", "a".repeat(65)))).toEqual({ status: 409, error: { code: "CONFLICT", message: "Resource conflict." } });
+  });
   it("maps a domain error created by another bundle layer's copy of @lifeos/domain (regression: was 500)", () => {
     const brand = Symbol.for("@lifeos/domain/DomainError");
     const fromOtherLayer = Object.assign(new Error("Invalid input."), { name: "InvalidInputError", code: "VALIDATION_ERROR", [brand]: true });

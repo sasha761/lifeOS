@@ -1,98 +1,74 @@
-# Stage 1 — список отдельных задач Codex
+# Задачи LifeOS: очередь и статус
 
-Выполнять в порядке `LFS-101` → `LFS-109` из [корневого README](../../README.md). Все задачи предназначены для самостоятельного запуска в Codex, не выполняются одним большим запросом.
+Одна сессия исполнителя — один LFS-ID по [AGENTS.md](../../AGENTS.md). Следующая задача начинается только после
+проверки предыдущей владельцем.
 
-**Правило:** сначала открыть `AGENTS.md`, затем нужный `LFS-XXX.md`. В отчёте Codeх указывает выполненные критерии готовности и статус тестов. Следующая задача начинается только после проверки предыдущей пользователем.
+**Как обновлять этот файл.** В конце задачи исполнитель ставит дату в колонку «Статус» и правит блок «Сейчас».
+Отчёт о задаче (проверки, число тестов, ограничения, ручные действия) пишется только в разделе «Результат» её
+файла `LFS-XXX.md` и сюда не копируется. Полная история — разделы «Результат» и git.
 
-| ID | Короткое название |
+## Сейчас
+
+| | |
 |---|---|
-| [LFS-101](LFS-101.md) | Monorepo scaffold |
-| [LFS-102](LFS-102.md) | Versions and ADR |
-| [LFS-103](LFS-103.md) | Next.js shell |
-| [LFS-104](LFS-104.md) | PostgreSQL and migrations |
-| [LFS-105](LFS-105.md) | pg-boss worker |
-| [LFS-106](LFS-106.md) | Contracts and validation |
-| [LFS-107](LFS-107.md) | Atomic transaction and idempotency |
-| [LFS-108](LFS-108.md) | CI, checks, builds |
-| [LFS-109](LFS-109.md) | Architecture and handoff documentation |
+| Этап | 2 — LifeOS Core. Основная очередь и доработки перед Stage 3 закрыты (LFS-220) |
+| Следующая задача по очереди | Нет: после проверки LFS-220 владелец проходит чек-лист приёмки Stage 2 и решает, начинать ли Stage 3. Ветка `lfs-220-first-login-popup` сделана от `lfs-219-onboarding-wizard`: код LFS-219 ещё не влит в `main` (PR #7 влит в `lfs-218-starter-pack`) |
+| Вне очереди | LFS-214, LFS-215: риски LFS-213, Stage 3 не блокируют, место назначает владелец |
+| Миграции | Последняя в репозитории — `0008_onboarding` (LFS-219); LFS-220 миграций не добавила. Основная база владельца мигрирована до `0008` по его просьбе (отчёт LFS-219) |
+| Приёмка | Stage 1 — [STAGE-01-ACCEPTANCE](STAGE-01-ACCEPTANCE.md); Stage 2 — [STAGE-02-ACCEPTANCE](STAGE-02-ACCEPTANCE.md). Hosted CI проходил на PR #2 (LFS-212), #3 (LFS-209), #4 (LFS-213) |
+| Stage 3 | Начинается после проверки LFS-220 и решения владельца по чек-листу приёмки Stage 2 |
 
-# Stage 2 — LifeOS Core
+Статусы в таблицах: ✅ дата — выполнена (дата из раздела «Результат»), ▶ — следующая, пусто — не начата.
 
-Порядок выполнения отличается от нумерации; описание этапа и очередь — в [STAGE-02-README](STAGE-02-README.md). Приёмка — [STAGE-02-ACCEPTANCE](STAGE-02-ACCEPTANCE.md), промпт для первой задачи — [STAGE-02-FIRST-CODEX-PROMPT](STAGE-02-FIRST-CODEX-PROMPT.md).
+## Stage 1 — Foundation
 
-| Очередь | ID | Короткое название |
-|---:|---|---|
-| 1 | [LFS-201](LFS-201.md) | Better Auth, allowlist, reset |
-| 2 | [LFS-202](LFS-202.md) | Profile, timezone/locale, ownership |
-| 3 | [LFS-203](LFS-203.md) | Life domains registry |
-| 4 | [LFS-205](LFS-205.md) | Goals schema and rules |
-| 5 | [LFS-210](LFS-210.md) | Activity events and audit |
-| 6 | [LFS-206](LFS-206.md) | Goal measurements |
-| 7 | [LFS-207](LFS-207.md) | Goals API and progress |
-| 8 | [LFS-208](LFS-208.md) | Goals UI |
-| 8a | [LFS-211](LFS-211.md) | Design System v2: dark, Inter, top bar |
-| 9 | [LFS-204](LFS-204.md) | Dashboard of six domains |
-| 9a | [LFS-212](LFS-212.md) | UI-kit and mockup comparison |
-| 10 | [LFS-209](LFS-209.md) | E2E, security, acceptance |
-| 10a | [LFS-213](LFS-213.md) | Stage 2 page layout per mockups |
-| 10b | [LFS-216](LFS-216.md) | Goal deletion |
-| 10c | [LFS-217](LFS-217.md) | Edit start and target before first measurement |
-| 10d | [LFS-218](LFS-218.md) | Starter pack on user's choice |
-| 10e | [LFS-219](LFS-219.md) | Onboarding wizard |
-| 10f | [LFS-220](LFS-220.md) | First-login popup and settings entry |
+Выполнялась в порядке номеров. Приёмка и незакрытые пункты — [STAGE-01-ACCEPTANCE](STAGE-01-ACCEPTANCE.md).
 
-Доработки по рискам LFS-213. Stage 3 не блокируют, место в очереди назначает владелец.
+| ID | Короткое название | Статус |
+|---|---|---|
+| [LFS-101](LFS-101.md) | Monorepo scaffold | ✅ |
+| [LFS-102](LFS-102.md) | Versions and ADR | ✅ |
+| [LFS-103](LFS-103.md) | Next.js shell | ✅ |
+| [LFS-104](LFS-104.md) | PostgreSQL and migrations | ✅ |
+| [LFS-105](LFS-105.md) | pg-boss worker | ✅ |
+| [LFS-106](LFS-106.md) | Contracts and validation | ✅ |
+| [LFS-107](LFS-107.md) | Atomic transaction and idempotency | ✅ |
+| [LFS-108](LFS-108.md) | CI, checks, builds | ✅ |
+| [LFS-109](LFS-109.md) | Architecture and handoff documentation | ✅ 2026-11-12 |
 
-| ID | Короткое название |
-|---|---|
-| [LFS-214](LFS-214.md) | Activity journal pagination |
-| [LFS-215](LFS-215.md) | 404 and redirect status under streaming |
+## Stage 2 — LifeOS Core
 
-Локальный статус 2026-11-15: LFS-202 проверена повторно (36 Web integration
-tests); LFS-203 выполнена, evidence — в [её отчёте](LFS-203.md#результат-lfs-203--2026-11-15).
-LFS-205 выполнена: [контракты, схема и сервис целей](LFS-205.md#результат-lfs-205--2026-11-15),
-326 unit + 95 PostgreSQL integration tests, main/test migration 0003 применена.
-LFS-210 выполнена: [транзакционный аудит и receipts](LFS-210.md#результат-lfs-210--2026-11-15),
-360 unit + 108 PostgreSQL integration tests, main/test migration 0004 применена.
-LFS-206 выполнена 2026-11-16: [ручные измерения и current](LFS-206.md#результат-lfs-206--2026-11-16),
-403 unit + 122 PostgreSQL integration tests, main/test migration 0005 применена.
-LFS-207 выполнена 2026-11-16: [HTTP API и точный прогресс](LFS-207.md#результат-lfs-207--2026-11-16),
-451 unit + 135 PostgreSQL integration tests; новых миграций нет.
-LFS-208 выполнена 2026-11-16: [UI целей и измерений](LFS-208.md#результат-lfs-208--2026-11-16),
-472 unit + 135 PostgreSQL integration + 10 Playwright desktop/mobile; без новых миграций.
-LFS-211 выполнена 2026-11-17: [Design System v2](LFS-211.md#результат-lfs-211--2026-11-17),
-ADR-011 Accepted, Inter 5.3.0 self-hosted; 477 unit + 135 PostgreSQL integration + 10 Playwright
-desktop/mobile; без миграций и изменений API.
-LFS-204 выполнена 2026-11-17: [Dashboard шести сфер](LFS-204.md#результат-lfs-204--2026-11-17),
-`GET /api/v1/dashboard`; 497 unit + 139 PostgreSQL integration + 14 Playwright desktop/mobile;
-без миграций.
-LFS-212 выполнена 2026-11-17: [UI-kit и сравнение с макетами](LFS-212.md#результат-lfs-212--2026-11-17),
-`pnpm ui:shots`, правило lint против литералов цвета, «Новая цель» диалогом; 524 unit + 139 PostgreSQL
-integration + 16 Playwright desktop/mobile; без миграций и изменений API.
-Hosted CI: LFS-212 — PASS на PR #2, LFS-209 — PASS на PR #3, LFS-213 — PASS на PR #4.
-LFS-209 выполнена 2026-11-17: [E2E, security и приёмка Stage 2](LFS-209.md#результат-lfs-209--2026-11-17),
-[чек-лист приёмки](STAGE-02-ACCEPTANCE.md) заполнен; 524 unit + 140 PostgreSQL integration + 22 Playwright desktop/mobile; без миграций и изменений API/UI.
-2026-11-17 по сравнению с макетами добавлена LFS-213 (компоновка страниц Stage 2); она вставлена перед Stage 3.
-LFS-213 выполнена 2026-11-18: [компоновка страниц по макетам](LFS-213.md#результат-lfs-213--2026-11-18),
-`GET /api/v1/activity`, срок цели датой, 404 неизвестных сфер в proxy; 558 unit + 145 PostgreSQL integration +
-28 Playwright desktop/mobile; без миграций. Очередь Stage 2 закрыта. Stage 3 начинается только после решения
-владельца по чек-листу приёмки.
-2026-11-18 риски LFS-213 вынесены в [LFS-214](LFS-214.md) (курсор журнала) и [LFS-215](LFS-215.md) (HTTP-статусы под
-потоковой оболочкой).
-2026-11-18 по запросу владельца перед Stage 3 добавлены [LFS-216](LFS-216.md) (удаление целей),
-[LFS-217](LFS-217.md) (правка старта и цели до первого измерения, срок «необязательно») и [LFS-218](LFS-218.md)
-(стартовый набор целей для новых и существующих аккаунтов).
-2026-11-18 по решению владельца LFS-218 переписана: пример создаётся только по выбору пользователя, автоматически
-его не получает ни один аккаунт. Добавлены [LFS-219](LFS-219.md) (мастер начальной настройки) и [LFS-220](LFS-220.md)
-(попап первого входа и кнопка в Настройках); описание и макеты — [ONBOARDING](../reference/ui/ONBOARDING.md).
-LFS-216 выполнена 2026-11-18: [удаление активных и архивных целей](LFS-216.md#результат-lfs-216--2026-11-18),
-миграция `0006_goal_deletion_receipts`, 562 unit + 152 PostgreSQL integration + 32 Playwright;
-`pnpm verify`, `pnpm test:ui`, `pnpm ui:shots` и независимое визуальное ревью — PASS.
-LFS-217 выполнена 2026-11-19: [правка старта и цели до первого измерения](LFS-217.md#результат-lfs-217--2026-11-19),
-срок «необязательно» и «Убрать срок»; 587 unit + 157 PostgreSQL integration + 34 Playwright; без миграций.
-LFS-218 выполнена 2026-11-20: [пример по выбору пользователя](LFS-218.md#результат-lfs-218--2026-11-20),
-`POST`/`DELETE /api/v1/starter-pack`, метки «Пример», USD, миграция `0007_starter_pack`; 614 unit + 169 PostgreSQL
-integration + 36 Playwright; `pnpm ui:shots` — PASS. По запросу владельца миграция `0007` применена к основной базе,
-пример загружен в его аккаунт.
-Оставшаяся очередь до Stage 3: LFS-219 → LFS-220.
-Следующая задача по очереди — LFS-219, только после проверки владельцем.
+Порядок выполнения отличается от нумерации; описание этапа — [STAGE-02-README](STAGE-02-README.md).
+Задачи с буквой в колонке «Очередь» вставлены владельцем позже; в шапке такой задачи указано, перед или после чего она идёт.
+
+| Очередь | ID | Короткое название | Статус |
+|---:|---|---|---|
+| 1 | [LFS-201](LFS-201.md) | Better Auth, allowlist, reset | ✅ 2026-11-14 |
+| 2 | [LFS-202](LFS-202.md) | Profile, timezone/locale, ownership | ✅ 2026-11-15 |
+| 3 | [LFS-203](LFS-203.md) | Life domains registry | ✅ 2026-11-15 |
+| 4 | [LFS-205](LFS-205.md) | Goals schema and rules | ✅ 2026-11-15 |
+| 5 | [LFS-210](LFS-210.md) | Activity events and audit | ✅ 2026-11-15 |
+| 6 | [LFS-206](LFS-206.md) | Goal measurements | ✅ 2026-11-16 |
+| 7 | [LFS-207](LFS-207.md) | Goals API and progress | ✅ 2026-11-16 |
+| 8 | [LFS-208](LFS-208.md) | Goals UI | ✅ 2026-11-16 |
+| 8a | [LFS-211](LFS-211.md) | Design System v2: dark, Inter, top bar | ✅ 2026-11-17 |
+| 9 | [LFS-204](LFS-204.md) | Dashboard of six domains | ✅ 2026-11-17 |
+| 9a | [LFS-212](LFS-212.md) | UI-kit and mockup comparison | ✅ 2026-11-17 |
+| 10 | [LFS-209](LFS-209.md) | E2E, security, acceptance | ✅ 2026-11-17 |
+| 10a | [LFS-213](LFS-213.md) | Stage 2 page layout per mockups | ✅ 2026-11-18 |
+| 10b | [LFS-216](LFS-216.md) | Goal deletion | ✅ 2026-11-18 |
+| 10c | [LFS-217](LFS-217.md) | Edit start and target before first measurement | ✅ 2026-11-19 |
+| 10d | [LFS-218](LFS-218.md) | Starter pack on user's choice | ✅ 2026-11-20 |
+| 10e | [LFS-219](LFS-219.md) | Onboarding wizard | ✅ 2026-11-20 |
+| 10f | [LFS-220](LFS-220.md) | First-login popup and settings entry | ✅ 2026-11-21 |
+
+Описание первого входа и макеты для LFS-218–220 — [ONBOARDING](../reference/ui/ONBOARDING.md).
+
+### Вне очереди
+
+Доработки по рискам LFS-213 (добавлены 2026-11-18). Stage 3 не блокируют, место в очереди назначает владелец.
+
+| ID | Короткое название | Статус |
+|---|---|---|
+| [LFS-214](LFS-214.md) | Activity journal pagination | |
+| [LFS-215](LFS-215.md) | 404 and redirect status under streaming | |

@@ -19,7 +19,7 @@ const day = 86_400_000;
 const viewports = [{ width: 1440, height: 900, mobile: false }, { width: 390, height: 844, mobile: true }] as const;
 let stage = "isolated test setup";
 
-type Shot = { name: string; path: string; mockup: string; open?: (page: Page) => Promise<void>; account?: "owner" | "example" };
+type Shot = { name: string; path: string; mockup: string; open?: (page: Page) => Promise<void>; account?: "owner" | "example" | "onboarding" | "start" | "setup"; prepare?: () => Promise<void> };
 type Problem = { page: string; width: number; problem: string };
 
 async function seed(fixture: UiFixture) {
@@ -40,6 +40,22 @@ async function seed(fixture: UiFixture) {
   const archived = await create({ domain_key: "projects", title: "Черновик сайта портфолио", unit: "count", baseline: "0", target: "5", direction: "increase" });
   await apiWrite(base, cookies.owner, `/api/v1/goals/${archived.goal.id}`, { status: "archived" }, "PATCH");
   return { goalId: savings.goal.id, archivedId: archived.goal.id, unmeasuredId: applications.goal.id };
+}
+
+/**
+ * Draft of the onboarding wizard (LFS-219) for its screenshots: four spheres, one of them skipped, a template answer, a
+ * language, two Health choices with «Свой вариант». Test values of the fixture, not the numbers of the mockups.
+ */
+function onboardingDraft(step: string) {
+  const due = (days: number) => new Date(Date.now() + days * day).toISOString();
+  const choice = (option: string, values: Record<string, unknown>) => ({ option, subject: "", direction: "increase", unit: "custom", unit_label: "", baseline: "", target: "", due_at: null, ...values });
+  return { answers: { step, domains: ["languages", "finance", "skills", "health"], rhythm: "weekly", timezone: null, extra: [], unchecked: [], spheres: {
+    languages: { skipped: false, choices: [choice("german", { baseline: "1", target: "3", due_at: due(240) })] },
+    finance: { skipped: false, choices: [choice("emergency_fund", { unit: "NOK", target: "60000", baseline: "15000", due_at: due(200) })] },
+    skills: { skipped: true, choices: [] },
+    health: { skipped: false, choices: [choice("training", { baseline: "1", target: "4" }),
+      choice("own", { subject: "Проплыть 2 км без остановки", unit_label: "метров за заплыв", baseline: "600", target: "2000", due_at: due(300) })] },
+  } } };
 }
 
 /** Waits until client data have loaded: no skeleton or «Загружаем…» status, fonts ready. */
@@ -97,6 +113,10 @@ async function main() {
     stage = "example through the API";
     const example = await fetch(`${fixture.base}/api/v1/starter-pack`, { method: "POST", headers: { cookie: fixture.cookies.exampleDesktop, "idempotency-key": randomUUID() } });
     assert(example.ok, `POST /api/v1/starter-pack → ${example.status}`);
+    // LFS-220: an account that completed the questions, for «Начальная настройка» in Settings (mockups 30, 31).
+    stage = "completed setup through the API";
+    await apiWrite(fixture.base, fixture.cookies.startMobile, "/api/v1/onboarding/complete",
+      { ...onboardingDraft("summary"), selected: ["languages.german", "finance.emergency_fund", "health.training", "health.own"] });
     const shots: Shot[] = [
       { name: "home", path: "/", mockup: "04-progress.png" },
       { name: "dashboard", path: "/dashboard", mockup: "04-progress.png" },
@@ -126,12 +146,36 @@ async function main() {
         await page.getByRole("dialog", { name: "Новая цель" }).waitFor();
       } },
       { name: "settings", path: "/settings", mockup: "16-settings.png" },
+      // LFS-220: the first-visit popup on a fresh account (23; at 390 the bottom sheet of 29), Settings after the questions (30)
+      // and the same popup opened there (31).
+      { name: "dashboard-start", path: "/dashboard", mockup: "23-onb-start.png", account: "start", open: async (page) => {
+        await page.getByRole("dialog", { name: "Добро пожаловать в LifeOS" }).waitFor();
+      } },
+      { name: "settings-onboarding", path: "/settings", mockup: "30-onb-settings.png", account: "setup" },
+      { name: "settings-onboarding-dialog", path: "/settings", mockup: "31-onb-reopen.png", account: "setup", open: async (page) => {
+        await page.getByRole("button", { name: "Открыть начальную настройку", exact: true }).click();
+        await page.getByRole("dialog", { name: "Что добавить в аккаунт?" }).waitFor();
+      } },
       // LFS-218: an account with the loaded example, as on mockup 28; then the «Удалить все примеры?» card.
       { name: "dashboard-example", path: "/dashboard", mockup: "28-onb-example.png", account: "example" },
       { name: "dashboard-example-confirm", path: "/dashboard", mockup: "28-onb-example.png", account: "example", open: async (page) => {
         await page.getByRole("button", { name: "Удалить все примеры", exact: true }).click();
         await page.getByRole("alertdialog", { name: "Удалить все примеры?" }).waitFor();
       } },
+      // LFS-219: the wizard on a fresh account; the draft puts it on the step of each mockup.
+      ...([["onboarding-spheres", "domains", "24-onb-spheres.png"], ["onboarding-question", "finance", "25-onb-question.png"],
+        ["onboarding-own", "health", "26-onb-own-answer.png"], ["onboarding-summary", "summary", "27-onb-summary.png"],
+        ["onboarding-languages", "languages", "29-onb-mobile.png"], ["onboarding-rhythm", "rhythm", "25-onb-question.png"]] as const).map(([name, step, mockup]): Shot => ({
+        name, path: "/onboarding", mockup, account: "onboarding",
+        prepare: async () => { await apiWrite(fixture!.base, fixture!.cookies.onboardingDesktop, "/api/v1/onboarding", onboardingDraft(step), "PUT"); },
+      })),
+      // «Изменить» on the summary: the editor of the step in a dialog.
+      { name: "onboarding-summary-edit", path: "/onboarding", mockup: "27-onb-summary.png", account: "onboarding",
+        prepare: async () => { await apiWrite(fixture!.base, fixture!.cookies.onboardingDesktop, "/api/v1/onboarding", onboardingDraft("summary"), "PUT"); },
+        open: async (page) => {
+          await page.getByRole("button", { name: "Изменить цель «Подушка безопасности»", exact: true }).click();
+          await page.getByRole("dialog", { name: "Изменить цель" }).waitFor();
+        } },
     ];
     stage = "browser screenshots";
     await mkdir(out, { recursive: true });
@@ -141,7 +185,9 @@ async function main() {
     for (const viewport of viewports) {
       const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, deviceScaleFactor: 1, isMobile: viewport.mobile, hasTouch: viewport.mobile });
       for (const shot of shots) {
-        const cookie = shot.account === "example" ? fixture.cookies.exampleDesktop : fixture.cookies.owner;
+        const cookie = { example: fixture.cookies.exampleDesktop, onboarding: fixture.cookies.onboardingDesktop, start: fixture.cookies.startDesktop,
+          setup: fixture.cookies.startMobile, owner: fixture.cookies.owner }[shot.account ?? "owner"];
+        await shot.prepare?.();
         (files[shot.name] ??= {})[viewport.width] = await capture(context, fixture.base, shot, viewport.width, problems, cookie);
       }
       await context.close();

@@ -5,6 +5,7 @@ import {
   GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, goalDecimalSchema, goalIdSchema, goalInstantSchema, goalStatusSchema, goalUnitSchema,
 } from "./goals.ts";
 import { goalDetailsSchema } from "./goals-api.ts";
+import { focusDomainsSchema, onboardingStatusSchema } from "./onboarding.ts";
 
 /** Bounded read model: newest active goals per sphere, nearest deadlines and newest audit facts. */
 export const DASHBOARD_GOALS_PER_DOMAIN = 5;
@@ -64,5 +65,18 @@ export const dashboardSchema = z.strictObject({
    * for the banner and «Удалить все примеры». Two counts of owned rows, no query per goal.
    */
   examples: z.strictObject({ goals: countSchema, measurements: countSchema }),
-});
+  /**
+   * «Сферы в фокусе» chosen in the onboarding wizard (LFS-219), in registry order. The UI shows them first; `domains` keeps
+   * registry order. Older fixtures without the field read as none.
+   */
+  focus_domains: focusDomainsSchema.default([]),
+  /**
+   * The first-visit popup (LFS-220), decided on the server in the same snapshot: `show_start` only for an account without
+   * any goal (active or archived) whose setup is not started or in progress. Older fixtures read as no popup.
+   */
+  onboarding: z.strictObject({ status: onboardingStatusSchema, show_start: z.boolean() })
+    .refine((onboarding) => !onboarding.show_start || onboarding.status === "not_started" || onboarding.status === "in_progress")
+    .default({ status: "not_started", show_start: false }),
+}).refine((dashboard) => !dashboard.onboarding.show_start
+  || dashboard.domains.every((domain) => domain.activeCount === 0 && domain.archivedCount === 0));
 export type Dashboard = z.infer<typeof dashboardSchema>;

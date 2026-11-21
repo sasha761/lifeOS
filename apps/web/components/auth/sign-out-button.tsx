@@ -4,6 +4,7 @@ import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { forgetStartDialog } from "@/lib/start-dialog-session";
 
 export function SignOutButton() {
   const router = useRouter();
@@ -18,6 +19,8 @@ export function SignOutButton() {
       // Deletes the server-side session row; the old cookie stops working immediately.
       const { error } = await authClient.signOut();
       if (error) throw new Error("sign-out failed");
+      // «✕» of the first-visit popup lasts until the next sign-in (LFS-220).
+      forgetStartDialog();
       router.replace("/auth/sign-in");
       router.refresh();
     } catch {
