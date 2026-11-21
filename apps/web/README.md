@@ -50,8 +50,10 @@ route group `(telegram)` сама по себе не добавляет сегм
   закрытие (✕, «Отмена», Escape) — `router.back()`. Прямой заход или обновление
   `/goals/new` показывает ту же форму отдельной страницей. Обе ветки читают
   сессию и параметры через `app/(web)/goals/new/new-goal-data.ts`; `@modal/default`,
-  `@modal/page` и `@modal/[...catchAll]` возвращают `null`, чтобы диалог закрывался
-  при переходе на другую страницу. Фильтр сфер на `/goals` — вкладки-ссылки.
+  `@modal/page` и `@modal/goals/[...catchAll]` возвращают `null`, чтобы диалог закрывался
+  при переходе на созданную цель. Catch-all только под `goals`: в корне слота он ломает
+  страницы других групп при строгом сопоставлении маршрутов Next 16 (см. корневой README).
+  Фильтр сфер на `/goals` — вкладки-ссылки.
 - `/telegram`: отдельный компактный layout и явная заглушка Mini App.
 - `GET /api/health`: HTTP 200 с envelope `data/meta/errors`; `data` содержит
   `status`, `service`, `timestamp`, `meta` — request/correlation ID; `no-store`,

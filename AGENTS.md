@@ -103,7 +103,8 @@ LifeOS — модульная платформа управления целям
 ## Известные ловушки
 
 - Next.js 16 отличается от того, что ты знаешь: API сверять по `apps/web/node_modules/next/dist/docs/`. Блок `nextjs-agent-rules` в `apps/web/AGENTS.md` пишет сам `next dev`; не удалять, коммитить вместе с работой.
-- В `apps/web/next.config.ts` включён `deprecated.looseRouteMatching`: без него `pnpm dev` отдаёт 404 для `/auth/*`, `/telegram`, `/onboarding` из-за слота `@modal/[...catchAll]` (подробности — README, раздел Web).
+- Не класть catch-all `[...catchAll]` в корень parallel-слота `(web)/@modal`: Next подмешивает его ко всем адресам, и строгое сопоставление маршрутов отбрасывает страницы других групп (`/auth/*`, `/telegram`, `/onboarding` → 404 в dev). Флаг `deprecated.looseRouteMatching` не включать: он прячет ошибку и в production превращает 404 в 200. Подробности — README, раздел Web.
+- Маршрут, который отвечает 404, проверяет только build smoke в `pnpm verify`; Playwright этого не ловит. После правок маршрутов, `proxy.ts` или `next.config.ts` запускать `pnpm build` и `pnpm test:build`.
 - В PowerShell с запретом `.ps1` использовать `pnpm.cmd`. `verify` требует точный Node из `.nvmrc`.
 - Integration-тесты требуют отдельный `TEST_DATABASE_URL`; основная база не fallback. Тестовая БД общая для всех worktree, поэтому `pnpm verify` не запускать параллельно.
 - `git diff` не показывает новые файлы: смотреть ещё `git ls-files --others --exclude-standard`.
