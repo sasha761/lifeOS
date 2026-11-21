@@ -20,6 +20,8 @@ function editParts(entry: ActivityEntry, preferences: Pick<UserPreferences, "tim
   if (fields.has("target") && before && after) parts.push(`цель изменена: ${number(before.target)} → ${number(after.target)}`);
   if (fields.has("direction") && before && after) parts.push(`направление изменено: ${DIRECTION_LABELS[before.direction]} → ${DIRECTION_LABELS[after.direction]}`);
   if (entry.dueAt) parts.push(`срок изменён: ${day(entry.dueAt.before)} → ${day(entry.dueAt.after)}`);
+  // LFS-218: an example became the person's own goal.
+  if (fields.has("origin")) parts.push("метка «Пример» снята");
   return parts;
 }
 

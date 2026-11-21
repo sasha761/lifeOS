@@ -55,8 +55,12 @@ export const progressComputationSchema = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal("invalid_definition"), progressPercent: z.null(), explanation: z.literal("Некорректное определение цели") }),
 ]);
 export type ProgressComputation = z.infer<typeof progressComputationSchema>;
-const provenanceSchema = z.strictObject({ kind: z.literal("self_report"), measurementId: goalIdSchema, source: z.literal("manual"),
-  measuredAt: goalInstantSchema, recordedAt: goalInstantSchema, updatedAt: goalInstantSchema });
+const provenanceFields = { measurementId: goalIdSchema, measuredAt: goalInstantSchema, recordedAt: goalInstantSchema, updatedAt: goalInstantSchema };
+/** Where the current value comes from: the person's own entry, or an example measurement (LFS-218) that is not their data. */
+const provenanceSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("self_report"), source: z.literal("manual"), ...provenanceFields }),
+  z.strictObject({ kind: z.literal("example"), source: z.literal("example"), ...provenanceFields }),
+]);
 export const goalProgressSchema = z.strictObject({
   methodology: z.strictObject({ version: z.literal(1), mode: z.literal("manual"),
     formula: z.enum(["(current-baseline)/(target-baseline)", "(baseline-current)/(baseline-target)"]),

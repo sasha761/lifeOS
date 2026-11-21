@@ -50,6 +50,13 @@
       "when": 1795034952732,
       "tag": "0006_goal_deletion_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795172793441,
+      "tag": "0007_starter_pack",
+      "breakpoints": true
     }
   ]
 }

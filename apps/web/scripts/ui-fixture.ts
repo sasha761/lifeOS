@@ -25,7 +25,8 @@ export async function freePort(): Promise<number> {
 
 export type UiFixture = {
   base: string;
-  cookies: { owner: string; other: string; empty: string };
+  /** `example*`: own accounts for the example (LFS-218), one per Playwright project, so the set never collides. */
+  cookies: { owner: string; other: string; empty: string; exampleDesktop: string; exampleMobile: string };
   /** Environment of the server, including LFS208_E2E_* variables for Playwright. */
   environment: NodeJS.ProcessEnv;
   stop(): Promise<void>;
@@ -36,7 +37,7 @@ export async function startUiFixture({ suite, ownerLocale = "en-GB", onStage = (
   onStage("isolated test setup");
   await access(join(root, "apps/web/.next/BUILD_ID"));
   const secret = randomBytes(32).toString("base64url");
-  const harness = await createAuthHarness({ suite, users: ["owner", "other", "empty"], secret });
+  const harness = await createAuthHarness({ suite, users: ["owner", "other", "empty", "example-desktop", "example-mobile"], secret });
   let web: ReturnType<typeof spawn> | undefined;
   const stop = async () => {
     if (web && web.exitCode === null) { const stopped = once(web, "exit"); web.kill("SIGTERM"); await stopped; }
@@ -44,13 +45,17 @@ export async function startUiFixture({ suite, ownerLocale = "en-GB", onStage = (
   };
   try {
     const owner = await harness.signUp("owner"); const other = await harness.signUp("other"); const empty = await harness.signUp("empty");
-    await harness.database.pool.query(`UPDATE "user" SET timezone='Europe/Oslo',locale=$2 WHERE id=$1`, [owner.userId, ownerLocale]);
+    const exampleDesktop = await harness.signUp("example-desktop"); const exampleMobile = await harness.signUp("example-mobile");
+    for (const account of [owner, exampleDesktop, exampleMobile]) {
+      await harness.database.pool.query(`UPDATE "user" SET timezone='Europe/Oslo',locale=$2 WHERE id=$1`, [account.userId, ownerLocale]);
+    }
     const connection = new URL(readTestDatabaseUrl(process.env)); connection.searchParams.set("options", `-csearch_path=${harness.schemaName}`);
     const port = await freePort(); const base = `http://127.0.0.1:${port}`;
     const environment: NodeJS.ProcessEnv = { ...process.env, DATABASE_URL: connection.toString(), NODE_ENV: "production", NEXT_TELEMETRY_DISABLED: "1",
       BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: base, AUTH_SIGNUP_ALLOWLIST: "",
       MAIL_TRANSPORT: "smtp", SMTP_URL: "smtp://127.0.0.1:1", MAIL_FROM: "fixture@lifeos.test",
       LFS208_E2E_BASE_URL: base, LFS208_E2E_OWNER_COOKIE: owner.cookie, LFS208_E2E_OTHER_COOKIE: other.cookie, LFS208_E2E_EMPTY_COOKIE: empty.cookie,
+      LFS208_E2E_EXAMPLE_DESKTOP_COOKIE: exampleDesktop.cookie, LFS208_E2E_EXAMPLE_MOBILE_COOKIE: exampleMobile.cookie,
       // Disposable credentials of the fixture owner for the sign-in form (LFS-209); the user lives only in this schema.
       LFS209_E2E_OWNER_EMAIL: owner.email, LFS209_E2E_OWNER_PASSWORD: owner.password };
     onStage("production test server");
@@ -64,7 +69,7 @@ export async function startUiFixture({ suite, ownerLocale = "en-GB", onStage = (
       if (ready) break; await delay(100);
     }
     assert(ready);
-    return { base, cookies: { owner: owner.cookie, other: other.cookie, empty: empty.cookie }, environment, stop };
+    return { base, cookies: { owner: owner.cookie, other: other.cookie, empty: empty.cookie, exampleDesktop: exampleDesktop.cookie, exampleMobile: exampleMobile.cookie }, environment, stop };
   } catch (error) {
     await stop();
     throw error;

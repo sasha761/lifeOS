@@ -10,7 +10,8 @@ import type { GoalFieldErrors } from "../../lib/goal-form-input.ts";
 import { DateTimeField, MutationError, TextArea, useGoalMutation } from "./shared.tsx";
 import { GOAL_UNIT_LABELS } from "../../lib/goal-presentation.ts";
 
-export function MeasurementForm({ goal, initial, preferences, saved, onBusyChange }: { goal: Goal; initial?: GoalMeasurement; preferences: UserPreferences; saved(): void; onBusyChange?(busy: boolean): void }) {
+/** `replacesExample`: the goal shows only example values (LFS-218); the first own value removes them on the server. */
+export function MeasurementForm({ goal, initial, preferences, saved, onBusyChange, replacesExample = false }: { goal: Goal; initial?: GoalMeasurement; preferences: UserPreferences; saved(): void; onBusyChange?(busy: boolean): void; replacesExample?: boolean }) {
   const mutation = useGoalMutation();
   const [errors, setErrors] = useState<GoalFieldErrors>({});
   const [now] = useState(() => new Date().toISOString());
@@ -32,7 +33,7 @@ export function MeasurementForm({ goal, initial, preferences, saved, onBusyChang
       <Field id="value" name="value" label={`Значение (${goal.unit === "custom" ? goal.unit_label : GOAL_UNIT_LABELS[goal.unit]})`} labelClassName="field-label" type="text" inputMode="decimal" required defaultValue={initial?.value ?? ""} error={errors.value} />
       <DateTimeField name="measured_at" label="Дата и время измерения" initial={initial?.measured_at ?? now} timeZone={preferences.timezone} required errors={errors} />
       <TextArea name="note" label="Заметка (необязательно)" initial={initial?.note} maxLength={1000} errors={errors} />
-      <p className="rounded-[10px] border bg-surface-2 px-3 py-2.5 text-xs leading-5 text-muted-foreground">Источник: ручной ввод, самоотчёт. Можно добавить запись за прошлую дату; будущее ограничено пятью минутами.</p></fieldset>
+      <p className="rounded-[10px] border bg-surface-2 px-3 py-2.5 text-xs leading-5 text-muted-foreground">Источник: ручной ввод, самоотчёт. Можно добавить запись за прошлую дату; будущее ограничено пятью минутами.{replacesExample && " Ваше измерение заменит примерное."}</p></fieldset>
     <div className="flex justify-end pt-1"><SubmitButton className="action-compact" pending={mutation.pending} pendingLabel="Сохраняем…">{mutation.uncertain ? "Повторить сохранение" : initial ? "Подтвердить изменения измерения" : "Добавить измерение"}</SubmitButton></div>
   </form>;
 }

@@ -43,7 +43,9 @@ export function goalDetailsFromRecord(actor: Actor, record: GoalReadRecord): Goa
     methodology: { version: 1, mode: "manual", formula: goal.direction === "increase" ? "(current-baseline)/(target-baseline)" : "(baseline-current)/(baseline-target)",
       percentDecimals: 2, rounding: "half_up", clamped: true },
     source: "manual", unit: goal.unit, baseline: goal.baseline, target: goal.target, current: latest?.value ?? null,
-    provenance: latest ? { kind: "self_report", measurementId: latest.id, source: latest.source, measuredAt: latest.measured_at, recordedAt: latest.created_at, updatedAt: latest.updated_at } : null,
+    // An example value (LFS-218) is labelled as such; it is never presented as the person's self-report.
+    provenance: latest ? { ...(latest.source === "example" ? { kind: "example", source: "example" } as const : { kind: "self_report", source: "manual" } as const),
+      measurementId: latest.id, measuredAt: latest.measured_at, recordedAt: latest.created_at, updatedAt: latest.updated_at } : null,
     ...calculateGoalProgress({ baseline: goal.baseline, target: goal.target, direction: goal.direction, current: latest?.value ?? null }),
     updatedAt, measurementCount,
   } };

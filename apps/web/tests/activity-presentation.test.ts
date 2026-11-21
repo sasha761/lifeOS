@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ActivityEntry } from "@lifeos/contracts";
 import { describeActivity as describe_ } from "../lib/activity-presentation.ts";
-import { daysUntil, formatDaysLeft } from "../lib/dashboard-presentation.ts";
-import { remainingToTarget } from "../lib/goal-presentation.ts";
+import { daysUntil, formatDaysLeft, sourceLabel } from "../lib/dashboard-presentation.ts";
+import { formatGoalValue, goalUnitOptionLabel, remainingToTarget } from "../lib/goal-presentation.ts";
 
 const preferences = { timezone: "Europe/Oslo", locale: "ru" };
 const base = { id: "5fe63a56-7a7f-4905-bdc3-c9dff1d439dc", occurredAt: "2026-11-14T10:00:00.000Z", source: "web", domainKey: "finance",
-  goal: { id: "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc", title: "Накопить 50 000 NOK", status: "active" }, measurement: null, changedFields: null, dueAt: null, definition: null } as const;
+  goal: { id: "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc", title: "Накопить 50 000 NOK", status: "active" }, measurement: null, changedFields: null, dueAt: null, definition: null, example: false } as const;
 const entry = (value: Partial<ActivityEntry>): ActivityEntry => ({ ...base, type: "goal.created", ...value } as ActivityEntry);
 /** Russian grouping uses a no-break space; compare with plain spaces. */
 const describeActivity = (...args: Parameters<typeof describe_>) => describe_(...args).replace(/[  ]/g, " ");
@@ -62,5 +62,20 @@ describe("«Осталось» tile", () => {
     expect(daysUntil("2026-12-31T22:59:59.999Z", now, "Europe/Oslo")).toBe(43);
     expect(daysUntil("2026-11-17T12:00:00Z", now, "Europe/Oslo")).toBe(-1);
     expect([formatDaysLeft(0), formatDaysLeft(1), formatDaysLeft(3), formatDaysLeft(44), formatDaysLeft(-2)]).toEqual(["сегодня", "1 день", "3 дня", "44 дня", "срок прошёл"]);
+  });
+});
+
+describe("the example in words (LFS-218)", () => {
+  it("says that an example became the person's own goal, after the other changes", () => {
+    expect(describeActivity(entry({ type: "goal.updated", changedFields: ["origin"] }), preferences)).toBe("Метка «Пример» снята");
+    expect(describeActivity(entry({ type: "goal.updated", changedFields: ["title", "origin"] }), preferences, { withTitle: true }))
+      .toBe("Цель «Накопить 50 000 NOK»: название изменено, метка «Пример» снята");
+  });
+  it("names the source of example facts and formats dollars after the number", () => {
+    expect(sourceLabel("starter")).toBe("стартовый набор");
+    expect(formatGoalValue("5000", { unit: "USD", unit_label: null }, "ru").replace(/[  ]/g, " ")).toBe("5 000 $");
+    expect(formatGoalValue("1200.5", { unit: "USD", unit_label: null }, "ru").replace(/[  ]/g, " ")).toBe("1 200,5 $");
+    expect(goalUnitOptionLabel("USD")).toBe("USD ($)");
+    expect(goalUnitOptionLabel("NOK")).toBe("NOK");
   });
 });

@@ -238,9 +238,10 @@ actor только из сессии (`requireApiActor`); repositories филь�
 `domain_key` не меняется. Архивирование — отдельная domain-команда.
 
 Decimal: 0 ≤ value < 10^22, максимум 8 дробных знаков, без JSON number,
-экспонент/знаков/пробелов/ведущих нулей; дробные нули нормализуются. NOK — до
-2 знаков, count — целое, percent — 0..100, custom/minutes — до 8; конвертации
-нет. Increase/decrease требуют соответственно target > / < baseline;
+экспонент/знаков/пробелов/ведущих нулей; дробные нули нормализуются. NOK и USD
+(LFS-218) — до 2 знаков, count — целое, percent — 0..100, custom/minutes — до 8;
+конвертации нет. `Goal.origin` (LFS-218) — `manual` | `starter` | `onboarding`,
+назначается только сервером; клиентские DTO его не принимают. Increase/decrease требуют соответственно target > / < baseline;
 равенство отклоняется. `Goal` возвращает user_id, серверные id/status и ISO UTC
 timestamps; current доступен отдельной measurement projection, progress — LFS-207.
 
@@ -277,6 +278,8 @@ Before/after whitelist исключает title/description/custom labels и aut
 
 `createGoalMeasurementInputSchema`: обязательные value (decimal string),
 measured_at (offset/Z, UTC годы 1..9999, до миллисекунд), optional source=manual
+(`GoalMeasurement.source` бывает и `example` — только из примера LFS-218; такое
+измерение нельзя исправить, CONFLICT)
 и note=null либо trim 1..1000. Дата может быть раньше создания цели; сервер
 отклоняет будущее дальше 5 минут. Правила value общие с единицей родителя;
 target не ограничивает value, percent всё ещё ≤100. Update принимает только
@@ -324,6 +327,8 @@ headers. Неподдерживаемый метод обрабатываетс�
 | `GET /api/v1/goals/:goalId` | `GoalDetails { goal: Goal, progress: GoalProgress }` |
 | `PATCH /api/v1/goals/:goalId` | UpdateGoalInput (metadata и/или определение целиком, LFS-217) **либо** `{status:"archived"}`; `GoalDetails` |
 | `DELETE /api/v1/goals/:goalId` (LFS-216) | без body; `GoalDeletion { id, user_id, deleted:true }` |
+| `POST /api/v1/starter-pack` (LFS-218) | без body; `StarterPackApplied { version:1, created_goals, created_measurements }`; пример уже в аккаунте — 409 |
+| `DELETE /api/v1/starter-pack` (LFS-218) | без body; `StarterPackRemoved { deleted_goals }` |
 | `GET /api/v1/goals/:goalId/measurements` | optional query limit/cursor; `MeasurementsPage { items: GoalMeasurement[], nextCursor, measurementCount }` |
 | `POST /api/v1/goals/:goalId/measurements` | CreateGoalMeasurementInput; `GoalMeasurement` |
 | `PATCH /api/v1/goal-measurements/:measurementId` | UpdateGoalMeasurementInput; `GoalMeasurement` |
@@ -372,7 +377,7 @@ metadata) остаётся для успешного повтора с тем ж
 | `unit`, `baseline`, `target`, `current` | исходные точные значения; current=null без фактов измерений |
 | `progressPercent`, `status`, `explanation` | число 0..100 / measured / null либо null / insufficient_data / «Недостаточно данных» |
 | `source` | manual — способ задания цели; само по себе не подтверждает current |
-| `provenance` | null без замера; иначе kind=self_report, measurementId, source=manual, measuredAt, recordedAt, updatedAt |
+| `provenance` | null без замера; иначе kind=self_report и source=manual (своё значение) или kind=example и source=example (LFS-218), measurementId, measuredAt, recordedAt, updatedAt |
 | `measurementCount` | все существующие замеры этой цели, не длина страницы и не количество событий |
 | `updatedAt` | max goal.updated_at и последнего audit occurred_at; включает правку/удаление/backdated insert |
 
@@ -431,6 +436,10 @@ no-store в общем envelope. Владелец берётся только и
 | `domains` | ровно 6 сфер в порядке `DOMAIN_KEYS`: `{ key, activeCount, archivedCount, goals }`. `goals` — до 5 (`DASHBOARD_GOALS_PER_DOMAIN`) новейших **активных** целей сферы в формате `GoalDetails`, тот же DTO и расчёт, что `GET /api/v1/goals/:goalId`. Счётчики точные, даже если целей больше лимита. Процента сферы, Life Score или «уровня» нет |
 | `today.dueGoals` | до 8 (`DASHBOARD_DUE_GOALS_LIMIT`) активных целей со сроком, ближайшие первыми (включая просроченные), `GoalDetails` |
 | `activity` | до 10 (`DASHBOARD_ACTIVITY_LIMIT`) новейших событий `activity_events` владельца: `{ id, type, occurredAt, source, domainKey, goal: { id, title, status }, measurement }`. `measurement` — `{ value, unit, unitLabel }` только у `goal_measurement.*` (для удаления — значение до удаления), иначе null. Title — текущий из goals: audit не хранит названия (ADR-008); заметки и before/after цели не выдаются |
+| `examples` | LFS-218: `{ goals, measurements }` — цели с `origin = starter` (активные и архивные) и измерения с `source = example`; для баннера «Это пример». Два счётчика в том же snapshot, без запроса на цель |
+
+У записей `activity` есть `example` (LFS-218): факт загрузки примера
+(`source = starter`) или факт о примерном значении.
 
 Пустая сфера: `activeCount=0`, `goals=[]`; UI показывает «Нет целей» и CTA,
 без 0%. Цель без измерений сохраняет `progressPercent=null` и
@@ -474,6 +483,21 @@ VALIDATION_ERROR. Курсора пока нет: панель и страниц
 каждую строку: индекс `(user_id, goal_id, …)` сужает поиск до событий цели,
 `event_type` и `changed_fields` проверяются построчно. В Dashboard с LFS-217
 `measurement.unit` тоже может быть null.
+
+## Пример по выбору пользователя (LFS-218)
+
+`POST /api/v1/starter-pack` загружает пример версии 1: 7 целей с
+`origin = starter` во всех шести сферах без сроков и по одному измерению
+`source = example`, факты аудита с `source = starter`. `DELETE` («Удалить все
+примеры») удаляет все цели с `origin = starter` с их измерениями, историей и
+квитанциями; цели `manual` и `onboarding` остаются. Оба метода: сессия (401),
+Origin публичного URL (403), обязательный `Idempotency-Key`, без query и body
+(400). Повтор с тем же ключом возвращает тот же ответ. Новый ключ при
+существующем примере — 409 `CONFLICT` (текст «Пример уже в аккаунте» показывает
+клиент LFS-220, сообщение API фиксировано по коду). Ничего не создаётся при
+регистрации. Журнал: `changedFields` может содержать `origin`, у записи есть
+`example`. Решения — дополнения LFS-218 к [ADR-007](../adr/007-goals.md),
+[ADR-008](../adr/008-transactional-audit.md) и [ADR-009](../adr/009-goal-measurements.md).
 
 ## Официальные API
 

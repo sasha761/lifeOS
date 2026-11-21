@@ -3,9 +3,11 @@ import { goalDeletionSchema, goalDetailsSchema, goalsPageSchema, measurementsPag
 import { goalMeasurementSchema, goalMeasurementDeletionSchema } from "./goal-measurements.ts";
 import { dashboardSchema } from "./dashboard.ts";
 import { activityFeedSchema } from "./activity.ts";
+import { starterPackAppliedSchema, starterPackRemovedSchema } from "./starter-pack.ts";
 export * from "./goals-api.ts";
 export * from "./dashboard.ts";
 export * from "./activity.ts";
+export * from "./starter-pack.ts";
 
 export { DOMAIN_KEYS, domainKeySchema } from "./domains.ts";
 export type { DomainKey } from "./domains.ts";
@@ -14,18 +16,19 @@ export {
   GOAL_DIRECTIONS, GOAL_STATUSES, GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, GOAL_UNITS,
   goalCalculationModeSchema, goalDecimalSchema, goalDecimalToScaledInteger, goalDirectionSchema,
   goalIdSchema, goalInstantSchema, goalSchema, goalStatusSchema, goalUnitSchema, goalValueMatchesUnit, updateGoalInputSchema,
-  GOAL_DEFINITION_FIELDS, GOAL_METADATA_FIELDS,
+  GOAL_DEFINITION_FIELDS, GOAL_METADATA_FIELDS, GOAL_CURRENCY_UNITS, GOAL_ORIGINS, goalOriginSchema,
 } from "./goals.ts";
 export type { CreateGoalInput, Goal, UpdateGoalInput } from "./goals.ts";
 export {
   ACTIVITY_EVENT_TYPES, ACTIVITY_SOURCES, activeActivitySourceSchema, activityEventDraftSchema,
   activityEventMetadataSchema, activitySourceSchema, GOAL_AUDIT_FIELDS, GOAL_CHANGED_FIELDS, goalAuditSnapshotSchema,
-  goalChangedFieldSchema, goalCommandOptionsSchema, MEASUREMENT_AUDIT_FIELDS,
+  goalChangedFieldSchema, goalCommandOptionsSchema, MEASUREMENT_AUDIT_FIELDS, activityWriterContextSchema,
 } from "./activity-events.ts";
-export type { ActivityEvent, ActivityEventDraft, GoalCommandOptions } from "./activity-events.ts";
+export type { ActivityEvent, ActivityEventDraft, ActivityWriterContext, GoalCommandOptions } from "./activity-events.ts";
 export {
   createGoalMeasurementInputSchema, goalMeasurementCurrentSchema, goalMeasurementDeletionSchema, goalMeasurementSchema,
   MEASUREMENT_FUTURE_TOLERANCE_MS, MEASUREMENT_NOTE_MAX_LENGTH, updateGoalMeasurementInputSchema,
+  GOAL_MEASUREMENT_SOURCES, goalMeasurementSourceSchema,
 } from "./goal-measurements.ts";
 export type { CreateGoalMeasurementInput, GoalMeasurement, GoalMeasurementCurrent, GoalMeasurementDeletion, UpdateGoalMeasurementInput } from "./goal-measurements.ts";
 
@@ -209,3 +212,5 @@ export const goalMeasurementResponseSchema = apiResponseSchema(goalMeasurementSc
 export const goalMeasurementDeletionResponseSchema = apiResponseSchema(goalMeasurementDeletionSchema);
 export const dashboardResponseSchema = apiResponseSchema(dashboardSchema);
 export const activityFeedResponseSchema = apiResponseSchema(activityFeedSchema);
+export const starterPackAppliedResponseSchema = apiResponseSchema(starterPackAppliedSchema);
+export const starterPackRemovedResponseSchema = apiResponseSchema(starterPackRemovedSchema);

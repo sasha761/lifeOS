@@ -13,13 +13,18 @@ export { findLifeDomain, LIFE_DOMAINS } from "./core/domains.ts";
 export type { DomainLocale, LifeDomain, LocalizedDomainText } from "./core/domains.ts";
 export { createGoalsService } from "./core/goals.ts";
 export type { GoalCommand, GoalCommandOutcome, GoalDeletionCommand, GoalDeletionOutcome, GoalTransaction, GoalsRepository, GoalsService, GoalsUnitOfWork } from "./core/goals.ts";
-export { goalAuditSnapshot } from "./core/events.ts";
+export { goalAuditSnapshot, measurementDeletedEvent, measurementSnapshot } from "./core/events.ts";
 export type { ActivityEventsRepository, ActivityEventWriter } from "./core/events.ts";
 export { createGoalMeasurementsService } from "./core/goal-measurements.ts";
 export type {
   GoalMeasurementsRepository, GoalMeasurementsService, GoalMeasurementsUnitOfWork, MeasurementCommand,
-  MeasurementCommandOutcome, MeasurementMutationResult, MeasurementTransaction,
+  MeasurementCommandOutcome, MeasurementDraft, MeasurementMutationResult, MeasurementTransaction,
 } from "./core/goal-measurements.ts";
+export { createStarterPackService, STARTER_PACK, STARTER_PACK_NOTE } from "./core/starter-pack.ts";
+export type {
+  StarterPackCommand, StarterPackOutcome, StarterPackRepository, StarterPackResult, StarterPackService, StarterPackTransaction,
+  StarterPackUnitOfWork,
+} from "./core/starter-pack.ts";
 export { calculateGoalProgress } from "./core/goal-progress.ts";
 export { createGoalsReader, goalDetailsFromRecord } from "./core/goals-reader.ts";
 export type { GoalReadRecord, GoalsReadQuery, MeasurementsReadQuery, GoalsReadRepository, GoalsReader } from "./core/goals-reader.ts";

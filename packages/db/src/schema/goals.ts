@@ -3,7 +3,7 @@ import type { SQL } from "drizzle-orm";
 import { check as pgCheck, index, numeric, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import {
   DOMAIN_KEYS, GOAL_DECIMAL_INTEGER_DIGITS, GOAL_DECIMAL_SCALE, GOAL_DESCRIPTION_MAX_LENGTH,
-  GOAL_DIRECTIONS, GOAL_STATUSES, GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, GOAL_UNITS,
+  GOAL_DIRECTIONS, GOAL_ORIGINS, GOAL_STATUSES, GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, GOAL_UNITS,
 } from "@lifeos/contracts";
 import { user } from "./auth.ts";
 
@@ -27,6 +27,8 @@ export const goals = pgTable("goals", {
   calculationMode: text("calculation_mode", { enum: ["manual", "computed"] }).default("manual").notNull(),
   metricKey: text("metric_key"),
   status: text("status", { enum: GOAL_STATUSES }).default("active").notNull(),
+  // LFS-218: existing and ordinary goals are the person's own; the server marks the chosen example `starter`.
+  origin: text("origin", { enum: GOAL_ORIGINS }).default("manual").notNull(),
   dueAt: timestamp("due_at", { withTimezone: true, precision: 3 }),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
@@ -39,10 +41,11 @@ export const goals = pgTable("goals", {
   check("goals_unit_check", sql`${table.unit} IN (${choices(GOAL_UNITS)})`),
   check("goals_unit_label_check", sql`CASE WHEN ${table.unit} = 'custom' THEN ${table.unitLabel} IS NOT NULL AND char_length(${table.unitLabel}) BETWEEN 1 AND ${GOAL_UNIT_LABEL_MAX_LENGTH} AND btrim(${table.unitLabel}) <> '' ELSE ${table.unitLabel} IS NULL END`),
   check("goals_values_check", sql`${table.baseline} >= 0 AND ${table.target} >= 0 AND ${table.baseline} < power(10::numeric, ${GOAL_DECIMAL_INTEGER_DIGITS}) AND ${table.target} < power(10::numeric, ${GOAL_DECIMAL_INTEGER_DIGITS}) AND ${table.baseline} = trunc(${table.baseline}, ${GOAL_DECIMAL_SCALE}) AND ${table.target} = trunc(${table.target}, ${GOAL_DECIMAL_SCALE})`),
-  check("goals_unit_values_check", sql`CASE ${table.unit} WHEN 'NOK' THEN ${table.baseline} = trunc(${table.baseline}, 2) AND ${table.target} = trunc(${table.target}, 2) WHEN 'count' THEN ${table.baseline} = trunc(${table.baseline}) AND ${table.target} = trunc(${table.target}) WHEN 'percent' THEN ${table.baseline} <= 100 AND ${table.target} <= 100 ELSE true END`),
+  check("goals_unit_values_check", sql`CASE WHEN ${table.unit} IN ('NOK', 'USD') THEN ${table.baseline} = trunc(${table.baseline}, 2) AND ${table.target} = trunc(${table.target}, 2) WHEN ${table.unit} = 'count' THEN ${table.baseline} = trunc(${table.baseline}) AND ${table.target} = trunc(${table.target}) WHEN ${table.unit} = 'percent' THEN ${table.baseline} <= 100 AND ${table.target} <= 100 ELSE true END`),
   check("goals_direction_check", sql`(${table.direction} = 'increase' AND ${table.target} > ${table.baseline}) OR (${table.direction} = 'decrease' AND ${table.target} < ${table.baseline})`),
   check("goals_manual_check", sql`${table.calculationMode} = 'manual' AND ${table.metricKey} IS NULL`),
   check("goals_status_check", sql`${table.status} IN (${choices(GOAL_STATUSES)})`),
+  check("goals_origin_check", sql`${table.origin} IN (${choices(GOAL_ORIGINS)})`),
   check("goals_due_at_check", sql`${table.dueAt} IS NULL OR (isfinite(${table.dueAt}) AND EXTRACT(YEAR FROM ${table.dueAt} AT TIME ZONE 'UTC') BETWEEN 1 AND 9999)`),
   check("goals_timestamps_check", sql`isfinite(${table.createdAt}) AND isfinite(${table.updatedAt}) AND EXTRACT(YEAR FROM ${table.createdAt} AT TIME ZONE 'UTC') BETWEEN 1 AND 9999 AND EXTRACT(YEAR FROM ${table.updatedAt} AT TIME ZONE 'UTC') BETWEEN 1 AND 9999`),
   index("goals_user_domain_status_idx").on(table.userId, table.domainKey, table.status),

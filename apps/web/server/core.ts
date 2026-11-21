@@ -1,8 +1,8 @@
 import "server-only";
 import { readWebEnv } from "@lifeos/config/env";
-import { createUserPreferencesRepository, createGoalsUnitOfWork, createGoalMeasurementsUnitOfWork, createGoalsReadRepository, createDashboardReadRepository, createActivityReadRepository } from "@lifeos/db";
-import { createUserPreferencesService, createGoalsService, createGoalMeasurementsService, createGoalsReader, createDashboardReader, createActivityReader } from "@lifeos/domain";
-import type { UserPreferencesService, GoalsService, GoalMeasurementsService, GoalsReader, DashboardReader, ActivityReader } from "@lifeos/domain";
+import { createUserPreferencesRepository, createGoalsUnitOfWork, createGoalMeasurementsUnitOfWork, createGoalsReadRepository, createDashboardReadRepository, createActivityReadRepository, createStarterPackUnitOfWork } from "@lifeos/db";
+import { createUserPreferencesService, createGoalsService, createGoalMeasurementsService, createGoalsReader, createDashboardReader, createActivityReader, createStarterPackService } from "@lifeos/domain";
+import type { UserPreferencesService, GoalsService, GoalMeasurementsService, GoalsReader, DashboardReader, ActivityReader, StarterPackService } from "@lifeos/domain";
 import { getDatabase } from "./db.ts";
 
 // Composition of core domain services (lazy: never during `next build`). Cached per module, not on
@@ -15,6 +15,7 @@ let measurements: GoalMeasurementsService | undefined;
 let goalsReader: GoalsReader | undefined;
 let dashboardReader: DashboardReader | undefined;
 let activityReader: ActivityReader | undefined;
+let starterPack: StarterPackService | undefined;
 
 export function getUserPreferencesService(): UserPreferencesService {
   userPreferences ??= createUserPreferencesService(
@@ -42,4 +43,9 @@ export function getDashboardReader(): DashboardReader {
 export function getActivityReader(): ActivityReader {
   activityReader ??= createActivityReader(createActivityReadRepository(getDatabase(readWebEnv(process.env).DATABASE_URL).db));
   return activityReader;
+}
+/** The example the person chooses to load (LFS-218); nothing calls it on sign-up or for other accounts. */
+export function getStarterPackService(): StarterPackService {
+  starterPack ??= createStarterPackService(createStarterPackUnitOfWork(getDatabase(readWebEnv(process.env).DATABASE_URL).db));
+  return starterPack;
 }

@@ -72,3 +72,17 @@ describe("activity journal reader (LFS-213)", () => {
     expect(repository.list).not.toHaveBeenCalled();
   });
 });
+
+describe("example facts in the journal (LFS-218)", () => {
+  it("labels facts written by loading the example and facts about example values, also when the person removes one", async () => {
+    const created = record("goal.created", { before: null, after: { ...snapshot, due_at: null } }, "2026-11-16T10:00:00Z");
+    const starter = { ...created, event: { ...created.event, source: "starter" as const } };
+    const removed = record("goal_measurement.deleted", { before: { ...value("1200"), source: "example" }, after: null }, "2026-11-16T11:00:00Z");
+    const own = record("goal_measurement.created", { before: null, after: value("800") }, "2026-11-16T12:00:00Z");
+    const claimed = record("goal.updated", { before: { ...snapshot, due_at: null }, after: { ...snapshot, due_at: null }, changed_fields: ["origin"] }, "2026-11-16T11:30:00Z");
+    const feed = activityFeedSchema.parse(await reader([starter, removed, own, claimed]).service.list(actor, {}));
+    expect(feed.items.map((item) => [item.type, item.example])).toEqual([
+      ["goal_measurement.created", false], ["goal.updated", false], ["goal_measurement.deleted", true], ["goal.created", true]]);
+    expect(feed.items[1]).toMatchObject({ changedFields: ["origin"], definition: null, dueAt: null });
+  });
+});

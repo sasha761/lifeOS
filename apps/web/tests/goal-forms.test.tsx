@@ -87,3 +87,20 @@ describe("account-local date fields", () => {
     expect(resolveGoalTime("2026-10-25T02:30", preferences.timezone, "UTC+01:00")).toBe("2026-10-25T01:30:00.000Z");
   });
 });
+
+describe("example goals in the forms (LFS-218)", () => {
+  const goal = goalSchema.parse({ id: "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc", user_id: "owner", domain_key: "finance", title: "Накопить 5 000 $", unit: "USD",
+    baseline: "0", target: "5000", direction: "increase", status: "active", origin: "starter", created_at: "2026-11-18T19:40:00.000Z", updated_at: "2026-11-18T19:40:00.000Z" });
+  const preferences = { timezone: "Europe/Oslo", locale: "ru" };
+  it("offers USD and warns that a new definition removes the example value", () => {
+    const html = renderToStaticMarkup(createElement(GoalFields, { initial: goal, definitionEditable: true, replacesExample: true, domains: [], preferences, errors: {} }));
+    expect(html).toContain('<option value="USD" selected="">USD ($)</option>');
+    expect(html).toContain("примерное измерение удалится");
+    expect(renderToStaticMarkup(createElement(GoalFields, { initial: goal, definitionEditable: true, domains: [], preferences, errors: {} }))).not.toContain("примерное измерение удалится");
+  });
+  it("keeps dollars to two decimal places before sending", () => {
+    const definition = { title: goal.title, baseline: "0", target: "5000,25", unit: "USD", direction: "increase" };
+    expect(goalFormInput(values(definition), "UTC", true).data).toMatchObject({ unit: "USD", target: "5000.25" });
+    expect(goalFormInput(values({ ...definition, target: "5000,255" }), "UTC", true).errors).toHaveProperty("target");
+  });
+});

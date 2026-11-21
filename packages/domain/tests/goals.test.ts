@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { goalSchema } from "@lifeos/contracts";
-import type { Goal } from "@lifeos/contracts";
+import { createGoalInputSchema, goalMeasurementSchema, goalSchema } from "@lifeos/contracts";
+import type { Goal, GoalMeasurement } from "@lifeos/contracts";
 import { actorFromVerifiedSession, ConflictError, createGoalsService, InvalidInputError, NotFoundError } from "../src/index.ts";
-import type { Actor, GoalsRepository, GoalsUnitOfWork } from "../src/index.ts";
+import type { ActivityEventWriter, Actor, GoalsRepository, GoalsUnitOfWork } from "../src/index.ts";
 
 const owner = actorFromVerifiedSession("owner");
 const other = actorFromVerifiedSession("other");
@@ -13,14 +13,20 @@ function memory() {
   const rows = new Map<string, Goal>();
   const measured = new Set<string>();
   const repository: GoalsRepository = {
-    hasMeasurements: vi.fn<GoalsRepository["hasMeasurements"]>(async (actor, id) => rows.get(id)?.user_id === actor.userId && measured.has(id)),
+    hasOwnMeasurements: vi.fn<GoalsRepository["hasOwnMeasurements"]>(async (actor, id) => rows.get(id)?.user_id === actor.userId && measured.has(id)),
+    claimExample: vi.fn<GoalsRepository["claimExample"]>(async (actor, id) => {
+      const row = rows.get(id);
+      if (!row || row.user_id !== actor.userId || row.origin !== "starter") return null;
+      const claimed: Goal = { ...row, origin: "manual" };
+      rows.set(id, claimed); return { ...claimed };
+    }),
     deleteGoal: vi.fn<GoalsRepository["deleteGoal"]>(async (actor, id) => {
       const goal = rows.get(id);
       if (!goal || goal.user_id !== actor.userId) return null;
       rows.delete(id); return goal;
     }),
-    create: vi.fn<GoalsRepository["create"]>(async (actor, data) => {
-      const goal = goalSchema.parse({ ...data, id: randomUUID(), user_id: actor.userId, status: "active", created_at: "2026-11-15T10:00:00Z", updated_at: "2026-11-15T10:00:00Z" });
+    create: vi.fn<GoalsRepository["create"]>(async (actor, data, options = {}) => {
+      const goal = goalSchema.parse({ ...data, id: randomUUID(), user_id: actor.userId, status: "active", origin: options.origin ?? "manual", created_at: "2026-11-15T10:00:00Z", updated_at: "2026-11-15T10:00:00Z" });
       rows.set(goal.id, goal);
       return { ...goal };
     }),
@@ -32,7 +38,7 @@ function memory() {
     updateActive: vi.fn<GoalsRepository["updateActive"]>(async (actor, id, changes) => {
       const row = rows.get(id);
       if (!row || row.user_id !== actor.userId || row.status !== "active") return null;
-      const updated = { ...row, ...changes, updated_at: "2026-11-15T10:00:01.000Z" };
+      const updated = { ...row, ...changes, origin: row.origin === "starter" ? "manual" as const : row.origin, updated_at: "2026-11-15T10:00:01.000Z" };
       rows.set(id, updated);
       return { ...updated };
     }),
@@ -45,10 +51,13 @@ function memory() {
       return { ...archived };
     }),
   };
-  const events = { append: vi.fn(async () => {}) };
+  const events = { append: vi.fn<ActivityEventWriter["append"]>(async () => {}) };
+  // Example measurements of a goal (LFS-218): removed before a redefinition.
+  const examples = new Map<string, GoalMeasurement[]>();
+  const measurements = { removeExamples: vi.fn(async (_actor: Actor, goalId: string) => { const removed = examples.get(goalId) ?? []; examples.delete(goalId); return removed; }) };
   const unit: GoalsUnitOfWork = { goals: repository,
     runDeletion: async (_actor, _command, operation) => ({ kind: "success", result: await operation(repository) }),
-    run: async (_actor, _command, operation) => ({ kind: "success", goal: await operation({ goals: repository, events }) }) };
+    run: async (_actor, _command, operation) => ({ kind: "success", goal: await operation({ goals: repository, measurements, events }) }) };
   const audited = createGoalsService(unit);
   const options = { idempotencyKey: "unit-key", source: "web" };
   const service = {
@@ -57,7 +66,7 @@ function memory() {
     update: (actor: Actor, id: unknown, input: unknown) => audited.update(actor, id, input, options),
     archive: (actor: Actor, id: unknown) => audited.archive(actor, id, options),
   };
-  return { rows, measured, repository, service, audited, events, unit };
+  return { rows, measured, examples, measurements, repository, service, audited, events, unit };
 }
 
 describe("goals service", () => {
@@ -117,10 +126,10 @@ describe("goals service", () => {
     await expect(service.update(owner, goal.id, { ...definition, title: "Changed" })).rejects.toBeInstanceOf(ConflictError);
     expect(repository.updateActive).not.toHaveBeenCalled();
     expect(await service.get(owner, goal.id)).toEqual(goal);
-    vi.mocked(repository.hasMeasurements).mockClear();
+    vi.mocked(repository.hasOwnMeasurements).mockClear();
     const same = { unit: goal.unit, unit_label: goal.unit_label, baseline: goal.baseline, target: goal.target, direction: goal.direction };
     expect(await service.update(owner, goal.id, { ...same, title: "Renamed" })).toMatchObject({ title: "Renamed", unit: "NOK", target: "50000" });
-    expect(repository.hasMeasurements).not.toHaveBeenCalled();
+    expect(repository.hasOwnMeasurements).not.toHaveBeenCalled();
     expect(vi.mocked(repository.updateActive).mock.calls[0]![2]).not.toHaveProperty("unit");
   });
   it.each([{ ...definition, target: "2" }, { ...definition, direction: "decrease" }, { ...definition, unit: "custom" }, { ...definition, unit_label: "km" }, { ...definition, target: "1.5" }])(
@@ -206,5 +215,38 @@ describe("audited goal commands", () => {
     await expect(audited.create(owner, input, options)).rejects.toBeInstanceOf(ConflictError);
     unit.run = async () => ({ kind: "not_found" });
     await expect(audited.create(owner, input, options)).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("example goals become the person's own (LFS-218)", () => {
+  const exampleValue = (goalId: string) => goalMeasurementSchema.parse({ id: randomUUID(), goal_id: goalId, user_id: owner.userId, unit: "NOK", value: "1200",
+    measured_at: "2026-11-15T10:00:00Z", source: "example", note: "Пример", created_at: "2026-11-15T10:00:00Z", updated_at: "2026-11-15T10:00:00Z" });
+  it("names origin in the audit of any real edit, keeps the example values on a metadata edit", async () => {
+    const { repository, audited, events, examples, measurements } = memory();
+    const goal = await repository.create(owner, createGoalInputSchema.parse(input), { origin: "starter" });
+    examples.set(goal.id, [exampleValue(goal.id)]);
+    const updated = await audited.update(owner, goal.id, { title: "Моя подушка" }, { idempotencyKey: "edit-1", source: "web" });
+    expect(updated.origin).toBe("manual");
+    expect(vi.mocked(events.append).mock.calls.at(-1)![0]).toMatchObject({ event_type: "goal.updated", payload: { changed_fields: ["title", "origin"] } });
+    expect(measurements.removeExamples).not.toHaveBeenCalled();
+    // A no-op is not an edit: the label stays.
+    const other = await repository.create(owner, createGoalInputSchema.parse(input), { origin: "starter" });
+    expect((await audited.update(owner, other.id, { title: other.title }, { idempotencyKey: "edit-2", source: "web" })).origin).toBe("starter");
+  });
+  it("removes example values with an audit fact before a redefinition, which own values still forbid", async () => {
+    const { repository, audited, events, examples, measured } = memory();
+    const goal = await repository.create(owner, createGoalInputSchema.parse(input), { origin: "starter" });
+    const removed = exampleValue(goal.id);
+    examples.set(goal.id, [removed]);
+    vi.mocked(events.append).mockClear();
+    const definition = { unit: "count", unit_label: null, baseline: "2", target: "10", direction: "increase" };
+    const updated = await audited.update(owner, goal.id, definition, { idempotencyKey: "edit-3", source: "web" });
+    expect(updated).toMatchObject({ unit: "count", baseline: "2", origin: "manual" });
+    expect(vi.mocked(events.append).mock.calls.map(([event]) => event.event_type)).toEqual(["goal_measurement.deleted", "goal.updated"]);
+    expect(vi.mocked(events.append).mock.calls[0]![0]).toMatchObject({ target_id: removed.id, payload: { before: { value: "1200", source: "example" }, after: null } });
+    expect(vi.mocked(events.append).mock.calls[1]![0]).toMatchObject({ payload: { changed_fields: ["unit", "baseline", "target", "origin"] } });
+    const own = await repository.create(owner, createGoalInputSchema.parse(input));
+    measured.add(own.id);
+    await expect(audited.update(owner, own.id, definition, { idempotencyKey: "edit-4", source: "web" })).rejects.toBeInstanceOf(ConflictError);
   });
 });

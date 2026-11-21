@@ -43,7 +43,7 @@ describe("manual goal definition", () => {
     { baseline: "10", target: "10" }, { baseline: "10.0", target: "10.00" },
     { target: "0" }, { direction: "decrease" }, { direction: "sideways" }, { baseline: "-1" },
     { baseline: "0.001" }, { unit: "count", target: "1.1" }, { unit: "percent", target: "100.00000001" },
-    { unit: "custom" }, { unit_label: "km" }, { unit: "USD" }, { unit: "custom", unit_label: " " },
+    { unit: "custom" }, { unit_label: "km" }, { unit: "EUR" }, { unit: "custom", unit_label: " " },
     { domain_key: "seventh" }, { title: " " }, { title: "x".repeat(201) }, { description: "" },
     { description: "x".repeat(4001) }, { calculation_mode: "computed" }, { metric_key: "balance" },
     { user_id: "other" }, { userId: "other" }, { status: "archived" }, { id: "forged" },

@@ -42,17 +42,20 @@ export function toActivityEntry({ event, goal, unitChangedAt = null }: ActivityR
   const definitionOf = ({ unit, baseline, target, direction }: { unit: Goal["unit"]; baseline: string; target: string; direction: Goal["direction"] }) => ({ unit, baseline, target, direction });
   const definition = event.event_type === "goal.updated" && event.payload.changed_fields.some((field) => ["unit", "baseline", "target", "direction"].includes(field))
     ? { before: definitionOf(event.payload.before), after: definitionOf(event.payload.after) } : null;
+  // LFS-218: written by loading the example, or about an example value (also when the person removes it).
+  const snapshot = event.target_type === "goal_measurement" ? (event.payload.after ?? event.payload.before) : null;
+  const example = event.source === "starter" || snapshot?.source === "example";
   return {
     id: event.id, type: event.event_type, occurredAt: event.occurred_at, source: event.source, domainKey: event.domain_key,
-    goal: { id: goal.id, title: goal.title, status: goal.status }, measurement, changedFields, dueAt, definition,
+    goal: { id: goal.id, title: goal.title, status: goal.status }, measurement, changedFields, dueAt, definition, example,
   };
 }
 
 /** The Dashboard keeps its LFS-204 shape: the same fact without edit details. */
 export function toDashboardActivity(record: ActivityRecord): DashboardActivity {
-  const { id, type, occurredAt, source, domainKey, goal, measurement } = toActivityEntry(record);
+  const { id, type, occurredAt, source, domainKey, goal, measurement, example } = toActivityEntry(record);
   return { id, type, occurredAt, source, domainKey, goal,
-    measurement: measurement && { value: measurement.value, unit: measurement.unit, unitLabel: measurement.unitLabel } };
+    measurement: measurement && { value: measurement.value, unit: measurement.unit, unitLabel: measurement.unitLabel }, example };
 }
 
 /** GET /api/v1/activity: the actor's own journal, optionally for one sphere or one goal; foreign ids simply match nothing. */

@@ -7,18 +7,23 @@ import type {
   GoalMeasurementDeletion, UpdateGoalMeasurementInput,
 } from "@lifeos/contracts";
 import type { Actor } from "./actor.ts";
+import { goalAuditSnapshot, measurementDeletedEvent, measurementSnapshot } from "./events.ts";
 import type { ActivityEventWriter } from "./events.ts";
 import type { GoalsRepository } from "./goals.ts";
 import { ConflictError, InvalidInputError, NotFoundError } from "./errors.ts";
 import { requireFound, requireOwned } from "./ownership.ts";
 
+/** What a repository writes: the public input, or an example measurement written only by the example command (LFS-218). */
+export type MeasurementDraft = Omit<CreateGoalMeasurementInput, "source"> & { source: GoalMeasurement["source"] };
 export type GoalMeasurementsRepository = {
-  create(actor: Actor, goal: Goal, input: CreateGoalMeasurementInput): Promise<GoalMeasurement>;
+  create(actor: Actor, goal: Goal, input: MeasurementDraft): Promise<GoalMeasurement>;
   find(actor: Actor, id: string): Promise<GoalMeasurement | null>;
   update(actor: Actor, id: string, input: UpdateGoalMeasurementInput): Promise<GoalMeasurement | null>;
   remove(actor: Actor, id: string): Promise<GoalMeasurement | null>;
   latest(actor: Actor, goalId: string): Promise<GoalMeasurement | null>;
   list(actor: Actor, goalId: string): Promise<GoalMeasurement[]>;
+  /** Deletes the goal's example measurements (LFS-218) and returns them for the audit; called under the goal row lock. */
+  removeExamples(actor: Actor, goalId: string): Promise<GoalMeasurement[]>;
 };
 export type MeasurementMutationResult = GoalMeasurement | GoalMeasurementDeletion;
 export type MeasurementCommand = GoalCommandOptions & {
@@ -26,7 +31,7 @@ export type MeasurementCommand = GoalCommandOptions & {
   targetId: string;
   input: CreateGoalMeasurementInput | UpdateGoalMeasurementInput | null;
 };
-export type MeasurementTransaction = { goals: Pick<GoalsRepository, "find">; measurements: GoalMeasurementsRepository; events: ActivityEventWriter };
+export type MeasurementTransaction = { goals: Pick<GoalsRepository, "find" | "claimExample">; measurements: GoalMeasurementsRepository; events: ActivityEventWriter };
 export type MeasurementCommandOutcome = { kind: "success"; result: MeasurementMutationResult } | { kind: "conflict" | "not_found" };
 export type GoalMeasurementsUnitOfWork = {
   goals: Pick<GoalsRepository, "find">;
@@ -56,9 +61,7 @@ function owned<T extends { user_id: string }>(actor: Actor, value: T | null): T 
   requireOwned(actor, { userId: row.user_id });
   return row;
 }
-function snapshot(value: GoalMeasurement) {
-  return { value: value.value, measured_at: value.measured_at, source: value.source };
-}
+const snapshot = measurementSnapshot;
 
 export function createGoalMeasurementsService(unit: GoalMeasurementsUnitOfWork, clock: () => Date = () => new Date()): GoalMeasurementsService {
   function validateValue(goal: Goal, value: string): void {
@@ -87,6 +90,14 @@ export function createGoalMeasurementsService(unit: GoalMeasurementsUnitOfWork, 
       const result = await execute(actor, { ...options(context), operation: "measurement.create", targetId: key, input: parsed.data }, async ({ goals, measurements, events }) => {
         const goal = await parent(actor, key, goals, true);
         validateValue(goal, parsed.data.value); validateTime(parsed.data.measured_at);
+        // LFS-218: the first own value replaces the example ones, and an example goal becomes the person's own.
+        // Audit order makes the person's measurement the newest fact.
+        for (const removed of await measurements.removeExamples(actor, key)) await events.append(measurementDeletedEvent(goal, removed));
+        if (goal.origin === "starter") {
+          const claimed = owned(actor, await goals.claimExample(actor, key));
+          await events.append({ goal_id: key, domain_key: goal.domain_key, target_type: "goal", target_id: key, schema_version: 1,
+            event_type: "goal.updated", payload: { before: goalAuditSnapshot(goal), after: goalAuditSnapshot(claimed), changed_fields: ["origin"] } });
+        }
         const measurement = owned(actor, await measurements.create(actor, goal, parsed.data));
         await events.append({ goal_id: key, domain_key: goal.domain_key, target_type: "goal_measurement", target_id: measurement.id,
           schema_version: 1, event_type: "goal_measurement.created", payload: { before: null, after: snapshot(measurement) } });
@@ -107,6 +118,8 @@ export function createGoalMeasurementsService(unit: GoalMeasurementsUnitOfWork, 
       const result = await execute(actor, { ...options(context), operation: "measurement.update", targetId: key, input: parsed.data }, async ({ goals, measurements, events }) => {
         const before = owned(actor, await measurements.find(actor, key));
         const goal = await parent(actor, before.goal_id, goals, true);
+        // An example value is not corrected into the person's data: they add their own, which replaces it (LFS-218).
+        if (before.source === "example") throw new ConflictError();
         if (parsed.data.value !== undefined) validateValue(goal, parsed.data.value);
         if (parsed.data.measured_at !== undefined) validateTime(parsed.data.measured_at);
         const changed_fields = (["value", "measured_at", "note"] as const).filter((field) => parsed.data[field] !== undefined && parsed.data[field] !== before[field]);

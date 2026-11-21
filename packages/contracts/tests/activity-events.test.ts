@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACTIVITY_EVENT_TYPES, ACTIVITY_SOURCES, activityEventDraftSchema, activitySourceSchema, goalCommandOptionsSchema } from "../src/index.ts";
+import { ACTIVITY_EVENT_TYPES, ACTIVITY_SOURCES, activityEventDraftSchema, activitySourceSchema, goalCommandOptionsSchema, activityWriterContextSchema } from "../src/index.ts";
 
 const goal = "56c83335-2be4-44af-87ec-7f74393cc35f";
 const target = "a9b75401-d1e1-485b-badb-d3e4bb62d432";
@@ -8,11 +8,15 @@ const base = { goal_id: goal, domain_key: "finance", target_type: "goal", target
 const created = { ...base, event_type: "goal.created", payload: { before: null, after: snapshot } };
 
 describe("typed activity events", () => {
-  it("defines the six event types and five sources, with only web/manual enabled for commands", () => {
+  it("defines the six event types and six sources, with only web/manual enabled for commands", () => {
     expect(ACTIVITY_EVENT_TYPES).toHaveLength(6);
-    expect(ACTIVITY_SOURCES).toEqual(["manual", "web", "telegram", "import", "ai_proposed"]);
+    expect(ACTIVITY_SOURCES).toEqual(["manual", "web", "telegram", "import", "ai_proposed", "starter"]);
     for (const source of ACTIVITY_SOURCES) expect(activitySourceSchema.parse(source)).toBe(source);
     for (const source of ["web", "manual"]) expect(goalCommandOptionsSchema.parse({ source, idempotencyKey: "command-1" }).source).toBe(source);
+    // LFS-218: `starter` stamps the facts of the example command only; a client request can never claim it.
+    expect(goalCommandOptionsSchema.safeParse({ source: "starter", idempotencyKey: "command-1" }).success).toBe(false);
+    expect(activityWriterContextSchema.parse({ source: "starter", idempotencyKey: "command-1" }).source).toBe("starter");
+    expect(activityWriterContextSchema.safeParse({ source: "telegram", idempotencyKey: "command-1" }).success).toBe(false);
   });
   it("accepts goal before/after and reserves typed measurement events without adding measurements", () => {
     for (const event of [created,

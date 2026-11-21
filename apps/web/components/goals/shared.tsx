@@ -144,3 +144,7 @@ export function CloseButton({ onClick, disabled }: { onClick(): void; disabled?:
 export function StatusBadge({ status }: { status: Goal["status"] }) {
   return <StatusChip tone={status === "archived" ? "gray" : "green"}>{status === "archived" ? "В архиве" : "Активна"}</StatusChip>;
 }
+/** «Пример» (mockup 28, `.chip.c-a`): a goal of the loaded example or an example value, never the person's data (LFS-218). */
+export function ExampleChip({ className }: { className?: string }) {
+  return <StatusChip tone="amber" className={className}>Пример</StatusChip>;
+}

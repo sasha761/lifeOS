@@ -13,7 +13,7 @@ import { actorFromVerifiedSession, createGoalsService } from "@lifeos/domain";
 import { createGoalsUnitOfWork } from "../../src/goals-unit-of-work.ts";
 
 // Every table the application migrations own; cleanup drops only these in schemas created by this run.
-const ownedTables = ["goal_deletion_receipts", "goal_measurements", "goal_command_receipts", "activity_events", "goals", "session", "account", "verification", "user", "foundation_migration_fixture", "__drizzle_migrations"];
+const ownedTables = ["starter_pack_receipts", "goal_deletion_receipts", "goal_measurements", "goal_command_receipts", "activity_events", "goals", "session", "account", "verification", "user", "foundation_migration_fixture", "__drizzle_migrations"];
 const migrationsFolder = fileURLToPath(new URL("../../drizzle/", import.meta.url));
 const run = randomUUID().replaceAll("-", "");
 const cleanSchema = `lfs104_migration_${run}`;
@@ -22,11 +22,14 @@ const preferencesSchema = `lfs202_upgrade_${run}`;
 const goalsSchema = `lfs205_upgrade_${run}`;
 const auditSchema = `lfs210_upgrade_${run}`;
 const measurementsSchema = `lfs206_upgrade_${run}`;
-const isolatedSchemas = [cleanSchema, upgradeSchema, preferencesSchema, goalsSchema, auditSchema, measurementsSchema];
+const examplesSchema = `lfs216_upgrade_${run}`;
+const isolatedSchemas = [cleanSchema, upgradeSchema, preferencesSchema, goalsSchema, auditSchema, measurementsSchema, examplesSchema];
 for (const name of isolatedSchemas) {
-  if (!/^lfs(?:104_migration|201_upgrade|202_upgrade|205_upgrade|210_upgrade|206_upgrade)_[a-f0-9]{32}$/.test(name)) throw new Error("Invalid isolated test schema name.");
+  if (!/^lfs(?:104_migration|201_upgrade|202_upgrade|205_upgrade|210_upgrade|206_upgrade|216_upgrade)_[a-f0-9]{32}$/.test(name)) throw new Error("Invalid isolated test schema name.");
 }
 const quote = (name: string) => `"${name}"`;
+/** A goal row as an older history stored it: everything but the origin added by LFS-218. */
+const withoutOrigin = (row: Record<string, unknown>) => Object.fromEntries(Object.entries(row).filter(([key]) => key !== "origin"));
 let administration: DatabaseClient | undefined;
 const clients = new Map<string, DatabaseClient>();
 const createdSchemas: string[] = [];
@@ -67,7 +70,7 @@ beforeAll(async () => {
   if (tags[0] !== "0000_smiling_reavers" || tags[1] !== "0001_better_auth" || tags[2] !== "0002_user_preferences") {
     throw new Error("Unexpected migration history.");
   }
-  for (const [name, count] of [["stage1", 1], ["lfs201", 2], ["lfs202", 3], ["lfs205", 4], ["lfs210", 5]] as const) {
+  for (const [name, count] of [["stage1", 1], ["lfs201", 2], ["lfs202", 3], ["lfs205", 4], ["lfs210", 5], ["lfs216", 7]] as const) {
     const folder = await mkdtemp(join(tmpdir(), `lfs202-${name}-`));
     historyFolders.set(name, folder);
     const entries = journal.entries.slice(0, count);
@@ -77,7 +80,7 @@ beforeAll(async () => {
   }
 });
 
-function historyFolder(name: "stage1" | "lfs201" | "lfs202" | "lfs205" | "lfs210"): string {
+function historyFolder(name: "stage1" | "lfs201" | "lfs202" | "lfs205" | "lfs210" | "lfs216"): string {
   const folder = historyFolders.get(name);
   if (!folder) throw new Error("Migration history was not prepared.");
   return folder;
@@ -123,7 +126,7 @@ it("applies migrations in a clean isolated schema and safely re-applies them", a
   expect(result.first).toBe(migrationCount);
   expect(result.second).toBe(migrationCount);
   expect(result.tables.map((table) => table.table_name)).toEqual([
-    "__drizzle_migrations", "account", "activity_events", "foundation_migration_fixture", "goal_command_receipts", "goal_deletion_receipts", "goal_measurements", "goals", "session", "user", "verification",
+    "__drizzle_migrations", "account", "activity_events", "foundation_migration_fixture", "goal_command_receipts", "goal_deletion_receipts", "goal_measurements", "goals", "session", "starter_pack_receipts", "user", "verification",
   ]);
   expect(result.rows).toHaveLength(1);
   expect(result.rows[0]?.label).toBe("lfs104-migration-smoke");
@@ -284,16 +287,19 @@ it("upgrades LFS-205 without rewriting goals or fabricating historical events", 
     await migrate(connection.db, { migrationsFolder: historyFolder("lfs205"), migrationsSchema: auditSchema });
     const userId = `existing_${randomUUID()}`;
     await connection.db.insert(schema.user).values({ id: userId, name: "Existing", email: `${userId}@example.test` });
-    const [before] = await connection.db.insert(schema.goals).values({ userId, domainKey: "finance", title: "Existing goal", unit: "NOK", baseline: "0", target: "50000", direction: "increase" }).returning();
+    // Raw SQL: the TS schema already has later goal columns (origin, LFS-218) that this history does not.
+    const [before] = (await connection.pool.query(`INSERT INTO goals (user_id, domain_key, title, unit, baseline, target, direction)
+      VALUES ($1, 'finance', 'Existing goal', 'NOK', '0', '50000', 'increase') RETURNING *`, [userId])).rows as Record<string, unknown>[];
     await applyMigrations(connection.db, { migrationsSchema: auditSchema });
     await applyMigrations(connection.db, { migrationsSchema: auditSchema });
-    const after = await connection.db.select().from(schema.goals);
+    const after = (await connection.pool.query(`SELECT * FROM goals`)).rows as Record<string, unknown>[];
     const events = await connection.db.select().from(schema.activityEvents);
     const receipts = await connection.db.select().from(schema.goalCommandReceipts);
     const indexes = await connection.pool.query<{ indexname: string; indexdef: string }>("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = $1 AND tablename = 'activity_events'", [auditSchema]);
     return { before, after, events, receipts, indexes: indexes.rows };
   });
-  expect(result.after).toEqual([result.before]);
+  expect(result.after.map(withoutOrigin)).toEqual([result.before]);
+  expect(result.after.map((row) => row.origin)).toEqual(["manual"]);
   expect(result.events).toEqual([]);
   expect(result.receipts).toEqual([]);
   expect(result.indexes.find((entry) => entry.indexname === "activity_events_user_key_unique")?.indexdef).toContain("(user_id, idempotency_key)");
@@ -308,7 +314,8 @@ it("upgrades LFS-210 preserving legacy goal receipts, hashes, events and no-data
     const actor = actorFromVerifiedSession(userId);
     const input = createGoalInputSchema.parse({ domain_key: "finance", title: "Existing goal", unit: "NOK", baseline: "0", target: "50000", direction: "increase" });
     await connection.db.insert(schema.user).values({ id: userId, name: "Existing", email: `${userId}@example.test` });
-    const [before] = await connection.db.insert(schema.goals).values({ userId, domainKey: "finance", title: input.title, unit: "NOK", baseline: "0", target: "50000", direction: "increase" }).returning();
+    const [before] = (await connection.pool.query(`INSERT INTO goals (user_id, domain_key, title, unit, baseline, target, direction)
+      VALUES ($1, 'finance', $2, 'NOK', '0', '50000', 'increase') RETURNING *`, [userId, input.title])).rows as ({ id: string } & Record<string, unknown>)[];
     if (!before) throw new Error("Legacy goal was not inserted.");
     // Exact canonical bytes from the LFS-210 create fingerprint, independent of the new shared helper.
     const bytes = '{"input":{"baseline":"0","calculation_mode":"manual","description":null,"direction":"increase","domain_key":"finance","due_at":null,"metric_key":null,"target":"50000","title":"Existing goal","unit":"NOK","unit_label":null},"operation":"create","source":"web","target":null}';
@@ -325,10 +332,11 @@ it("upgrades LFS-210 preserving legacy goal receipts, hashes, events and no-data
     const receipts = await connection.pool.query(`SELECT * FROM goal_command_receipts`);
     const newReceipt = receipts.rows[0] as Record<string, unknown>;
     const { resource_type: resourceType, target_id: targetId, ...unchanged } = newReceipt;
-    return { before, replay, goals: await connection.db.select().from(schema.goals), oldEvents, events: await connection.db.select().from(schema.activityEvents),
+    return { before, replay, goals: (await connection.pool.query(`SELECT * FROM goals`)).rows as Record<string, unknown>[], oldEvents, events: await connection.db.select().from(schema.activityEvents),
       oldReceipt, unchanged, resourceType, targetId, receipts: receipts.rowCount, measurements: await connection.db.select().from(schema.goalMeasurements) };
   });
-  expect(result.goals).toEqual([result.before]);
+  expect(result.goals.map(withoutOrigin)).toEqual([result.before]);
+  expect(result.goals.map((row) => row.origin)).toEqual(["manual"]);
   expect(result.replay.id).toBe(result.before.id);
   expect(result.events).toEqual(result.oldEvents);
   expect(result.unchanged).toEqual(result.oldReceipt);
@@ -336,4 +344,43 @@ it("upgrades LFS-210 preserving legacy goal receipts, hashes, events and no-data
   expect(result.targetId).toBeNull();
   expect(result.receipts).toBe(1);
   expect(result.measurements).toEqual([]);
+});
+
+it("upgrades LFS-216: existing goals become the person's own, values and facts keep their sources (LFS-218)", async () => {
+  const connection = isolatedClient(examplesSchema);
+  const result = await databaseOperation(async () => {
+    await migrate(connection.db, { migrationsFolder: historyFolder("lfs216"), migrationsSchema: examplesSchema });
+    const userId = `existing_${randomUUID()}`;
+    await connection.db.insert(schema.user).values({ id: userId, name: "Existing", email: `${userId}@example.test` });
+    const [goal] = (await connection.pool.query<{ id: string }>(`INSERT INTO goals (user_id, domain_key, title, unit, baseline, target, direction)
+      VALUES ($1, 'finance', 'Existing goal', 'NOK', 0, 50000, 'increase') RETURNING id`, [userId])).rows;
+    await connection.pool.query(`INSERT INTO goal_measurements (user_id, goal_id, unit, value, measured_at) VALUES ($1, $2, 'NOK', 1200, now() - interval '1 day')`, [userId, goal!.id]);
+    await connection.pool.query(`INSERT INTO activity_events (user_id, domain_key, goal_id, event_type, source, target_type, target_id, payload)
+      VALUES ($1, 'finance', $2, 'goal.created', 'web', 'goal', $2, $3)`, [userId, goal!.id, { before: null, after: { unit: "NOK", baseline: "0", target: "50000", direction: "increase", status: "active", due_at: null } }]);
+    const oldEvents = (await connection.pool.query(`SELECT * FROM activity_events`)).rows;
+    await applyMigrations(connection.db, { migrationsSchema: examplesSchema });
+    await applyMigrations(connection.db, { migrationsSchema: examplesSchema });
+    const goals = (await connection.pool.query(`SELECT origin FROM goals`)).rows;
+    const measurements = (await connection.pool.query(`SELECT source FROM goal_measurements`)).rows;
+    const events = (await connection.pool.query(`SELECT * FROM activity_events`)).rows;
+    const rejected = async (statement: string, values: unknown[]) => {
+      try { await connection.pool.query(statement, values); return false; } catch { return true; }
+    };
+    const [usd] = (await connection.pool.query<{ id: string }>(`INSERT INTO goals (user_id, domain_key, title, unit, baseline, target, direction, origin)
+      VALUES ($1, 'finance', 'Dollars', 'USD', 0, 5000.25, 'increase', 'starter') RETURNING id`, [userId])).rows;
+    await connection.pool.query(`INSERT INTO goal_measurements (user_id, goal_id, unit, value, measured_at, source) VALUES ($1, $2, 'USD', 1200.5, now(), 'example')`, [userId, usd!.id]);
+    await connection.pool.query(`INSERT INTO activity_events (user_id, domain_key, goal_id, event_type, source, target_type, target_id, payload)
+      VALUES ($1, 'finance', $2, 'goal.created', 'starter', 'goal', $2, $3)`, [userId, usd!.id, { before: null, after: { unit: "USD", baseline: "0", target: "5000.25", direction: "increase", status: "active", due_at: null } }]);
+    return { goals, measurements, events, oldEvents, checks: {
+      origin: await rejected(`UPDATE goals SET origin = 'import' WHERE id = $1`, [usd!.id]),
+      usdScale: await rejected(`INSERT INTO goal_measurements (user_id, goal_id, unit, value, measured_at) VALUES ($1, $2, 'USD', 1.255, now())`, [userId, usd!.id]),
+      measurementSource: await rejected(`UPDATE goal_measurements SET source = 'import' WHERE goal_id = $1`, [usd!.id]),
+      eventSource: await rejected(`UPDATE activity_events SET source = 'robot' WHERE goal_id = $1`, [usd!.id]),
+    }, receipts: (await connection.pool.query(`SELECT count(*)::int AS count FROM starter_pack_receipts`)).rows[0] };
+  });
+  expect(result.goals).toEqual([{ origin: "manual" }]);
+  expect(result.measurements).toEqual([{ source: "manual" }]);
+  expect(result.events).toEqual(result.oldEvents);
+  expect(result.checks).toEqual({ origin: true, usdScale: true, measurementSource: true, eventSource: true });
+  expect(result.receipts).toEqual({ count: 0 });
 });

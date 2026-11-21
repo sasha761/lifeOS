@@ -3,6 +3,7 @@ import type { DashboardReadRepository } from "@lifeos/domain";
 import type { LifeosDatabase } from "../client.ts";
 import { ownedBy } from "../ownership.ts";
 import { activityEvents } from "../schema/activity-events.ts";
+import { goalMeasurements } from "../schema/goal-measurements.ts";
 import { goals } from "../schema/goals.ts";
 import { goalUnitChangedAt, toActivityEvent, toUnitChangedAt } from "./activity-events.ts";
 import { toGoal } from "./goals.ts";
@@ -17,7 +18,7 @@ function count(value: string): number {
 
 /**
  * Dashboard read model (LFS-204): plain owner-scoped SQL under one READ ONLY REPEATABLE READ snapshot,
- * like the goals reader (ADR-010). The number of queries is fixed — counts, ranked goals, deadlines,
+ * like the goals reader (ADR-010). The number of queries is fixed — counts, example measurements (LFS-218), ranked goals, deadlines,
  * the shared three-query goal summary and activity — and never grows with the number of goals.
  * No snapshots, materialized views or background projections.
  */
@@ -25,8 +26,11 @@ export function createDashboardReadRepository(database: LifeosDatabase): Dashboa
   return {
     read(actor, limits) {
       return database.transaction(async (transaction) => {
-        const counts = await transaction.select({ domainKey: goals.domainKey, status: goals.status, total: sql<string>`count(*)::text` })
-          .from(goals).where(ownedBy(goals.userId, actor)).groupBy(goals.domainKey, goals.status);
+        // The origin in the same grouping counts the example goals for the banner (LFS-218) without another goal query.
+        const counts = await transaction.select({ domainKey: goals.domainKey, status: goals.status, origin: goals.origin, total: sql<string>`count(*)::text` })
+          .from(goals).where(ownedBy(goals.userId, actor)).groupBy(goals.domainKey, goals.status, goals.origin);
+        const [examples] = await transaction.select({ total: sql<string>`count(*)::text` }).from(goalMeasurements)
+          .where(ownedBy(goalMeasurements.userId, actor, eq(goalMeasurements.source, "example")));
         // Newest active goals per sphere; the window keeps it one query for all six spheres.
         const ranked = transaction.select({ id: goals.id,
           rank: sql<number>`row_number() over (partition by ${goals.domainKey} order by ${goals.createdAt} desc, ${goals.id} desc)`.as("rank") })
@@ -47,7 +51,8 @@ export function createDashboardReadRepository(database: LifeosDatabase): Dashboa
           .where(ownedBy(activityEvents.userId, actor, ownedBy(goals.userId, actor)))
           .orderBy(desc(activityEvents.occurredAt), desc(activityEvents.id)).limit(limits.activity);
         return {
-          counts: counts.map((row) => ({ domainKey: row.domainKey, status: row.status, total: count(row.total) })),
+          counts: counts.map((row) => ({ domainKey: row.domainKey, status: row.status, origin: row.origin, total: count(row.total) })),
+          exampleMeasurements: count(examples?.total ?? "0"),
           domainGoals: domainGoals.map((goal) => summaries.get(goal.id)!),
           dueGoals: dueGoals.map((goal) => summaries.get(goal.id)!),
           activity: events.map((row) => ({ event: toActivityEvent(row.event), goal: toGoal(row.goal), unitChangedAt: toUnitChangedAt(row.unitChangedAt) })),

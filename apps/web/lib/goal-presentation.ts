@@ -1,6 +1,11 @@
 import type { Goal, UserPreferences } from "@lifeos/contracts";
 
-export const GOAL_UNIT_LABELS = { NOK: "NOK", count: "шт.", minutes: "мин", percent: "%", custom: "Своя единица" } as const;
+/** Unit after a number: «5 000 $», «12 000 NOK» (LFS-218 adds USD). */
+export const GOAL_UNIT_LABELS = { NOK: "NOK", USD: "$", count: "шт.", minutes: "мин", percent: "%", custom: "Своя единица" } as const;
+/** Choice in the unit select: a currency shows its code, so «$» is not mistaken for another dollar. */
+export function goalUnitOptionLabel(unit: keyof typeof GOAL_UNIT_LABELS): string {
+  return unit === "USD" ? "USD ($)" : GOAL_UNIT_LABELS[unit];
+}
 /** Only grouping the integer as BigInt; the decimal fraction never passes through Number. */
 export function formatGoalNumber(value: string, locale: string): string {
   const [integer = "0", fraction] = value.split(".");

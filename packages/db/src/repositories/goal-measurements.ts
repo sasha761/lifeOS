@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, ne, sql } from "drizzle-orm";
 import { goalMeasurementSchema } from "@lifeos/contracts";
 import type { GoalMeasurement } from "@lifeos/contracts";
 import type { GoalMeasurementsRepository } from "@lifeos/domain";
@@ -18,7 +18,7 @@ export function createGoalMeasurementsRepository(database: Pick<LifeosDatabase, 
   return {
     async create(actor, goal, input) {
       const [row] = await database.insert(goalMeasurements).values({ userId: actor.userId, goalId: goal.id, unit: goal.unit,
-        value: input.value, measuredAt: new Date(input.measured_at), source: "manual", note: input.note }).returning();
+        value: input.value, measuredAt: new Date(input.measured_at), source: input.source, note: input.note }).returning();
       if (!row) throw new Error("Measurement insert returned no row.");
       return toGoalMeasurement(row);
     },
@@ -30,7 +30,8 @@ export function createGoalMeasurementsRepository(database: Pick<LifeosDatabase, 
     async update(actor, id, input) {
       const [row] = await database.update(goalMeasurements).set({ value: input.value,
         measuredAt: input.measured_at === undefined ? undefined : new Date(input.measured_at), note: input.note, updatedAt: sql`clock_timestamp()` })
-        .where(ownedBy(goalMeasurements.userId, actor, eq(goalMeasurements.id, id))).returning();
+        // An example value is never corrected into the person's data (LFS-218); the service also refuses it.
+        .where(ownedBy(goalMeasurements.userId, actor, eq(goalMeasurements.id, id), ne(goalMeasurements.source, "example"))).returning();
       return row ? toGoalMeasurement(row) : null;
     },
     async remove(actor, id) {
@@ -40,6 +41,11 @@ export function createGoalMeasurementsRepository(database: Pick<LifeosDatabase, 
     async latest(actor, goalId) {
       const [row] = await database.select().from(goalMeasurements).where(ownedBy(goalMeasurements.userId, actor, eq(goalMeasurements.goalId, goalId))).orderBy(...order).limit(1);
       return row ? toGoalMeasurement(row) : null;
+    },
+    async removeExamples(actor, goalId) {
+      const rows = await database.delete(goalMeasurements)
+        .where(ownedBy(goalMeasurements.userId, actor, eq(goalMeasurements.goalId, goalId), eq(goalMeasurements.source, "example"))).returning();
+      return rows.map(toGoalMeasurement).sort((a, b) => b.measured_at.localeCompare(a.measured_at) || b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
     },
     async list(actor, goalId) {
       const rows = await database.select().from(goalMeasurements).where(ownedBy(goalMeasurements.userId, actor, eq(goalMeasurements.goalId, goalId))).orderBy(...order).limit(100);

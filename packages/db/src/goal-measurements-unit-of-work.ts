@@ -3,7 +3,7 @@ import { goalCommandOptionsSchema } from "@lifeos/contracts";
 import type { GoalMeasurementsUnitOfWork } from "@lifeos/domain";
 import type { LifeosDatabase } from "./client.ts";
 import { createActivityEventWriter } from "./activity-event-writer.ts";
-import { commandFingerprint, findGoalDeletionReceipt, lockCommandKey } from "./command-idempotency.ts";
+import { commandFingerprint, findGoalDeletionReceipt, findStarterPackReceipt, lockCommandKey } from "./command-idempotency.ts";
 import { ownedBy } from "./ownership.ts";
 import { createGoalsRepository } from "./repositories/goals.ts";
 import { createGoalMeasurementsRepository } from "./repositories/goal-measurements.ts";
@@ -16,7 +16,8 @@ export function createGoalMeasurementsUnitOfWork(database: LifeosDatabase): Goal
       const hash = commandFingerprint(command);
       return database.transaction(async (transaction) => {
         await lockCommandKey(transaction, actor, command.idempotencyKey);
-        if (await findGoalDeletionReceipt(transaction, actor, command.idempotencyKey)) return { kind: "conflict" };
+        if (await findGoalDeletionReceipt(transaction, actor, command.idempotencyKey)
+          || await findStarterPackReceipt(transaction, actor, command.idempotencyKey)) return { kind: "conflict" };
         const goals = createGoalsRepository(transaction, { lockRows: true });
         const readMeasurements = createGoalMeasurementsRepository(transaction);
         const [receipt] = await transaction.select().from(goalCommandReceipts)
