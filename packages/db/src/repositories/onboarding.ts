@@ -1,11 +1,15 @@
-import { sql } from "drizzle-orm";
-import type { OnboardingProfileRepository, OnboardingStateRecord, OnboardingStateRepository } from "@lifeos/domain";
+import { eq, sql } from "drizzle-orm";
+import { ONBOARDING_START_TRANSITIONS } from "@lifeos/contracts";
+import type { OnboardingOverviewRepository, OnboardingProfileRepository, OnboardingStateRecord, OnboardingStateRepository } from "@lifeos/domain";
 import type { LifeosDatabase } from "../client.ts";
 import { ownedBy } from "../ownership.ts";
 import { user } from "../schema/auth.ts";
+import { goals } from "../schema/goals.ts";
 import { onboardingState } from "../schema/onboarding.ts";
 
 type StateRow = typeof onboardingState.$inferSelect;
+/** The write condition of a start choice: a completed setup is final for the popup (LFS-220). */
+const notCompleted = sql`${onboardingState.status} <> 'completed'`;
 function toRecord(row: StateRow): OnboardingStateRecord {
   return { user_id: row.userId, status: row.status, choice: row.choice, answers: row.answers, catalog_version: row.catalogVersion,
     completed_at: row.completedAt?.toISOString() ?? null, updated_at: row.updatedAt.toISOString() };
@@ -40,6 +44,54 @@ export function createOnboardingStateRepository(database: Pick<LifeosDatabase, "
       if (!row || row.userId !== actor.userId) throw new Error("Onboarding completion returned no own row.");
       return toRecord(row);
     },
+    async choose(actor, choice, catalogVersion) {
+      // One statement: the row lock of the upsert orders it with a parallel completion, so a completed setup is never
+      // overwritten. The draft and its catalog version stay; a new row starts without answers.
+      const values = { status: ONBOARDING_START_TRANSITIONS[choice], choice, updatedAt: sql`clock_timestamp()` };
+      const [row] = await database.insert(onboardingState).values({ userId: actor.userId, catalogVersion, ...values })
+        .onConflictDoUpdate({ target: onboardingState.userId, set: values, setWhere: notCompleted }).returning();
+      if (row && row.userId !== actor.userId) throw new Error("Onboarding choice returned a foreign row.");
+      return row ? toRecord(row) : null;
+    },
+    async completeWithExample(actor, catalogVersion) {
+      const values = { status: "completed" as const, choice: "example" as const, completedAt: sql`clock_timestamp()`, updatedAt: sql`clock_timestamp()` };
+      const [row] = await database.insert(onboardingState).values({ userId: actor.userId, catalogVersion, ...values })
+        .onConflictDoUpdate({ target: onboardingState.userId, set: values, setWhere: notCompleted }).returning();
+      if (row && row.userId !== actor.userId) throw new Error("Onboarding example returned a foreign row.");
+      return row ? toRecord(row) : null;
+    },
+  };
+}
+
+const readSnapshot = { isolationLevel: "repeatable read", accessMode: "read only" } as const;
+function count(value: string): number {
+  const result = Number(value);
+  if (!Number.isSafeInteger(result) || result < 0) throw new Error("Invalid stored goal count.");
+  return result;
+}
+
+/**
+ * «Начальная настройка» in Settings and the popup (LFS-220): the actor's profile row with its state row (left join: no
+ * row means not started) and goal counts by origin, under one READ ONLY REPEATABLE READ snapshot. Two owner-scoped
+ * queries, whatever the number of goals.
+ */
+export function createOnboardingOverviewRepository(database: LifeosDatabase): OnboardingOverviewRepository {
+  return {
+    read(actor) {
+      return database.transaction(async (transaction) => {
+        const [profile] = await transaction.select({ checkinRhythm: user.checkinRhythm, focusDomains: user.focusDomains, state: onboardingState })
+          .from(user).leftJoin(onboardingState, eq(onboardingState.userId, user.id)).where(ownedBy(user.id, actor)).limit(1);
+        if (!profile) return null;
+        const origins = await transaction.select({ origin: goals.origin, total: sql<string>`count(*)::text` })
+          .from(goals).where(ownedBy(goals.userId, actor)).groupBy(goals.origin);
+        const by = (origin: string) => count(origins.find((row) => row.origin === origin)?.total ?? "0");
+        return {
+          state: profile.state ? toRecord(profile.state) : null,
+          checkinRhythm: profile.checkinRhythm, focusDomains: profile.focusDomains,
+          goals: { total: origins.reduce((sum, row) => sum + count(row.total), 0), onboarding: by("onboarding"), examples: by("starter") },
+        };
+      }, readSnapshot);
+    },
   };
 }
 
@@ -51,6 +103,10 @@ export function createOnboardingProfileRepository(database: Pick<LifeosDatabase,
       const rows = await database.update(user)
         .set({ focusDomains: focusDomains.length ? [...focusDomains] : null, checkinRhythm: checkinRhythm ?? undefined, timezone: timezone ?? undefined })
         .where(ownedBy(user.id, actor)).returning({ id: user.id });
+      return rows.length === 1;
+    },
+    async setCheckinRhythm(actor, rhythm) {
+      const rows = await database.update(user).set({ checkinRhythm: rhythm }).where(ownedBy(user.id, actor)).returning({ id: user.id });
       return rows.length === 1;
     },
   };

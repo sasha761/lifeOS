@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   apiErrorSchema, completeOnboardingInputSchema, dashboardSchema, DOMAIN_KEYS, ONBOARDING_CHOICE_LIMITS, ONBOARDING_GOALS_MAX, ONBOARDING_OPTIONS,
-  onboardingAnswersSchema, onboardingCompletedSchema, onboardingStateSchema, saveOnboardingDraftInputSchema,
+  onboardingAnswersSchema, onboardingCompletedSchema, onboardingStateSchema, saveOnboardingDraftInputSchema, updateOnboardingInputSchema,
 } from "../src/index.ts";
 
 const time = "2026-11-20T10:00:00.000Z";
@@ -71,7 +71,8 @@ describe("completion and state DTOs (LFS-219)", () => {
   });
 
   it("describes the state: a completed setup has its time, a later draft keeps it", () => {
-    const state = { status: "completed", choice: "wizard", catalog_version: 1, answers: null, completed_at: time, updated_at: time };
+    const state = { status: "completed", choice: "wizard", catalog_version: 1, answers: null, completed_at: time, updated_at: time,
+      checkin_rhythm: null, focus_domains: [], goals: { total: 0, onboarding: 0, examples: 0 } };
     expect(onboardingStateSchema.parse(state).status).toBe("completed");
     expect(onboardingStateSchema.safeParse({ ...state, completed_at: null }).success).toBe(false);
     expect(onboardingStateSchema.parse({ ...state, status: "in_progress" }).completed_at).toBe(time);
@@ -93,5 +94,40 @@ describe("completion and state DTOs (LFS-219)", () => {
     expect(dashboardSchema.parse({ ...dashboard, focus_domains: ["finance", "health"] }).focus_domains).toEqual(["finance", "health"]);
     expect(dashboardSchema.safeParse({ ...dashboard, focus_domains: ["health", "finance"] }).success).toBe(false);
     expect(dashboardSchema.safeParse({ ...dashboard, focus_domains: ["sports"] }).success).toBe(false);
+  });
+});
+
+describe("first-visit popup and Settings (LFS-220)", () => {
+  const settings = { status: "completed", choice: "example", catalog_version: 1, answers: null, completed_at: time, updated_at: time,
+    checkin_rhythm: "weekly", focus_domains: ["finance", "health"], goals: { total: 9, onboarding: 0, examples: 7 } };
+
+  it("accepts exactly a start choice of the popup or the rhythm", () => {
+    expect(updateOnboardingInputSchema.parse({ status: "in_progress", choice: "wizard" })).toEqual({ status: "in_progress", choice: "wizard" });
+    expect(updateOnboardingInputSchema.parse({ status: "dismissed", choice: "blank" })).toEqual({ status: "dismissed", choice: "blank" });
+    expect(updateOnboardingInputSchema.parse({ checkin_rhythm: "few_per_week" })).toEqual({ checkin_rhythm: "few_per_week" });
+    // The example completes the setup through POST /api/v1/starter-pack; no pair moves to completed or back to not started.
+    for (const input of [{ status: "completed", choice: "example" }, { status: "in_progress", choice: "blank" }, { status: "dismissed", choice: "wizard" },
+      { status: "not_started", choice: null }, { choice: "wizard" }, { checkin_rhythm: null }, { checkin_rhythm: "hourly" },
+      { checkin_rhythm: "weekly", status: "dismissed", choice: "blank" }, { status: "dismissed", choice: "blank", user_id: "other" }, {}]) {
+      expect(updateOnboardingInputSchema.safeParse(input).success).toBe(false);
+    }
+  });
+
+  it("carries the rhythm, the spheres in focus in registry order and consistent goal counts", () => {
+    expect(onboardingStateSchema.parse(settings).goals).toEqual({ total: 9, onboarding: 0, examples: 7 });
+    expect(onboardingStateSchema.safeParse({ ...settings, goals: { total: 3, onboarding: 2, examples: 2 } }).success).toBe(false);
+    expect(onboardingStateSchema.safeParse({ ...settings, focus_domains: ["health", "finance"] }).success).toBe(false);
+    expect(onboardingStateSchema.safeParse({ ...settings, checkin_rhythm: "hourly" }).success).toBe(false);
+    expect(onboardingStateSchema.safeParse({ ...settings, goals: undefined }).success).toBe(false);
+  });
+
+  it("lets the dashboard show the popup only for an empty account whose setup is open; older payloads show none", () => {
+    const account = { domains: DOMAIN_KEYS.map((key) => ({ key, activeCount: 0, archivedCount: 0, goals: [] })), today: { dueGoals: [] }, activity: [], examples: { goals: 0, measurements: 0 } };
+    expect(dashboardSchema.parse(account).onboarding).toEqual({ status: "not_started", show_start: false });
+    expect(dashboardSchema.parse({ ...account, onboarding: { status: "in_progress", show_start: true } }).onboarding.show_start).toBe(true);
+    expect(dashboardSchema.safeParse({ ...account, onboarding: { status: "dismissed", show_start: true } }).success).toBe(false);
+    const archived = { ...account, domains: account.domains.map((domain) => domain.key === "work" ? { ...domain, archivedCount: 1 } : domain) };
+    expect(dashboardSchema.safeParse({ ...archived, onboarding: { status: "not_started", show_start: true } }).success).toBe(false);
+    expect(dashboardSchema.parse({ ...archived, onboarding: { status: "not_started", show_start: false } }).onboarding.show_start).toBe(false);
   });
 });

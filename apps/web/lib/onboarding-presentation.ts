@@ -1,5 +1,5 @@
 import { goalDecimalSchema, LANGUAGE_LEVELS } from "@lifeos/contracts";
-import type { CheckinRhythm, DomainKey, OnboardingAnswers, OnboardingStep, UserPreferences } from "@lifeos/contracts";
+import type { CheckinRhythm, DomainKey, OnboardingAnswers, OnboardingState, OnboardingStep, UserPreferences } from "@lifeos/contracts";
 import { CHECKIN_RHYTHM_OPTIONS, findOnboardingOption, LANGUAGE_LEVEL_UNIT_LABEL } from "@lifeos/domain/onboarding";
 import type { OnboardingIssueField, OnboardingProposal } from "@lifeos/domain/onboarding";
 import { plural } from "./dashboard-presentation.ts";
@@ -77,6 +77,19 @@ export function rhythmLabel(rhythm: CheckinRhythm | null): string {
 /** «сначала 4 выбранные сферы» (mockup 27). */
 export function focusLabel(count: number): string {
   return `сначала ${count} ${plural(count, ["выбранная сфера", "выбранные сферы", "выбранных сфер"])}`;
+}
+
+/**
+ * Status chip of «Начальная настройка» in Settings (mockup 30, LFS-220): «пройдена 18.11.2026 · 4 цели», «не пройдена» or
+ * «отклонена». N counts the goals the completed setup gave that are still in the account: goals of the wizard, or the
+ * example goals still labelled «Пример» when the example was the choice; without any, only the date is shown.
+ */
+export function setupStatus(state: Pick<OnboardingState, "status" | "choice" | "completed_at" | "goals">, preferences: UserPreferences): { label: string; done: boolean } {
+  if (state.status === "dismissed") return { label: "отклонена", done: false };
+  if (state.status !== "completed" || state.completed_at === null) return { label: "не пройдена", done: false };
+  const goals = state.choice === "example" ? state.goals.examples : state.goals.onboarding;
+  const date = formatDate(new Date(state.completed_at), preferences);
+  return { label: goals > 0 ? `пройдена ${date} · ${goals} ${plural(goals, ["цель", "цели", "целей"])}` : `пройдена ${date}`, done: true };
 }
 
 /** Calendar date of a deadline in the zone the wizard uses, for the native date field. */

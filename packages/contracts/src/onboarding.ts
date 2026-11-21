@@ -45,6 +45,13 @@ export const onboardingStartChoiceSchema = z.enum(ONBOARDING_START_CHOICES);
 export const checkinRhythmSchema = z.enum(CHECKIN_RHYTHMS);
 export type OnboardingStatus = z.infer<typeof onboardingStatusSchema>;
 export type CheckinRhythm = z.infer<typeof checkinRhythmSchema>;
+/**
+ * «Сферы в фокусе» (`user.focus_domains`, LFS-219): registry keys without repeats, in registry order. Older fixtures
+ * without the field read as none.
+ */
+export const focusDomainsSchema = z.array(domainKeySchema).max(DOMAIN_KEYS.length)
+  .refine((keys) => keys.every((key, index) => index === 0 || DOMAIN_KEYS.indexOf(keys[index - 1]!) < DOMAIN_KEYS.indexOf(key)));
+const countSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 /** Screen to resume on: the spheres, a chosen sphere's question, the rhythm or the summary. */
 export const onboardingStepSchema = z.union([z.enum(["domains", "rhythm", "summary"]), domainKeySchema]);
 export type OnboardingStep = z.infer<typeof onboardingStepSchema>;
@@ -124,7 +131,12 @@ export const completeOnboardingInputSchema = z.strictObject({
 });
 export type CompleteOnboardingInput = z.infer<typeof completeOnboardingInputSchema>;
 
-/** GET/PUT /api/v1/onboarding. Without a row the status is `not_started`; a draft of another catalog version reads as none. */
+/**
+ * GET/PUT/PATCH /api/v1/onboarding. Without a row the status is `not_started`; a draft of another catalog version reads
+ * as none. Since LFS-220 it also carries what the setup keeps in the profile (rhythm, «сферы в фокусе») and three goal
+ * counts of the owner for Settings and the popup: all goals, goals of the wizard (`origin = onboarding`) and goals
+ * still labelled «Пример» (`origin = starter`), active and archived.
+ */
 export const onboardingStateSchema = z.strictObject({
   status: onboardingStatusSchema,
   choice: onboardingStartChoiceSchema.nullable(),
@@ -132,9 +144,31 @@ export const onboardingStateSchema = z.strictObject({
   answers: onboardingAnswersSchema.nullable(),
   completed_at: goalInstantSchema.nullable(),
   updated_at: goalInstantSchema.nullable(),
+  checkin_rhythm: checkinRhythmSchema.nullable(),
+  focus_domains: focusDomainsSchema,
+  goals: z.strictObject({ total: countSchema, onboarding: countSchema, examples: countSchema })
+    .refine((goals) => goals.onboarding + goals.examples <= goals.total),
   // A later draft (повторная настройка) keeps the time of the last completion.
 }).refine((state) => state.status !== "completed" || state.completed_at !== null);
 export type OnboardingState = z.infer<typeof onboardingStateSchema>;
+
+/**
+ * Start choices of the first-visit popup (LFS-220) and the state each leads to: «Начать настройку» → `in_progress`,
+ * «Начать с чистого листа» → `dismissed`. «Заполнить примером» has no transition of its own: loading the example
+ * completes a setup that is not completed yet, in the same transaction (`POST /api/v1/starter-pack`).
+ */
+export const ONBOARDING_START_TRANSITIONS = Object.freeze({ wizard: "in_progress", blank: "dismissed" } as const);
+/**
+ * PATCH /api/v1/onboarding (LFS-220): exactly one change — a start choice of the popup (the pair of status and choice) or
+ * the rhythm from Settings («Ритм отметок»). Repeating the current choice changes nothing, so no Idempotency-Key is needed.
+ */
+export const updateOnboardingInputSchema = z.union([
+  z.strictObject({ status: z.literal(ONBOARDING_START_TRANSITIONS.wizard), choice: z.literal("wizard") }),
+  z.strictObject({ status: z.literal(ONBOARDING_START_TRANSITIONS.blank), choice: z.literal("blank") }),
+  z.strictObject({ checkin_rhythm: checkinRhythmSchema }),
+]);
+export type UpdateOnboardingInput = z.infer<typeof updateOnboardingInputSchema>;
+export type OnboardingStartChoice = keyof typeof ONBOARDING_START_TRANSITIONS;
 /** A retry with the same Idempotency-Key returns the same count and creates nothing. */
 export const onboardingCompletedSchema = z.strictObject({
   catalog_version: z.literal(ONBOARDING_CATALOG_VERSION),

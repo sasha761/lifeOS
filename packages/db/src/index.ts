@@ -12,7 +12,7 @@ export { createGoalMeasurementsUnitOfWork } from "./goal-measurements-unit-of-wo
 export { createStarterPackUnitOfWork } from "./starter-pack-unit-of-work.ts";
 export { createStarterPackRepository } from "./repositories/starter-pack.ts";
 export { createOnboardingUnitOfWork } from "./onboarding-unit-of-work.ts";
-export { createOnboardingProfileRepository, createOnboardingStateRepository } from "./repositories/onboarding.ts";
+export { createOnboardingOverviewRepository, createOnboardingProfileRepository, createOnboardingStateRepository } from "./repositories/onboarding.ts";
 export * as schema from "./schema/index.ts";
 // Migrations are a separate entry point (@lifeos/db/migrations): runtime consumers such as the
 // Next.js bundle must not pull in the migrator or the SQL folder.

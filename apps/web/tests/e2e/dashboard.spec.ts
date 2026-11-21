@@ -40,6 +40,10 @@ test("create goal → measurement → dashboard shows the same progress as goal 
 
 test("empty and foreign dashboards show six spheres without fabricated progress or other users' actions", async ({ page }, testInfo) => {
   await login(page, "EMPTY");
+  // An empty account gets the first-visit popup (LFS-220); «✕» closes it for this browser session.
+  const start = page.getByRole("dialog", { name: "Добро пожаловать в LifeOS" });
+  await start.getByRole("button", { name: "Закрыть", exact: true }).click();
+  await expect(start).toHaveCount(0);
   for (const key of SPHERES) await expect(page.getByTestId(`dashboard-domain-${key}`)).toContainText("Нет целей");
   await expect(page.getByTestId(/^dashboard-domain-/)).toHaveCount(6);
   await expect(page.getByRole("progressbar")).toHaveCount(0);

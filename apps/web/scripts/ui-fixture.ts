@@ -26,10 +26,11 @@ export async function freePort(): Promise<number> {
 export type UiFixture = {
   base: string;
   /**
-   * `example*`: own accounts for the example (LFS-218), `onboarding*`: fresh accounts for the wizard (LFS-219); one per
-   * Playwright project, so their data never collide.
+   * `example*`: own accounts for the example (LFS-218), `onboarding*`: fresh accounts for the wizard (LFS-219), `start*`
+   * and `startExample*`: fresh accounts for the first-visit popup (LFS-220); one per Playwright project, so their data never collide.
    */
-  cookies: { owner: string; other: string; empty: string; exampleDesktop: string; exampleMobile: string; onboardingDesktop: string; onboardingMobile: string };
+  cookies: { owner: string; other: string; empty: string; exampleDesktop: string; exampleMobile: string; onboardingDesktop: string; onboardingMobile: string;
+    startDesktop: string; startMobile: string; startExampleDesktop: string; startExampleMobile: string };
   /** Environment of the server, including LFS208_E2E_* variables for Playwright. */
   environment: NodeJS.ProcessEnv;
   stop(): Promise<void>;
@@ -40,7 +41,8 @@ export async function startUiFixture({ suite, ownerLocale = "en-GB", onStage = (
   onStage("isolated test setup");
   await access(join(root, "apps/web/.next/BUILD_ID"));
   const secret = randomBytes(32).toString("base64url");
-  const harness = await createAuthHarness({ suite, users: ["owner", "other", "empty", "example-desktop", "example-mobile", "onboarding-desktop", "onboarding-mobile"], secret });
+  const harness = await createAuthHarness({ suite, users: ["owner", "other", "empty", "example-desktop", "example-mobile", "onboarding-desktop", "onboarding-mobile",
+    "start-desktop", "start-mobile", "start-example-desktop", "start-example-mobile"], secret });
   let web: ReturnType<typeof spawn> | undefined;
   const stop = async () => {
     if (web && web.exitCode === null) { const stopped = once(web, "exit"); web.kill("SIGTERM"); await stopped; }
@@ -50,7 +52,9 @@ export async function startUiFixture({ suite, ownerLocale = "en-GB", onStage = (
     const owner = await harness.signUp("owner"); const other = await harness.signUp("other"); const empty = await harness.signUp("empty");
     const exampleDesktop = await harness.signUp("example-desktop"); const exampleMobile = await harness.signUp("example-mobile");
     const onboardingDesktop = await harness.signUp("onboarding-desktop"); const onboardingMobile = await harness.signUp("onboarding-mobile");
-    for (const account of [owner, exampleDesktop, exampleMobile, onboardingDesktop, onboardingMobile]) {
+    const startDesktop = await harness.signUp("start-desktop"); const startMobile = await harness.signUp("start-mobile");
+    const startExampleDesktop = await harness.signUp("start-example-desktop"); const startExampleMobile = await harness.signUp("start-example-mobile");
+    for (const account of [owner, exampleDesktop, exampleMobile, onboardingDesktop, onboardingMobile, startDesktop, startMobile, startExampleDesktop, startExampleMobile]) {
       await harness.database.pool.query(`UPDATE "user" SET timezone='Europe/Oslo',locale=$2 WHERE id=$1`, [account.userId, ownerLocale]);
     }
     const connection = new URL(readTestDatabaseUrl(process.env)); connection.searchParams.set("options", `-csearch_path=${harness.schemaName}`);
@@ -61,6 +65,8 @@ export async function startUiFixture({ suite, ownerLocale = "en-GB", onStage = (
       LFS208_E2E_BASE_URL: base, LFS208_E2E_OWNER_COOKIE: owner.cookie, LFS208_E2E_OTHER_COOKIE: other.cookie, LFS208_E2E_EMPTY_COOKIE: empty.cookie,
       LFS208_E2E_EXAMPLE_DESKTOP_COOKIE: exampleDesktop.cookie, LFS208_E2E_EXAMPLE_MOBILE_COOKIE: exampleMobile.cookie,
       LFS208_E2E_ONBOARDING_DESKTOP_COOKIE: onboardingDesktop.cookie, LFS208_E2E_ONBOARDING_MOBILE_COOKIE: onboardingMobile.cookie,
+      LFS208_E2E_START_DESKTOP_COOKIE: startDesktop.cookie, LFS208_E2E_START_MOBILE_COOKIE: startMobile.cookie,
+      LFS208_E2E_START_EXAMPLE_DESKTOP_COOKIE: startExampleDesktop.cookie, LFS208_E2E_START_EXAMPLE_MOBILE_COOKIE: startExampleMobile.cookie,
       // Disposable credentials of the fixture owner for the sign-in form (LFS-209); the user lives only in this schema.
       LFS209_E2E_OWNER_EMAIL: owner.email, LFS209_E2E_OWNER_PASSWORD: owner.password };
     onStage("production test server");
@@ -75,7 +81,8 @@ export async function startUiFixture({ suite, ownerLocale = "en-GB", onStage = (
     }
     assert(ready);
     return { base, cookies: { owner: owner.cookie, other: other.cookie, empty: empty.cookie, exampleDesktop: exampleDesktop.cookie, exampleMobile: exampleMobile.cookie,
-      onboardingDesktop: onboardingDesktop.cookie, onboardingMobile: onboardingMobile.cookie }, environment, stop };
+      onboardingDesktop: onboardingDesktop.cookie, onboardingMobile: onboardingMobile.cookie, startDesktop: startDesktop.cookie, startMobile: startMobile.cookie,
+      startExampleDesktop: startExampleDesktop.cookie, startExampleMobile: startExampleMobile.cookie }, environment, stop };
   } catch (error) {
     await stop();
     throw error;

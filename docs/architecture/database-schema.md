@@ -119,6 +119,8 @@ public 1 → 5 таблиц, journal 1 → 2, pgboss 13 → 13).
   (null или `daily|few_per_week|weekly|self`). Существующие строки получают null.
 
 Отсутствие строки `onboarding_state` означает `not_started`. Политика — [ADR-012](../adr/012-onboarding.md).
+С LFS-220 в ту же таблицу пишут попап первого входа (`in_progress`/`wizard`, `dismissed`/`blank`) и загрузка примера
+(`completed`/`example`), а `user.checkin_rhythm` меняется ещё и в Настройках. Схема не менялась.
 
 ## User preferences (LFS-202)
 

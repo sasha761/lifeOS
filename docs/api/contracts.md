@@ -495,8 +495,11 @@ VALIDATION_ERROR. Курсора пока нет: панель и страниц
 Origin публичного URL (403), обязательный `Idempotency-Key`, без query и body
 (400). Повтор с тем же ключом возвращает тот же ответ. Новый ключ при
 существующем примере — 409 `CONFLICT` (текст «Пример уже в аккаунте» показывает
-клиент LFS-220, сообщение API фиксировано по коду). Ничего не создаётся при
-регистрации. Журнал: `changedFields` может содержать `origin`, у записи есть
+попап LFS-220, сообщение API фиксировано по коду). Ничего не создаётся при
+регистрации. С LFS-220 `POST` в той же транзакции завершает начальную
+настройку, если она ещё не пройдена: `onboarding_state.status = completed`,
+`choice = example`, `completed_at`. Уже пройденная настройка (мастер) не
+меняется: статус, выбор и дата остаются прежними. Журнал: `changedFields` может содержать `origin`, у записи есть
 `example`. Решения — дополнения LFS-218 к [ADR-007](../adr/007-goals.md),
 [ADR-008](../adr/008-transactional-audit.md) и [ADR-009](../adr/009-goal-measurements.md).
 
@@ -507,9 +510,28 @@ Origin публичного URL (403), обязательный `Idempotency-Key
 
 | Метод | Тело и ответ |
 |---|---|
-| `GET /api/v1/onboarding` | без query; `OnboardingState { status, choice, catalog_version, answers, completed_at, updated_at }`. Без строки — `not_started`, `answers: null`; черновик другой версии каталога — `answers: null` |
-| `PUT /api/v1/onboarding` | `{ answers }` — черновик целиком («Сохранить и выйти»), JSON, Origin публичного URL, без query. `Idempotency-Key` не нужен: черновик заменяется целиком. Статус → `in_progress`; `completed` остаётся `completed`; `choice = wizard`. Цели не создаются |
+| `GET /api/v1/onboarding` | без query; `OnboardingState { status, choice, catalog_version, answers, completed_at, updated_at, checkin_rhythm, focus_domains, goals }`. Без строки — `not_started`, `answers: null`; черновик другой версии каталога — `answers: null` |
+| `PUT /api/v1/onboarding` | `{ answers }` — черновик целиком («Сохранить и выйти»), JSON, Origin публичного URL, без query. `Idempotency-Key` не нужен: черновик заменяется целиком. Статус → `in_progress`; `completed` остаётся `completed`; `choice = wizard`. Цели не создаются. Ответ `OnboardingState` |
+| `PATCH /api/v1/onboarding` | LFS-220. Ровно одно из: `{ status: "in_progress", choice: "wizard" }` («Начать настройку»), `{ status: "dismissed", choice: "blank" }` («Начать с чистого листа»), `{ checkin_rhythm }` («Ритм отметок» в Настройках). JSON, Origin, без query, `Idempotency-Key` не нужен: повтор даёт то же состояние. Ответ `OnboardingState` |
 | `POST /api/v1/onboarding/complete` | `{ answers, selected }` («Создать N целей»): JSON, Origin, `Idempotency-Key`. Ответ `OnboardingCompleted { catalog_version: 1, created_goals }` |
+
+Поля `OnboardingState` с LFS-220:
+- `checkin_rhythm` — `CHECKIN_RHYTHMS` | null, из профиля;
+- `focus_domains` — сферы в фокусе в порядке реестра, `[]` если не выбраны;
+- `goals: { total, onboarding, examples }` — все цели владельца, цели мастера (`origin = onboarding`) и цели с меткой
+  «Пример» (`origin = starter`), активные и в архиве.
+
+Переходы `PATCH` (LFS-220):
+
+| Сейчас | `wizard` → `in_progress` | `blank` → `dismissed` |
+|---|---|---|
+| нет строки, `not_started`, `in_progress`, `dismissed` | да | да |
+| `completed` | 409 `CONFLICT` | 409 `CONFLICT` |
+
+Черновик ответов и его версия каталога при переходе сохраняются. Проверка и запись — один условный upsert, поэтому
+параллельное завершение мастера не будет перезаписано. Переход в `completed` через `PATCH` невозможен (400): настройку
+завершают только «Создать N целей» и загрузка примера. Ритм меняется в любом статусе, строка состояния не создаётся.
+Другие пары, лишние поля (в том числе `user_id`) и пустое тело — 400.
 
 `OnboardingAnswers` (strict):
 - `step` — `domains` | ключ выбранной сферы | `rhythm` | `summary`;
@@ -542,6 +564,11 @@ Origin публичного URL (403), обязательный `Idempotency-Key
 
 Dashboard (LFS-219): `focus_domains` — сферы в фокусе в порядке реестра, по умолчанию `[]`. UI показывает их первыми,
 `domains` остаются в порядке `DOMAIN_KEYS`.
+
+Dashboard (LFS-220): `onboarding: { status, show_start }`, по умолчанию `{ status: "not_started", show_start: false }`.
+`show_start` сервер считает в том же снимке: у владельца нет ни одной цели (активной или в архиве), и статус
+`not_started` или `in_progress`. Контракт отклоняет `show_start` при других статусах или при наличии целей. Попап
+показывается по этому полю, отдельного запроса нет; браузер помнит только «✕» до конца сессии (`sessionStorage`).
 
 ## Официальные API
 

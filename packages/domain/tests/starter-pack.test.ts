@@ -5,7 +5,7 @@ import type { ActivityEventDraft, Goal, GoalMeasurement } from "@lifeos/contract
 import {
   actorFromVerifiedSession, ConflictError, createStarterPackService, InvalidInputError, STARTER_PACK, STARTER_PACK_NOTE,
 } from "../src/index.ts";
-import type { StarterPackCommand, StarterPackTransaction, StarterPackUnitOfWork } from "../src/index.ts";
+import type { OnboardingStateRecord, StarterPackCommand, StarterPackTransaction, StarterPackUnitOfWork } from "../src/index.ts";
 
 const actor = actorFromVerifiedSession("owner");
 const options = { idempotencyKey: "starter-1", source: "web" };
@@ -25,10 +25,11 @@ describe("example set version 1 (LFS-218)", () => {
   });
 });
 
-function fixture(existingExamples = 0) {
+function fixture(existingExamples = 0, setupCompleted = false) {
   const goals: Goal[] = []; const measurements: GoalMeasurement[] = []; const events: ActivityEventDraft[] = [];
   let examples = existingExamples;
   const commands: StarterPackCommand[] = [];
+  const starts: string[] = [];
   const transaction: StarterPackTransaction = {
     goals: { create: vi.fn(async (owner, input, { origin = "manual" } = {}) => {
       const goal = goalSchema.parse({ ...input, id: randomUUID(), user_id: owner.userId, status: "active", origin, created_at: now.toISOString(), updated_at: now.toISOString() });
@@ -41,9 +42,15 @@ function fixture(existingExamples = 0) {
     }) },
     examples: { countExamples: vi.fn(async () => examples), deleteExamples: vi.fn(async () => { const removed = examples; examples = 0; return { goals: removed, measurements: removed }; }) },
     events: { append: vi.fn(async (event) => { events.push(event); }) },
+    // A completed setup is left as it is (null); otherwise the example completes it (LFS-220).
+    onboarding: { completeWithExample: vi.fn(async (owner, version): Promise<OnboardingStateRecord | null> => {
+      starts.push(`${owner.userId}:${version}`);
+      return setupCompleted ? null : { user_id: owner.userId, status: "completed", choice: "example", answers: null, catalog_version: version,
+        completed_at: now.toISOString(), updated_at: now.toISOString() };
+    }) },
   };
   const unit: StarterPackUnitOfWork = { run: vi.fn<StarterPackUnitOfWork["run"]>(async (_actor, command, operation) => { commands.push(command); return { kind: "success", result: await operation(transaction) }; }) };
-  return { goals, measurements, events, commands, transaction, unit, service: createStarterPackService(unit, () => now) };
+  return { goals, measurements, events, commands, starts, transaction, unit, service: createStarterPackService(unit, () => now) };
 }
 
 describe("loading the example", () => {
@@ -60,10 +67,19 @@ describe("loading the example", () => {
     expect(events.at(-1)).toMatchObject({ goal_id: goals.at(-1)!.id, payload: { after: { value: "1200", source: "example" } } });
   });
 
+  it("completes the start of the account in the same transaction; a setup completed before stays as it is (LFS-220)", async () => {
+    const fresh = fixture();
+    await fresh.service.apply(actor, options);
+    expect(fresh.starts).toEqual([`${actor.userId}:1`]);
+    const completed = fixture(0, true);
+    expect(await completed.service.apply(actor, options)).toEqual({ version: 1, created_goals: 7, created_measurements: 7 });
+    expect(completed.starts).toHaveLength(1);
+  });
+
   it("never adds a second set next to existing examples and writes nothing", async () => {
-    const { service, goals, measurements, events } = fixture(3);
+    const { service, goals, measurements, events, starts } = fixture(3);
     await expect(service.apply(actor, options)).rejects.toBeInstanceOf(ConflictError);
-    expect([goals, measurements, events]).toEqual([[], [], []]);
+    expect([goals, measurements, events, starts]).toEqual([[], [], [], []]);
   });
 
   it("reports a key conflict and rejects a missing command context before any work", async () => {

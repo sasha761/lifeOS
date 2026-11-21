@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { goalSchema } from "@lifeos/contracts";
 import type { ActivityEventDraft, Goal, OnboardingAnswers } from "@lifeos/contracts";
 import { actorFromVerifiedSession, ConflictError, createOnboardingService, InvalidInputError, isDomainError, NotFoundError } from "../src/index.ts";
-import type { OnboardingCommand, OnboardingStateRecord, OnboardingTransaction, OnboardingUnitOfWork } from "../src/index.ts";
+import type { OnboardingCommand, OnboardingOverviewRecord, OnboardingStateRecord, OnboardingTransaction, OnboardingUnitOfWork } from "../src/index.ts";
 
 const actor = actorFromVerifiedSession("owner");
 const options = { idempotencyKey: "onboarding-1", source: "web" };
@@ -23,9 +23,14 @@ const selected = ["finance.emergency_fund", "health.training", "health.own", "ex
 const record = (values: Partial<OnboardingStateRecord> = {}): OnboardingStateRecord =>
   ({ user_id: actor.userId, status: "in_progress", choice: "wizard", answers, catalog_version: 1, completed_at: null, updated_at: now, ...values });
 
-function fixture(stored: OnboardingStateRecord | null = null, outcome: "success" | "conflict" = "success") {
+const counts = { total: 0, onboarding: 0, examples: 0 };
+const overviewOf = (state: OnboardingStateRecord | null, values: Partial<OnboardingOverviewRecord> = {}): OnboardingOverviewRecord =>
+  ({ state, checkinRhythm: null, focusDomains: null, goals: counts, ...values });
+
+function fixture(stored: OnboardingStateRecord | null = null, outcome: "success" | "conflict" = "success", profile: Partial<OnboardingOverviewRecord> = {}) {
   const goals: Goal[] = []; const events: ActivityEventDraft[] = []; const commands: OnboardingCommand[] = [];
   const completed: OnboardingAnswers[] = [];
+  let current = stored;
   const transaction: OnboardingTransaction = {
     goals: { create: vi.fn(async (owner, input, { origin = "manual" } = {}) => {
       const goal = goalSchema.parse({ ...input, id: randomUUID(), user_id: owner.userId, status: "active", origin, created_at: now, updated_at: now });
@@ -33,10 +38,21 @@ function fixture(stored: OnboardingStateRecord | null = null, outcome: "success"
     }) },
     events: { append: vi.fn(async (event) => { events.push(event); }) },
     state: { complete: vi.fn(async (owner, value, version) => { completed.push(value); return record({ user_id: owner.userId, status: "completed", answers: value, catalog_version: version, completed_at: now }); }) },
-    profile: { applyOnboarding: vi.fn(async () => true) },
+    profile: { applyOnboarding: vi.fn(async () => true), setCheckinRhythm: vi.fn(async () => true) },
   };
   const unit: OnboardingUnitOfWork = {
-    state: { find: vi.fn(async () => stored), saveDraft: vi.fn(async (owner, value, version) => record({ user_id: owner.userId, answers: value, catalog_version: version })) },
+    state: {
+      saveDraft: vi.fn(async (owner, value, version) => (current = record({ user_id: owner.userId, answers: value, catalog_version: version }))),
+      // The conditional write of the database: a completed setup refuses a start choice.
+      choose: vi.fn(async (owner, value, version) => {
+        if (current?.status === "completed") return null;
+        current = record({ answers: null, ...current, user_id: owner.userId, status: value === "wizard" ? "in_progress" : "dismissed", choice: value,
+          catalog_version: current?.catalog_version ?? version });
+        return current;
+      }),
+    },
+    overview: { read: vi.fn(async () => overviewOf(current, profile)) },
+    profile: { setCheckinRhythm: vi.fn(async () => true) },
     run: vi.fn<OnboardingUnitOfWork["run"]>(async (_actor, command, operation) => {
       commands.push(command);
       return outcome === "conflict" ? { kind: "conflict" } : { kind: "success", result: await operation(transaction) };
@@ -58,6 +74,14 @@ describe("onboarding state and draft (LFS-219)", () => {
     expect(await rejected(fixture(record({ user_id: "other" })).service.get(actor))).toBeInstanceOf(NotFoundError);
   });
 
+  it("carries the profile values of the setup and the goal counts; a missing profile row is not found (LFS-220)", async () => {
+    const state = await fixture(record({ status: "completed", completed_at: now }), "success",
+      { checkinRhythm: "weekly", focusDomains: ["health", "finance", "unknown"], goals: { total: 9, onboarding: 4, examples: 2 } }).service.get(actor);
+    expect(state).toMatchObject({ checkin_rhythm: "weekly", focus_domains: ["finance", "health"], goals: { total: 9, onboarding: 4, examples: 2 } });
+    const missing = fixture(); missing.unit.overview.read = vi.fn(async () => null);
+    expect(await rejected(missing.service.get(actor))).toBeInstanceOf(NotFoundError);
+  });
+
   it("validates a draft before storing it, with the current catalog version", async () => {
     const { service, unit } = fixture();
     expect(await rejected(service.saveDraft(actor, { answers: { ...answers, user_id: "other" } }))).toBeInstanceOf(InvalidInputError);
@@ -66,6 +90,45 @@ describe("onboarding state and draft (LFS-219)", () => {
     const state = await service.saveDraft(actor, { answers });
     expect(state).toMatchObject({ status: "in_progress", choice: "wizard", catalog_version: 1 });
     expect(unit.state.saveDraft).toHaveBeenCalledWith(actor, expect.objectContaining({ step: "summary" }), 1);
+  });
+});
+
+describe("start choice and rhythm (LFS-220)", () => {
+  it("moves a new, started or dismissed setup to the chosen state and keeps the draft", async () => {
+    const { service, unit } = fixture();
+    expect(await service.update(actor, { status: "in_progress", choice: "wizard" })).toMatchObject({ status: "in_progress", choice: "wizard", answers: null });
+    expect(await service.update(actor, { status: "dismissed", choice: "blank" })).toMatchObject({ status: "dismissed", choice: "blank" });
+    expect(await service.update(actor, { status: "dismissed", choice: "blank" })).toMatchObject({ status: "dismissed", choice: "blank" });
+    expect(unit.state.choose).toHaveBeenLastCalledWith(actor, "blank", 1);
+    const started = fixture(record());
+    expect((await started.service.update(actor, { status: "dismissed", choice: "blank" })).answers?.step).toBe("summary");
+  });
+
+  it("refuses to reopen or dismiss a completed setup with a conflict", async () => {
+    for (const change of [{ status: "in_progress", choice: "wizard" }, { status: "dismissed", choice: "blank" }]) {
+      const { service } = fixture(record({ status: "completed", completed_at: now }));
+      expect(await rejected(service.update(actor, change))).toBeInstanceOf(ConflictError);
+      expect(await service.get(actor)).toMatchObject({ status: "completed", choice: "wizard" });
+    }
+  });
+
+  it("accepts only the pairs of the popup or the rhythm, never an owner id or another status", async () => {
+    const { service, unit } = fixture();
+    for (const input of [{}, { status: "completed", choice: "example" }, { status: "in_progress", choice: "blank" }, { status: "not_started", choice: null },
+      { checkin_rhythm: "hourly" }, { checkin_rhythm: "weekly", status: "dismissed", choice: "blank" }, { checkin_rhythm: "weekly", user_id: "other" }]) {
+      expect(await rejected(service.update(actor, input))).toBeInstanceOf(InvalidInputError);
+    }
+    expect(unit.state.choose).not.toHaveBeenCalled();
+    expect(unit.profile.setCheckinRhythm).not.toHaveBeenCalled();
+  });
+
+  it("stores the rhythm on the actor's own profile without touching the state", async () => {
+    const { service, unit } = fixture(record({ status: "completed", completed_at: now }));
+    expect(await service.update(actor, { checkin_rhythm: "daily" })).toMatchObject({ status: "completed" });
+    expect(unit.profile.setCheckinRhythm).toHaveBeenCalledExactlyOnceWith(actor, "daily");
+    expect(unit.state.choose).not.toHaveBeenCalled();
+    unit.profile.setCheckinRhythm = vi.fn(async () => false);
+    expect(await rejected(service.update(actor, { checkin_rhythm: "daily" }))).toBeInstanceOf(NotFoundError);
   });
 });
 

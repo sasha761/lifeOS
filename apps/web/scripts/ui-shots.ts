@@ -19,7 +19,7 @@ const day = 86_400_000;
 const viewports = [{ width: 1440, height: 900, mobile: false }, { width: 390, height: 844, mobile: true }] as const;
 let stage = "isolated test setup";
 
-type Shot = { name: string; path: string; mockup: string; open?: (page: Page) => Promise<void>; account?: "owner" | "example" | "onboarding"; prepare?: () => Promise<void> };
+type Shot = { name: string; path: string; mockup: string; open?: (page: Page) => Promise<void>; account?: "owner" | "example" | "onboarding" | "start" | "setup"; prepare?: () => Promise<void> };
 type Problem = { page: string; width: number; problem: string };
 
 async function seed(fixture: UiFixture) {
@@ -113,6 +113,10 @@ async function main() {
     stage = "example through the API";
     const example = await fetch(`${fixture.base}/api/v1/starter-pack`, { method: "POST", headers: { cookie: fixture.cookies.exampleDesktop, "idempotency-key": randomUUID() } });
     assert(example.ok, `POST /api/v1/starter-pack → ${example.status}`);
+    // LFS-220: an account that completed the questions, for «Начальная настройка» in Settings (mockups 30, 31).
+    stage = "completed setup through the API";
+    await apiWrite(fixture.base, fixture.cookies.startMobile, "/api/v1/onboarding/complete",
+      { ...onboardingDraft("summary"), selected: ["languages.german", "finance.emergency_fund", "health.training", "health.own"] });
     const shots: Shot[] = [
       { name: "home", path: "/", mockup: "04-progress.png" },
       { name: "dashboard", path: "/dashboard", mockup: "04-progress.png" },
@@ -142,6 +146,16 @@ async function main() {
         await page.getByRole("dialog", { name: "Новая цель" }).waitFor();
       } },
       { name: "settings", path: "/settings", mockup: "16-settings.png" },
+      // LFS-220: the first-visit popup on a fresh account (23; at 390 the bottom sheet of 29), Settings after the questions (30)
+      // and the same popup opened there (31).
+      { name: "dashboard-start", path: "/dashboard", mockup: "23-onb-start.png", account: "start", open: async (page) => {
+        await page.getByRole("dialog", { name: "Добро пожаловать в LifeOS" }).waitFor();
+      } },
+      { name: "settings-onboarding", path: "/settings", mockup: "30-onb-settings.png", account: "setup" },
+      { name: "settings-onboarding-dialog", path: "/settings", mockup: "31-onb-reopen.png", account: "setup", open: async (page) => {
+        await page.getByRole("button", { name: "Открыть начальную настройку", exact: true }).click();
+        await page.getByRole("dialog", { name: "Что добавить в аккаунт?" }).waitFor();
+      } },
       // LFS-218: an account with the loaded example, as on mockup 28; then the «Удалить все примеры?» card.
       { name: "dashboard-example", path: "/dashboard", mockup: "28-onb-example.png", account: "example" },
       { name: "dashboard-example-confirm", path: "/dashboard", mockup: "28-onb-example.png", account: "example", open: async (page) => {
@@ -171,7 +185,8 @@ async function main() {
     for (const viewport of viewports) {
       const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, deviceScaleFactor: 1, isMobile: viewport.mobile, hasTouch: viewport.mobile });
       for (const shot of shots) {
-        const cookie = shot.account === "example" ? fixture.cookies.exampleDesktop : shot.account === "onboarding" ? fixture.cookies.onboardingDesktop : fixture.cookies.owner;
+        const cookie = { example: fixture.cookies.exampleDesktop, onboarding: fixture.cookies.onboardingDesktop, start: fixture.cookies.startDesktop,
+          setup: fixture.cookies.startMobile, owner: fixture.cookies.owner }[shot.account ?? "owner"];
         await shot.prepare?.();
         (files[shot.name] ??= {})[viewport.width] = await capture(context, fixture.base, shot, viewport.width, problems, cookie);
       }

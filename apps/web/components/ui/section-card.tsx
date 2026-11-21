@@ -9,6 +9,8 @@ type SectionCardProps = Omit<React.ComponentProps<typeof Card>, "title"> & {
   headingLevel?: 2 | 3
   /** Optional icon before the title. */
   icon?: React.ReactNode
+  /** Chip right after the title, outside the heading (mockup 30: the status of the setup). */
+  titleAddon?: React.ReactNode
   /** Short caption under the title, e.g. the source of the numbers. */
   description?: React.ReactNode
   /** Action on the right of the title (button, link, chip). */
@@ -25,7 +27,7 @@ type SectionCardProps = Omit<React.ComponentProps<typeof Card>, "title"> & {
  * with a real heading, an optional caption and an action on the right. It is a named region by default
  * (pass role="article" for repeated cards such as spheres).
  */
-function SectionCard({ title, titleId, headingLevel = 2, icon, description, action, variant = "default", className, contentClassName, focusableTitle = false, role = "region", children, ...props }: SectionCardProps) {
+function SectionCard({ title, titleId, headingLevel = 2, icon, titleAddon, description, action, variant = "default", className, contentClassName, focusableTitle = false, role = "region", children, ...props }: SectionCardProps) {
   const Heading = headingLevel === 2 ? "h2" : "h3"
   return (
     <Card
@@ -43,6 +45,7 @@ function SectionCard({ title, titleId, headingLevel = 2, icon, description, acti
         <CardTitle className="flex min-w-0 items-center gap-2 text-base leading-[22px] font-bold">
           {icon}
           <Heading id={titleId} tabIndex={focusableTitle ? -1 : undefined} className="min-w-0 rounded wrap-anywhere">{title}</Heading>
+          {titleAddon}
         </CardTitle>
         {description && <CardDescription className="text-xs leading-4">{description}</CardDescription>}
         {action && <CardAction className="flex flex-wrap items-center gap-2">{action}</CardAction>}

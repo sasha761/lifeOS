@@ -1,17 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
 import { CalendarClock, History, LayoutList, Plus } from "lucide-react";
-import { dashboardSchema, starterPackRemovedSchema } from "@lifeos/contracts";
+import { dashboardSchema } from "@lifeos/contracts";
 import type { Dashboard, DashboardActivity, DashboardDomain, DomainKey, GoalDetails, UserPreferences } from "@lifeos/contracts";
 import { domainPresentation } from "../../lib/domain-presentation.ts";
 import { activityLabel, dashboardTotals, dueState, focusFirst, formatDay, plural, sourceLabel } from "../../lib/dashboard-presentation.ts";
 import { formatLoggedValue } from "../../lib/goal-presentation.ts";
+import { closeStartDialog, startDialogClosed } from "../../lib/start-dialog-session.ts";
 import { useDismiss } from "../../lib/use-dismiss.ts";
 import { formatDate, formatDateTime } from "../../lib/user-preferences.ts";
-import { CloseButton, ExampleChip, GoalAmount, LoadState, MutationError, useGoalData, useGoalMutation } from "../goals/shared.tsx";
+import { ExampleChip, GoalAmount, LoadState, useGoalData } from "../goals/shared.tsx";
+import { ExamplesConfirm } from "../onboarding/examples-confirm.tsx";
+import { StartDialog } from "../onboarding/start-dialog.tsx";
+import type { ExampleGoalPreview } from "../onboarding/start-dialog.tsx";
 import { ProgressBar } from "../ui/progress-bar.tsx";
 import { SectionCard } from "../ui/section-card.tsx";
 import { Skeleton } from "../ui/skeleton.tsx";
@@ -144,44 +148,19 @@ function ActivityCard({ dashboard, labels, preferences }: { dashboard: Dashboard
 }
 
 /**
- * «Удалить все примеры?» of mockup 28: a card under the banner (not a centred modal), focus on «Отмена». Escape, ✕,
- * «Отмена» and a press outside close it and return focus to the banner button; Tab stays inside while it is open.
+ * Mockup 28: «Это пример» while the account has example goals, with «Пройти настройку вместо примера» (LFS-220) and
+ * «Удалить все примеры». Each opens its confirmation card under the banner; Escape and a press outside close it and
+ * return focus to the button that opened it. The replacement removes the examples and opens the questions.
  */
-function RemoveExamplesConfirm({ count, close, removed }: { count: number; close(): void; removed(deleted: number): void }) {
-  const action = useGoalMutation();
-  const busy = action.pending || action.uncertain;
-  function trap(event: KeyboardEvent<HTMLElement>) {
-    if (event.key !== "Tab" || event.ctrlKey || event.altKey || event.metaKey) return;
-    const controls = [...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled)")];
-    const first = controls[0]; const last = controls.at(-1);
-    if (!first || !last) { event.preventDefault(); return; }
-    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-  }
-  return <section role="alertdialog" aria-modal="false" aria-labelledby="remove-examples-title" aria-describedby="remove-examples-description" onKeyDown={trap}
-    className="absolute top-[calc(100%+8px)] right-0 sm:top-[calc(100%-18px)] z-30 grid w-full gap-2.5 rounded-2xl border border-border-strong bg-card px-5 py-[18px] shadow-dialog sm:w-[400px]">
-    <div className="flex items-center gap-3"><h2 id="remove-examples-title" className="text-sm font-bold">Удалить все примеры?</h2>
-      <span className="ml-auto"><CloseButton disabled={busy} onClick={close} /></span></div>
-    <MutationError error={action.error} uncertain={action.uncertain} />
-    <p id="remove-examples-description" className="text-xs leading-5 text-muted-foreground sm:text-[13px]">
-      Удалим <span className="tabular-nums">{count}</span> {plural(count, ["примерную цель", "примерные цели", "примерных целей"])} вместе с их измерениями и историей. Цели, которые вы поправили или где есть ваши измерения, останутся.</p>
-    <div className="flex flex-wrap justify-end gap-2.5">
-      {/* The safe choice gets focus, as in the goal deletion dialog (LFS-216). */}
-      <button type="button" autoFocus disabled={busy} onClick={close} className="action-link-secondary action-sm disabled:opacity-50">Отмена</button>
-      <button type="button" disabled={action.pending} className="action-link-secondary action-sm border-destructive/55 text-destructive hover:bg-destructive/10 disabled:opacity-50"
-        onClick={() => void action.save({ url: "/api/v1/starter-pack", method: "DELETE" }, starterPackRemovedSchema, (result) => removed(result.deleted_goals))}>
-        {action.pending ? "Удаляем…" : action.uncertain ? "Повторить запрос" : `Удалить ${count} ${plural(count, COUNT_GOALS)}`}</button>
-    </div>
-  </section>;
-}
-
-/** Mockup 28: «Это пример» while the account has example goals; «Пройти настройку вместо примера» comes with LFS-220. */
 function ExamplesBanner({ dashboard, removed }: { dashboard: Dashboard; removed(deleted: number): void }) {
-  const [confirming, setConfirming] = useState(false);
+  const router = useRouter();
+  const [confirming, setConfirming] = useState<"remove" | "replace" | null>(null);
   const box = useRef<HTMLDivElement>(null);
-  const toggle = useRef<HTMLButtonElement>(null);
-  const close = useCallback(() => { setConfirming(false); toggle.current?.focus(); }, []);
-  useDismiss(confirming, close, box, toggle);
+  const removeToggle = useRef<HTMLButtonElement>(null);
+  const replaceToggle = useRef<HTMLButtonElement>(null);
+  const opener = confirming === "replace" ? replaceToggle : removeToggle;
+  const close = useCallback(() => { setConfirming(null); opener.current?.focus(); }, [opener]);
+  useDismiss(confirming !== null, close, box, opener);
   const { goals, measurements } = dashboard.examples;
   const marked = measurements > 0
     ? <><span className="tabular-nums">{goals}</span> {plural(goals, COUNT_GOALS)} и <span className="tabular-nums">{measurements}</span> {plural(measurements, COUNT_MEASUREMENTS)} помечены «Пример». Поправьте цель под себя: первое ваше измерение заменит примерное.</>
@@ -193,10 +172,19 @@ function ExamplesBanner({ dashboard, removed }: { dashboard: Dashboard; removed(
         <div className="grid min-w-0 gap-1"><h2 id="examples-banner-title" className="text-sm font-bold">Это пример</h2>
           <p className="text-xs leading-5 text-muted-foreground">{marked} Или удалите всё и начните по-своему.</p></div>
       </div>
-      <button ref={toggle} type="button" aria-expanded={confirming} onClick={() => setConfirming((value) => !value)}
-        className="action-link-secondary action-compact self-start border-destructive/55 bg-transparent text-destructive hover:bg-destructive/10 sm:self-auto">Удалить все примеры</button>
+      <div className="flex flex-wrap gap-2.5 self-start sm:shrink-0 sm:self-auto">
+        <button ref={replaceToggle} type="button" aria-expanded={confirming === "replace"} onClick={() => setConfirming((value) => value === "replace" ? null : "replace")}
+          className="action-link-secondary action-compact border-border bg-transparent text-muted-foreground hover:text-foreground">Пройти настройку вместо примера</button>
+        <button ref={removeToggle} type="button" aria-expanded={confirming === "remove"} onClick={() => setConfirming((value) => value === "remove" ? null : "remove")}
+          className="action-link-secondary action-compact border-destructive/55 bg-transparent text-destructive hover:bg-destructive/10">Удалить все примеры</button>
+      </div>
     </section>
-    {confirming && <RemoveExamplesConfirm count={goals} close={close} removed={(deleted) => { setConfirming(false); removed(deleted); }} />}
+    {confirming && <ExamplesConfirm key={confirming} kind={confirming} count={goals} close={close} className="absolute top-[calc(100%+8px)] right-0 sm:top-[calc(100%-18px)]"
+      done={(deleted) => {
+        setConfirming(null);
+        // The questions start right away; the dashboard is reloaded when the person returns.
+        if (confirming === "replace") router.push("/onboarding"); else removed(deleted);
+      }} />}
   </div>;
 }
 
@@ -217,22 +205,35 @@ function DashboardSkeleton() {
   </div>;
 }
 
-/** Client part of /dashboard: reads GET /api/v1/dashboard with loading, error/retry and empty states. */
-export function DashboardView({ preferences, labels }: { preferences: UserPreferences; labels: DomainLabels }) {
+/**
+ * Client part of /dashboard: reads GET /api/v1/dashboard with loading, error/retry and empty states. The first-visit popup
+ * (LFS-220) comes with the same data (`onboarding.show_start`); only «✕» is remembered in the browser session.
+ */
+export function DashboardView({ preferences, labels, examples }: { preferences: UserPreferences; labels: DomainLabels; examples: readonly ExampleGoalPreview[] }) {
   const resource = useGoalData("/api/v1/dashboard", dashboardSchema);
   const [now] = useState(() => new Date());
   const [message, setMessage] = useState<string | null>(null);
+  // Hidden right after a choice or «✕»; the reloaded data decide from then on.
+  const [startHidden, setStartHidden] = useState(false);
   const status = useRef<HTMLDivElement>(null);
   // The banner and its button are gone after «Удалить все примеры»: focus moves to the result once it is rendered.
   useEffect(() => { if (message) status.current?.focus(); }, [message]);
   if (resource.error) return <LoadState loading={false} error={resource.error} retry={resource.reload} />;
   if (!resource.data) return <DashboardSkeleton />;
   const dashboard = resource.data;
+  // Rendered only in the browser: the data are fetched there, so the session flag never meets the server render.
+  const showStart = dashboard.onboarding.show_start && !startHidden && !startDialogClosed();
   function removed(deleted: number) {
     setMessage(`Примеры удалены: ${deleted} ${plural(deleted, COUNT_GOALS)}. Цели, которые вы сделали своими, остались.`);
     resource.reload();
   }
+  function chosen() {
+    setStartHidden(true);
+    resource.reload();
+  }
   return <>
+    {showStart && <StartDialog mode="first" status={dashboard.onboarding.status} goals={0} exampleGoals={dashboard.examples.goals} focus={[]} hasDraft={false}
+      examples={examples} close={() => { closeStartDialog(); setStartHidden(true); }} loaded={chosen} dismissed={chosen} />}
     <Summary dashboard={dashboard} />
     {message && <div ref={status} role="status" tabIndex={-1} className="mt-4 rounded-[10px] border border-st-green/40 bg-st-green/10 px-3 py-2.5 text-sm">{message}</div>}
     {dashboard.examples.goals > 0 && <ExamplesBanner dashboard={dashboard} removed={removed} />}

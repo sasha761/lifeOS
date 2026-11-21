@@ -6,7 +6,7 @@ import { goalAction, login, noOverflow } from "./support.ts";
 test("the example: labels and banner, an edit makes a goal the person's own, «Удалить все примеры» keeps it (LFS-218)", async ({ page }, testInfo) => {
   const errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
   await login(page, testInfo.project.name === "mobile" ? "EXAMPLE_MOBILE" : "EXAMPLE_DESKTOP");
-  // No UI button loads the example in this task (LFS-220 adds it): the test uses the API like that popup will.
+  // Loaded through the API, as the popup does; the popup itself is covered by start-dialog.spec.ts (LFS-220).
   const loaded = await page.request.post("/api/v1/starter-pack", { headers: { "idempotency-key": randomUUID() } });
   expect(loaded.status()).toBe(200);
 

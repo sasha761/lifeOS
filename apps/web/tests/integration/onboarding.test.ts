@@ -19,7 +19,7 @@ let harness: AuthHarness;
 let routes: ReturnType<typeof createOnboardingRoutes>;
 let goalsRoutes: ReturnType<typeof createGoalsRoutes>;
 let starter: ReturnType<typeof createStarterPackRoutes>;
-const users = ["owner", "other", "replay", "invalid", "rollback", "again", "namespace", "http"] as const;
+const users = ["owner", "other", "replay", "invalid", "rollback", "again", "namespace", "http", "choice", "final", "neighbour", "rhythm", "example", "late", "popup"] as const;
 const signed = new Map<string, TestUser>();
 const user = (label: (typeof users)[number]) => signed.get(label)!;
 
@@ -59,6 +59,9 @@ const answers = (step = "summary") => ({
 const SELECTED = ["languages.norwegian", "finance.emergency_fund", "health.training", "health.own"];
 const draft = (who: TestUser, body: unknown) => routes.state.PUT(request("PUT", "/onboarding", { cookie: who.cookie, key: null, body }));
 const state = (who: TestUser) => routes.state.GET(request("GET", "/onboarding", { cookie: who.cookie, key: null }));
+const patch = (who: TestUser, body: unknown) => routes.state.PATCH(request("PATCH", "/onboarding", { cookie: who.cookie, key: null, body }));
+const WIZARD = { status: "in_progress", choice: "wizard" };
+const BLANK = { status: "dismissed", choice: "blank" };
 const complete = (who: TestUser, body: unknown, key = randomUUID()) => routes.complete.POST(request("POST", "/onboarding/complete", { cookie: who.cookie, key, body }));
 async function stateOf(response: Response) {
   expect(response.status).toBe(200);
@@ -159,7 +162,7 @@ describe("«Создать N целей» (LFS-219)", () => {
     await stateOf(await draft(who, { answers: answers("summary") }));
     const real = createOnboardingUnitOfWork(harness.database.db);
     // The work runs in the real transaction; failing after it proves that nothing of it is committed.
-    const failing: OnboardingUnitOfWork = { state: real.state, run: (actor, command, operation) => real.run(actor, command, async (transaction) => {
+    const failing: OnboardingUnitOfWork = { ...real, run: (actor, command, operation) => real.run(actor, command, async (transaction) => {
       await operation(transaction);
       throw new Error("forced failure after the goals were written");
     }) };
@@ -217,6 +220,102 @@ describe("HTTP boundary of /api/v1/onboarding (LFS-219)", () => {
     await failure(await routes.state.GET(new Request(`${TEST_ORIGIN}/api/v1/onboarding?user_id=x`, { headers: { cookie: who.cookie } })), 400, "VALIDATION_ERROR");
     await failure(await routes.state.PUT(new Request(`${TEST_ORIGIN}/api/v1/onboarding`, { method: "PUT", headers: { cookie: who.cookie, origin: TEST_ORIGIN, "content-type": "text/plain" }, body: "{}" })), 400, "VALIDATION_ERROR");
     expect(await goalsOf(who)).toEqual([]);
+    expect(await stateRow(who)).toEqual([]);
+  });
+});
+
+describe("start choice of the popup and Settings (LFS-220)", () => {
+  it("moves a new account to the questions or a blank start, keeps the draft and repeats without change", async () => {
+    const who = user("choice");
+    expect(await stateOf(await patch(who, WIZARD))).toMatchObject({ status: "in_progress", choice: "wizard", answers: null, completed_at: null });
+    expect(await stateOf(await patch(who, WIZARD))).toMatchObject({ status: "in_progress", choice: "wizard" });
+    await stateOf(await draft(who, { answers: answers("skills") }));
+    const dismissed = await stateOf(await patch(who, BLANK));
+    expect(dismissed).toMatchObject({ status: "dismissed", choice: "blank", completed_at: null });
+    expect(dismissed.answers?.step).toBe("skills");
+    expect(await stateOf(await patch(who, BLANK))).toMatchObject({ status: "dismissed", choice: "blank" });
+    // After «Начать с чистого листа» the questions are still open.
+    expect(await stateOf(await patch(who, WIZARD))).toMatchObject({ status: "in_progress", choice: "wizard" });
+    expect(await goalsOf(who)).toEqual([]);
+  });
+
+  it("refuses to reopen or dismiss a completed setup with 409 and changes nothing", async () => {
+    const who = user("final");
+    await completed(await complete(who, { answers: answers(), selected: ["health.training"] }));
+    const [before] = await stateRow(who);
+    for (const body of [WIZARD, BLANK]) await failure(await patch(who, body), 409, "CONFLICT");
+    expect(await stateRow(who)).toEqual([before]);
+  });
+
+  it("changes only the row of the session owner; another account stays as it was", async () => {
+    const who = user("neighbour");
+    const bystander = user("other");
+    const before = await stateRow(bystander);
+    const profile = await profileOf(bystander);
+    await stateOf(await patch(who, BLANK));
+    await stateOf(await patch(who, { checkin_rhythm: "daily" }));
+    expect(await stateRow(bystander)).toEqual(before);
+    expect(await profileOf(bystander)).toEqual(profile);
+    expect(await stateRow(who)).toEqual([expect.objectContaining({ status: "dismissed", choice: "blank" })]);
+    // The body cannot name another owner.
+    await failure(await patch(who, { ...BLANK, user_id: bystander.userId }), 400, "VALIDATION_ERROR");
+  });
+
+  it("stores the rhythm from Settings and reports the profile values and goal counts", async () => {
+    const who = user("rhythm");
+    expect(await stateOf(await state(who))).toMatchObject({ checkin_rhythm: null, focus_domains: [], goals: { total: 0, onboarding: 0, examples: 0 } });
+    expect(await stateOf(await patch(who, { checkin_rhythm: "weekly" }))).toMatchObject({ status: "not_started", checkin_rhythm: "weekly" });
+    expect(await stateRow(who)).toEqual([]);
+    await completed(await complete(who, { answers: answers(), selected: SELECTED }));
+    await stateOf(await patch(who, { checkin_rhythm: "daily" }));
+    expect(await profileOf(who)).toMatchObject({ checkin_rhythm: "daily", focus_domains: ["languages", "finance", "skills", "health"] });
+    expect(await stateOf(await state(who))).toMatchObject({ checkin_rhythm: "daily", focus_domains: ["languages", "finance", "skills", "health"],
+      goals: { total: 4, onboarding: 4, examples: 0 } });
+    for (const body of [{ checkin_rhythm: "hourly" }, { checkin_rhythm: null }, { status: "completed", choice: "example" }, {}]) {
+      await failure(await patch(who, body), 400, "VALIDATION_ERROR");
+    }
+  });
+
+  it("completes the start with the example in the same transaction; a completed setup keeps its date", async () => {
+    const who = user("example");
+    await stateOf(await patch(who, WIZARD));
+    expect((await starter.POST(request("POST", "/starter-pack", { cookie: who.cookie }))).status).toBe(200);
+    const [row] = await stateRow(who);
+    expect(row).toMatchObject({ status: "completed", choice: "example" });
+    expect(await stateOf(await state(who))).toMatchObject({ status: "completed", choice: "example", goals: { total: 7, onboarding: 0, examples: 7 } });
+    // Removed and loaded again: the status and the date of the first completion stay.
+    expect((await starter.DELETE(request("DELETE", "/starter-pack", { cookie: who.cookie }))).status).toBe(200);
+    expect((await starter.POST(request("POST", "/starter-pack", { cookie: who.cookie }))).status).toBe(200);
+    expect(await stateRow(who)).toEqual([row]);
+
+    const late = user("late");
+    await completed(await complete(late, { answers: answers(), selected: ["health.training"] }));
+    const [wizard] = await stateRow(late);
+    expect((await starter.POST(request("POST", "/starter-pack", { cookie: late.cookie }))).status).toBe(200);
+    expect(await stateRow(late)).toEqual([wizard]);
+    expect(await stateOf(await state(late))).toMatchObject({ status: "completed", choice: "wizard", goals: { total: 8, onboarding: 1, examples: 7 } });
+  });
+
+  it("shows the first-visit popup on the dashboard only while the account is empty and the setup is open", async () => {
+    const who = user("popup");
+    const reader = createDashboardReader(createDashboardReadRepository(harness.database.db));
+    expect((await reader.get(who.actor)).onboarding).toEqual({ status: "not_started", show_start: true });
+    await stateOf(await patch(who, WIZARD));
+    expect((await reader.get(who.actor)).onboarding).toEqual({ status: "in_progress", show_start: true });
+    const goal = await goalsRoutes.collection.POST(request("POST", "/goals", { cookie: who.cookie,
+      body: { domain_key: "work", title: "Своя цель", unit: "count", baseline: "0", target: "3", direction: "increase" } }));
+    expect(goal.status).toBe(200);
+    expect((await reader.get(who.actor)).onboarding).toEqual({ status: "in_progress", show_start: false });
+    await stateOf(await patch(who, BLANK));
+    expect((await reader.get(who.actor)).onboarding).toEqual({ status: "dismissed", show_start: false });
+  });
+
+  it("needs a session and the public origin for PATCH and rejects a query", async () => {
+    const who = user("http");
+    await failure(await routes.state.PATCH(request("PATCH", "/onboarding", { key: null, body: BLANK })), 401, "UNAUTHORIZED");
+    await failure(await routes.state.PATCH(request("PATCH", "/onboarding", { cookie: who.cookie, key: null, origin: "https://evil.test", body: BLANK })), 403, "FORBIDDEN");
+    await failure(await routes.state.PATCH(new Request(`${TEST_ORIGIN}/api/v1/onboarding?user_id=x`, { method: "PATCH",
+      headers: { cookie: who.cookie, origin: TEST_ORIGIN, "content-type": "application/json" }, body: JSON.stringify(BLANK) })), 400, "VALIDATION_ERROR");
     expect(await stateRow(who)).toEqual([]);
   });
 });

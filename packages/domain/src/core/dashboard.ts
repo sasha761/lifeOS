@@ -1,11 +1,12 @@
 import { DASHBOARD_ACTIVITY_LIMIT, DASHBOARD_DUE_GOALS_LIMIT, DASHBOARD_GOALS_PER_DOMAIN } from "@lifeos/contracts";
-import type { Dashboard, DomainKey, Goal, GoalDetails } from "@lifeos/contracts";
+import type { Dashboard, DomainKey, Goal, GoalDetails, OnboardingStatus } from "@lifeos/contracts";
 import { isVisibleActivity, newestActivityFirst, toDashboardActivity } from "./activity.ts";
 import type { ActivityRecord } from "./activity.ts";
 import type { Actor } from "./actor.ts";
 import { LIFE_DOMAINS } from "./domains.ts";
 import { goalDetailsFromRecord } from "./goals-reader.ts";
 import type { GoalReadRecord } from "./goals-reader.ts";
+import { showsStartDialog } from "./onboarding.ts";
 
 export type DashboardLimits = { goalsPerDomain: number; dueGoals: number; activity: number };
 /** Goal counts per sphere, status and origin (the origin feeds the example banner, LFS-218). */
@@ -24,6 +25,8 @@ export type DashboardReadRecord = {
   exampleMeasurements: number;
   /** «Сферы в фокусе» from the onboarding wizard (LFS-219); null when not chosen. */
   focusDomains: readonly string[] | null;
+  /** Status of the setup from the same snapshot (LFS-220); null when there is no row (not started). */
+  onboardingStatus: OnboardingStatus | null;
 };
 /** One consistent read snapshot with a fixed number of owner-scoped queries (no query per goal). */
 export type DashboardReadRepository = { read(actor: Actor, limits: DashboardLimits): Promise<DashboardReadRecord> };
@@ -51,10 +54,13 @@ export function createDashboardReader(repository: DashboardReadRepository, limit
       const record = await repository.read(actor, limits);
       const counts = new Map<string, number>();
       let exampleGoals = 0;
+      let allGoals = 0;
       for (const row of record.counts) {
         counts.set(`${row.domainKey}:${row.status}`, (counts.get(`${row.domainKey}:${row.status}`) ?? 0) + count(row.total));
         if (row.origin === "starter") exampleGoals += count(row.total);
+        allGoals += count(row.total);
       }
+      const onboardingStatus = record.onboardingStatus ?? "not_started";
       // Ownership of goals is re-checked here (NotFound on a foreign row), exactly as in GoalsReader.
       const domainGoals = record.domainGoals.map((item) => goalDetailsFromRecord(actor, item)).filter(({ goal }) => goal.status === "active");
       const dueGoals = record.dueGoals.map((item) => goalDetailsFromRecord(actor, item))
@@ -73,6 +79,7 @@ export function createDashboardReader(repository: DashboardReadRepository, limit
         examples: { goals: exampleGoals, measurements: count(record.exampleMeasurements) },
         // Registry order, registry keys only: the stored array is ordered by the wizard and checked by SQL.
         focus_domains: LIFE_DOMAINS.map(({ key }) => key).filter((key) => record.focusDomains?.includes(key) ?? false),
+        onboarding: { status: onboardingStatus, show_start: showsStartDialog(onboardingStatus, allGoals) },
       };
     },
   };

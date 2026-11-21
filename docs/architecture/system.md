@@ -209,6 +209,13 @@ LFS-219: мастер начальной настройки. Каталог во
 (миграция 0008). HTTP `GET`/`PUT /api/v1/onboarding`, `POST /api/v1/onboarding/complete`; страница `/onboarding`
 в route group `(onboarding)`, защищена в `proxy.ts`. [ADR-012](../adr/012-onboarding.md).
 
+LFS-220: попап первого входа и раздел «Начальная настройка» в `/settings`, один компонент
+`components/onboarding/start-dialog.tsx`. Признак показа `onboarding.show_start` приходит в Dashboard DTO из того же
+снимка. `createOnboardingService.update` обрабатывает `PATCH /api/v1/onboarding`: выбор попапа одним условным upsert
+(из `completed` — 409) или ритм профиля. `createOnboardingOverviewRepository` читает для Настроек состояние, ритм, сферы
+в фокусе и счётчики целей одним снимком. Загрузка примера в своей транзакции завершает незавершённую настройку
+(`choice = example`). Миграций нет. [ADR-012, дополнение LFS-220](../adr/012-onboarding.md#дополнение-lfs-220--2026-11-21).
+
 ## Проверка и handoff
 
 Полная цепочка — `pnpm verify`: frozen install, lint/types, unit, test

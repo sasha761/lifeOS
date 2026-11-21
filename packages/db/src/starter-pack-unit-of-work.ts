@@ -7,6 +7,7 @@ import { commandFingerprint, findGoalDeletionReceipt, findOnboardingReceipt, loc
 import { ownedBy } from "./ownership.ts";
 import { createGoalMeasurementsRepository } from "./repositories/goal-measurements.ts";
 import { createGoalsRepository } from "./repositories/goals.ts";
+import { createOnboardingStateRepository } from "./repositories/onboarding.ts";
 import { createStarterPackRepository } from "./repositories/starter-pack.ts";
 import { goalCommandReceipts } from "./schema/activity-events.ts";
 import { starterPackReceipts } from "./schema/starter-pack-receipts.ts";
@@ -38,6 +39,7 @@ export function createStarterPackUnitOfWork(database: LifeosDatabase): StarterPa
           measurements: createGoalMeasurementsRepository(transaction),
           examples: createStarterPackRepository(transaction),
           events: createActivityEventWriter(transaction, actor, { idempotencyKey: command.idempotencyKey, source: command.eventSource }),
+          onboarding: createOnboardingStateRepository(transaction),
         });
         for (const value of [result.goals, result.measurements]) if (!Number.isSafeInteger(value) || value < 0) throw new Error("Invalid starter pack result.");
         await transaction.insert(starterPackReceipts).values({ userId: actor.userId, idempotencyKey: command.idempotencyKey, requestHash: hash,

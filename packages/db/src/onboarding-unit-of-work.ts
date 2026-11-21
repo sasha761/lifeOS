@@ -6,7 +6,7 @@ import { createActivityEventWriter } from "./activity-event-writer.ts";
 import { commandFingerprint, findGoalDeletionReceipt, findStarterPackReceipt, lockCommandKey, lockOnboarding } from "./command-idempotency.ts";
 import { ownedBy } from "./ownership.ts";
 import { createGoalsRepository } from "./repositories/goals.ts";
-import { createOnboardingProfileRepository, createOnboardingStateRepository } from "./repositories/onboarding.ts";
+import { createOnboardingOverviewRepository, createOnboardingProfileRepository, createOnboardingStateRepository } from "./repositories/onboarding.ts";
 import { goalCommandReceipts } from "./schema/activity-events.ts";
 import { onboardingReceipts } from "./schema/onboarding.ts";
 
@@ -18,6 +18,8 @@ import { onboardingReceipts } from "./schema/onboarding.ts";
 export function createOnboardingUnitOfWork(database: LifeosDatabase): OnboardingUnitOfWork {
   return {
     state: createOnboardingStateRepository(database),
+    overview: createOnboardingOverviewRepository(database),
+    profile: createOnboardingProfileRepository(database),
     async run(actor, command, operation) {
       if (!goalCommandOptionsSchema.safeParse({ idempotencyKey: command.idempotencyKey, source: command.source }).success) throw new Error("Invalid command context.");
       const hash = commandFingerprint(command);

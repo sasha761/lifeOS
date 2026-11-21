@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { onboardingAnswersSchema } from "@lifeos/contracts";
 import { buildOnboardingGoals, newOnboardingChoice } from "@lifeos/domain/onboarding";
-import { currentOnboardingStep, focusLabel, issueMessage, moveDeadlines, onboardingSteps, proposalLine, proposalRange } from "../lib/onboarding-presentation.ts";
+import { currentOnboardingStep, focusLabel, issueMessage, moveDeadlines, onboardingSteps, proposalLine, proposalRange, setupStatus } from "../lib/onboarding-presentation.ts";
 
 const preferences = { timezone: "Europe/Oslo", locale: "ru" };
 const base = { step: "domains", domains: ["languages", "finance"], spheres: {}, rhythm: null, timezone: null, extra: [], unchecked: [] };
@@ -37,5 +37,18 @@ describe("onboarding wizard presentation (LFS-219)", () => {
     const moved = moveDeadlines(answers, "Europe/Oslo", "UTC");
     expect(moved.spheres.finance?.choices[0]?.due_at).toBe("2027-06-30T23:59:59.999Z");
     expect(moved.extra[0]?.due_at).toBe("2027-01-31T23:59:59.999Z");
+  });
+});
+
+describe("«Начальная настройка» in Settings (LFS-220)", () => {
+  const goals = { total: 11, onboarding: 4, examples: 7 };
+  const completedAt = "2026-11-18T23:30:00.000Z";
+  it("names the status and counts the goals the completed setup gave that are still in the account", () => {
+    // The date is the day in the account zone: 18.11 23:30 UTC is 19.11 00:30 in Oslo.
+    expect(setupStatus({ status: "completed", choice: "wizard", completed_at: completedAt, goals }, preferences)).toEqual({ label: "пройдена 19.11.2026 · 4 цели", done: true });
+    expect(setupStatus({ status: "completed", choice: "example", completed_at: completedAt, goals }, preferences).label).toBe("пройдена 19.11.2026 · 7 целей");
+    expect(setupStatus({ status: "completed", choice: "example", completed_at: completedAt, goals: { ...goals, examples: 0 } }, preferences).label).toBe("пройдена 19.11.2026");
+    expect(setupStatus({ status: "dismissed", choice: "blank", completed_at: null, goals }, preferences)).toEqual({ label: "отклонена", done: false });
+    for (const status of ["not_started", "in_progress"] as const) expect(setupStatus({ status, choice: null, completed_at: null, goals }, preferences).label).toBe("не пройдена");
   });
 });
