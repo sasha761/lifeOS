@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import { CHECKIN_RHYTHMS, DOMAIN_KEYS } from "@lifeos/contracts";
+import { DOMAIN_KEYS } from "@lifeos/contracts";
 
 // DDL cannot contain bind parameters: only trusted registry constants are inlined (LFS-219).
 const choices = (values: readonly string[]) => sql.raw(values.map((value) => `'${value.replace(/'/g, "''")}'`).join(", "));
@@ -25,14 +25,12 @@ export const user = pgTable("user", {
   timezone: text("timezone").default("UTC").notNull(),
   locale: text("locale").default("ru").notNull(),
   // LFS-219 onboarding (0008_onboarding), written only by the wizard's completion: «сферы в фокусе» shown first on the
-  // dashboard, in registry order, and how often the person is ready to record progress. Null until chosen.
+  // dashboard, in registry order. Null until chosen. The rhythm column of 0008 was dropped by LFS-222 (0009).
   focusDomains: text("focus_domains").array(),
-  checkinRhythm: text("checkin_rhythm", { enum: CHECKIN_RHYTHMS }),
 }, (table) => [
   check("user_timezone_length_check", sql`char_length(${table.timezone}) BETWEEN 1 AND 64`),
   check("user_locale_length_check", sql`char_length(${table.locale}) BETWEEN 2 AND 35`),
   check("user_focus_domains_check", sql`${table.focusDomains} IS NULL OR (cardinality(${table.focusDomains}) <= ${sql.raw(String(DOMAIN_KEYS.length))} AND ${table.focusDomains} <@ ARRAY[${choices(DOMAIN_KEYS)}]::text[])`),
-  check("user_checkin_rhythm_check", sql`${table.checkinRhythm} IS NULL OR ${table.checkinRhythm} IN (${choices(CHECKIN_RHYTHMS)})`),
 ]);
 
 export const session = pgTable("session", {

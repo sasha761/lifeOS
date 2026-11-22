@@ -19,6 +19,7 @@
 | `0006_goal_deletion_receipts` | LFS-216 | `goal_deletion_receipts` | [Квитанции удаления](#квитанции-удаления-целей--lfs-216) |
 | `0007_starter_pack` | LFS-218 | `goals.origin`, `starter_pack_receipts` | [Пример по выбору](#пример-по-выбору--lfs-218) |
 | `0008_onboarding` | LFS-219 | `onboarding_state`, `onboarding_receipts`; `user.focus_domains`, `user.checkin_rhythm` | [Начальная настройка](#начальная-настройка--lfs-219) |
+| `0009_drop_checkin_rhythm` | LFS-222 | удаляет `user.checkin_rhythm` и `user_checkin_rhythm_check` вместе с данными | [Начальная настройка](#начальная-настройка--lfs-219) |
 
 Очередь pg-boss создаёт свои объекты сама — [Queue schema](#queue-schema). Новая миграция добавляет строку
 в эту таблицу и свой раздел.
@@ -120,7 +121,12 @@ public 1 → 5 таблиц, journal 1 → 2, pgboss 13 → 13).
 
 Отсутствие строки `onboarding_state` означает `not_started`. Политика — [ADR-012](../adr/012-onboarding.md).
 С LFS-220 в ту же таблицу пишут попап первого входа (`in_progress`/`wizard`, `dismissed`/`blank`) и загрузка примера
-(`completed`/`example`), а `user.checkin_rhythm` меняется ещё и в Настройках. Схема не менялась.
+(`completed`/`example`).
+
+Миграция `0009_drop_checkin_rhythm.sql` (LFS-222) удаляет `user_checkin_rhythm_check` и колонку
+`user.checkin_rhythm` вместе с сохранёнными значениями: ритм отметок убран из продукта. Из профиля мастер пишет только
+`user.focus_domains`. Черновики в `onboarding_state.answers` не переписываются: старые ключи `rhythm` и `timezone`
+отбрасывает сервер при чтении. Откат кода к LFS-221 требует новой миграции, которая вернёт колонку.
 
 ## User preferences (LFS-202)
 

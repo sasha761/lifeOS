@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { onboardingAnswersSchema } from "@lifeos/contracts";
 import { buildOnboardingGoals, newOnboardingChoice } from "@lifeos/domain/onboarding";
-import { currentOnboardingStep, focusLabel, issueMessage, moveDeadlines, onboardingSteps, proposalLine, proposalRange, setupStatus } from "../lib/onboarding-presentation.ts";
+import { currentOnboardingStep, deadlineDate, isSphereStep, issueMessage, onboardingSteps, proposalLine, proposalRange, setupStatus } from "../lib/onboarding-presentation.ts";
 
 const preferences = { timezone: "Europe/Oslo", locale: "ru" };
-const base = { step: "domains", domains: ["languages", "finance"], spheres: {}, rhythm: null, timezone: null, extra: [], unchecked: [] };
+const base = { step: "domains", domains: ["languages", "finance"], spheres: {}, extra: [], unchecked: [] };
 
 describe("onboarding wizard presentation (LFS-219)", () => {
-  it("builds the step scale from the chosen spheres: 4 to 9 screens", () => {
-    expect(onboardingSteps({ domains: ["finance"] })).toEqual(["domains", "finance", "rhythm", "summary"]);
-    expect(onboardingSteps({ domains: ["languages", "finance", "work", "projects", "skills", "health"] })).toHaveLength(9);
+  it("builds the step scale from the chosen spheres: 3 to 8 screens, without the rhythm (LFS-222)", () => {
+    expect(onboardingSteps({ domains: ["finance"] })).toEqual(["domains", "finance", "summary"]);
+    expect(onboardingSteps({ domains: ["languages", "finance", "work", "projects", "skills", "health"] })).toHaveLength(8);
+    expect(onboardingSteps({ domains: ["languages", "finance", "work", "projects", "skills", "health"] }).filter(isSphereStep)).toHaveLength(6);
     // A step of a sphere that was deselected falls back to the first screen.
     expect(currentOnboardingStep({ ...onboardingAnswersSchema.parse(base), step: "health" })).toBe("domains");
     expect(currentOnboardingStep(onboardingAnswersSchema.parse({ ...base, step: "finance" }))).toBe("finance");
@@ -26,17 +27,12 @@ describe("onboarding wizard presentation (LFS-219)", () => {
     expect(proposalLine(money!, preferences)).toBe("Увеличить · 500 → — $ · без срока");
     expect(proposalLine(money!, preferences, { direction: false })).toBe("500 → — $");
     expect(issueMessage("target", money!)).toMatch(/больше/);
-    expect(focusLabel(1)).toBe("сначала 1 выбранная сфера");
-    expect(focusLabel(4)).toBe("сначала 4 выбранные сферы");
   });
 
-  it("keeps the chosen calendar dates when the zone changes on the rhythm step", () => {
-    const answers = onboardingAnswersSchema.parse({ ...base, domains: ["finance"], spheres: {
-      finance: { skipped: false, choices: [{ ...newOnboardingChoice("finance", "debt"), due_at: "2027-06-30T21:59:59.999Z" }] },
-    }, extra: [{ domain_key: "work", title: "Отклики", unit: "count", baseline: "0", target: "5", direction: "increase", due_at: "2027-01-31T22:59:59.999Z" }] });
-    const moved = moveDeadlines(answers, "Europe/Oslo", "UTC");
-    expect(moved.spheres.finance?.choices[0]?.due_at).toBe("2027-06-30T23:59:59.999Z");
-    expect(moved.extra[0]?.due_at).toBe("2027-01-31T23:59:59.999Z");
+  it("shows a deadline as the calendar day in the profile zone (LFS-222: the wizard has no zone of its own)", () => {
+    expect(deadlineDate("2027-06-30T21:59:59.999Z", "Europe/Oslo")).toBe("2027-06-30");
+    expect(deadlineDate("2027-06-30T21:59:59.999Z", "Pacific/Auckland")).toBe("2027-07-01");
+    expect(deadlineDate(null, "Europe/Oslo")).toBe("");
   });
 });
 

@@ -49,7 +49,7 @@ async function seed(fixture: UiFixture) {
 function onboardingDraft(step: string) {
   const due = (days: number) => new Date(Date.now() + days * day).toISOString();
   const choice = (option: string, values: Record<string, unknown>) => ({ option, subject: "", direction: "increase", unit: "custom", unit_label: "", baseline: "", target: "", due_at: null, ...values });
-  return { answers: { step, domains: ["languages", "finance", "skills", "health"], rhythm: "weekly", timezone: null, extra: [], unchecked: [], spheres: {
+  return { answers: { step, domains: ["languages", "finance", "skills", "health"], extra: [], unchecked: [], spheres: {
     languages: { skipped: false, choices: [choice("german", { baseline: "1", target: "3", due_at: due(240) })] },
     finance: { skipped: false, choices: [choice("emergency_fund", { unit: "NOK", target: "60000", baseline: "15000", due_at: due(200) })] },
     skills: { skipped: true, choices: [] },
@@ -165,7 +165,7 @@ async function main() {
       // LFS-219: the wizard on a fresh account; the draft puts it on the step of each mockup.
       ...([["onboarding-spheres", "domains", "24-onb-spheres.png"], ["onboarding-question", "finance", "25-onb-question.png"],
         ["onboarding-own", "health", "26-onb-own-answer.png"], ["onboarding-summary", "summary", "27-onb-summary.png"],
-        ["onboarding-languages", "languages", "29-onb-mobile.png"], ["onboarding-rhythm", "rhythm", "25-onb-question.png"]] as const).map(([name, step, mockup]): Shot => ({
+        ["onboarding-languages", "languages", "29-onb-mobile.png"]] as const).map(([name, step, mockup]): Shot => ({
         name, path: "/onboarding", mockup, account: "onboarding",
         prepare: async () => { await apiWrite(fixture!.base, fixture!.cookies.onboardingDesktop, "/api/v1/onboarding", onboardingDraft(step), "PUT"); },
       })),

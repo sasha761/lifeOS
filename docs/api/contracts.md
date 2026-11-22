@@ -512,13 +512,12 @@ Origin публичного URL (403), обязательный `Idempotency-Key
 
 | Метод | Тело и ответ |
 |---|---|
-| `GET /api/v1/onboarding` | без query; `OnboardingState { status, choice, catalog_version, answers, completed_at, updated_at, checkin_rhythm, focus_domains, goals }`. Без строки — `not_started`, `answers: null`; черновик другой версии каталога — `answers: null` |
+| `GET /api/v1/onboarding` | без query; `OnboardingState { status, choice, catalog_version, answers, completed_at, updated_at, focus_domains, goals }`. Без строки — `not_started`, `answers: null`; черновик другой версии каталога — `answers: null` |
 | `PUT /api/v1/onboarding` | `{ answers }` — черновик целиком («Сохранить и выйти»), JSON, Origin публичного URL, без query. `Idempotency-Key` не нужен: черновик заменяется целиком. Статус → `in_progress`; `completed` остаётся `completed`; `choice = wizard`. Цели не создаются. Ответ `OnboardingState` |
-| `PATCH /api/v1/onboarding` | LFS-220. Ровно одно из: `{ status: "in_progress", choice: "wizard" }` («Начать настройку»), `{ status: "dismissed", choice: "blank" }` («Начать с чистого листа»), `{ checkin_rhythm }` («Ритм отметок» в Настройках). JSON, Origin, без query, `Idempotency-Key` не нужен: повтор даёт то же состояние. Ответ `OnboardingState` |
+| `PATCH /api/v1/onboarding` | LFS-220. Ровно одно из: `{ status: "in_progress", choice: "wizard" }` («Начать настройку»), `{ status: "dismissed", choice: "blank" }` («Начать с чистого листа»). `{ checkin_rhythm }` удалён в LFS-222 и даёт 400. JSON, Origin, без query, `Idempotency-Key` не нужен: повтор даёт то же состояние. Ответ `OnboardingState` |
 | `POST /api/v1/onboarding/complete` | `{ answers, selected }` («Создать N целей»): JSON, Origin, `Idempotency-Key`. Ответ `OnboardingCompleted { catalog_version: 1, created_goals }` |
 
-Поля `OnboardingState` с LFS-220:
-- `checkin_rhythm` — `CHECKIN_RHYTHMS` | null, из профиля;
+Поля `OnboardingState` с LFS-220 (поле `checkin_rhythm` удалено в LFS-222):
 - `focus_domains` — сферы в фокусе в порядке реестра, `[]` если не выбраны;
 - `goals: { total, onboarding, examples }` — все цели владельца, цели мастера (`origin = onboarding`) и цели с меткой
   «Пример» (`origin = starter`), активные и в архиве.
@@ -532,17 +531,19 @@ Origin публичного URL (403), обязательный `Idempotency-Key
 
 Черновик ответов и его версия каталога при переходе сохраняются. Проверка и запись — один условный upsert, поэтому
 параллельное завершение мастера не будет перезаписано. Переход в `completed` через `PATCH` невозможен (400): настройку
-завершают только «Создать N целей» и загрузка примера. Ритм меняется в любом статусе, строка состояния не создаётся.
-Другие пары, лишние поля (в том числе `user_id`) и пустое тело — 400.
+завершают только «Создать N целей» и загрузка примера. Другие пары, `checkin_rhythm`, лишние поля (в том числе
+`user_id`) и пустое тело — 400.
 
-`OnboardingAnswers` (strict):
-- `step` — `domains` | ключ выбранной сферы | `rhythm` | `summary`;
+`OnboardingAnswers` (strict, с LFS-222 без ритма и пояса):
+- `step` — `domains` | ключ выбранной сферы | `summary`;
 - `domains` — ключи реестра без повторов в его порядке («сферы в фокусе»);
 - `spheres` — `{ <sphere>: { skipped, choices[] } }`;
-- `rhythm` — `CHECKIN_RHYTHMS` | null;
-- `timezone` — подтверждённый пояс или null;
 - `extra` — до 6 целей «+ Добавить цель в другой сфере» в формате `CreateGoalInput`;
 - `unchecked` — ключи снятых галочек.
+
+Даты сроков в ответах — моменты UTC; мастер показывает их в часовом поясе профиля, который меняют только в Настройках.
+`PUT` и `complete` с `rhythm`, `timezone` или `step: "rhythm"` — 400. Черновик, сохранённый до LFS-222, при чтении
+(`GET`) отдаётся без `rhythm` и `timezone`, а шаг `rhythm` превращается в `summary`.
 
 Выбор (`OnboardingChoice`) — `{ option, subject, direction, unit, unit_label, baseline, target, due_at }`. Числа —
 строки как ввели, до 40 символов: «3 000» и «21,1» допустимы в черновике и нормализуются при сборке. Варианты и лимиты —
@@ -551,13 +552,13 @@ Origin публичного URL (403), обязательный `Idempotency-Key
 
 `complete` заново строит цели из ответов и создаёт только отмеченные в `selected`:
 - одной транзакцией создаются цели с `origin = onboarding` и `goal.created` с `source = web` (ключ у первого факта);
-- в профиль пишутся `focus_domains` и `checkin_rhythm` (null сохраняет прежнее значение) и подтверждённый пояс;
+- в профиль пишутся только `focus_domains`; часовой пояс профиля не меняется (LFS-222);
 - состояние становится `completed`, создаётся квитанция `onboarding_receipts`;
 - измерений нет.
 
 Ошибки:
-- цель, которая не проходит контракт создания, неизвестный ключ в `selected` или неизвестный пояс — 400
-  `VALIDATION_ERROR` с `errors[0].field` (`health.own`, `skills.chess`, `timezone`); ничего не создаётся;
+- цель, которая не проходит контракт создания, или неизвестный ключ в `selected` — 400 `VALIDATION_ERROR` с
+  `errors[0].field` (`health.own`, `skills.chess`); ничего не создаётся;
 - повтор с тем же ключом возвращает тот же ответ, тот же ключ с другими данными — 409; ключ занят другой командой
   целей или примера — 409.
 

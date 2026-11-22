@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { LIFE_DOMAINS } from "@lifeos/domain";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
-import { timeZoneOptions } from "@/lib/user-preferences";
 import { requirePageSession } from "@/server/auth";
 import { getOnboardingService, getUserPreferencesService } from "@/server/core";
 
@@ -18,5 +17,5 @@ const labels = Object.fromEntries(LIFE_DOMAINS.map((domain) => [domain.key, doma
 export default async function OnboardingPage() {
   const { actor } = await requirePageSession("/onboarding");
   const [state, preferences] = await Promise.all([getOnboardingService().get(actor), getUserPreferencesService().get(actor)]);
-  return <OnboardingWizard initial={state} preferences={preferences} labels={labels} timeZones={timeZoneOptions(preferences.timezone)} />;
+  return <OnboardingWizard initial={state} preferences={preferences} labels={labels} />;
 }

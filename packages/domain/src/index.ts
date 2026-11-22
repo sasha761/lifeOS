@@ -25,7 +25,7 @@ export type {
   StarterPackCommand, StarterPackOutcome, StarterPackRepository, StarterPackResult, StarterPackService, StarterPackTransaction,
   StarterPackUnitOfWork,
 } from "./core/starter-pack.ts";
-export { createOnboardingService, showsStartDialog } from "./core/onboarding.ts";
+export { createOnboardingService, readStoredOnboardingAnswers, showsStartDialog } from "./core/onboarding.ts";
 export type {
   OnboardingCommand, OnboardingOutcome, OnboardingOverviewRecord, OnboardingOverviewRepository, OnboardingProfileRepository, OnboardingResult,
   OnboardingService, OnboardingStateRecord, OnboardingStateRepository, OnboardingTransaction, OnboardingUnitOfWork,

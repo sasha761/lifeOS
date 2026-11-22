@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { goalSchema } from "@lifeos/contracts";
 import type { ActivityEventDraft, Goal, OnboardingAnswers } from "@lifeos/contracts";
-import { actorFromVerifiedSession, ConflictError, createOnboardingService, InvalidInputError, isDomainError, NotFoundError } from "../src/index.ts";
+import { actorFromVerifiedSession, ConflictError, createOnboardingService, InvalidInputError, isDomainError, NotFoundError, readStoredOnboardingAnswers } from "../src/index.ts";
 import type { OnboardingCommand, OnboardingOverviewRecord, OnboardingStateRecord, OnboardingTransaction, OnboardingUnitOfWork } from "../src/index.ts";
 
 const actor = actorFromVerifiedSession("owner");
@@ -11,7 +11,7 @@ const now = "2026-11-20T10:00:00.000Z";
 const choice = (option: string, values: Record<string, unknown> = {}) =>
   ({ option, subject: "", direction: "increase", unit: "custom", unit_label: "", baseline: "", target: "", due_at: null, ...values });
 const answers = {
-  step: "summary", domains: ["finance", "skills", "health"], rhythm: "few_per_week", timezone: null, unchecked: [],
+  step: "summary", domains: ["finance", "skills", "health"], unchecked: [],
   extra: [{ domain_key: "work", title: "Отклики", unit: "count", baseline: "0", target: "10", direction: "increase" }],
   spheres: {
     finance: { skipped: false, choices: [choice("emergency_fund", { unit: "USD", target: "3000", baseline: "500", due_at: "2027-06-30T21:59:59.999Z" })] },
@@ -25,7 +25,7 @@ const record = (values: Partial<OnboardingStateRecord> = {}): OnboardingStateRec
 
 const counts = { total: 0, onboarding: 0, examples: 0 };
 const overviewOf = (state: OnboardingStateRecord | null, values: Partial<OnboardingOverviewRecord> = {}): OnboardingOverviewRecord =>
-  ({ state, checkinRhythm: null, focusDomains: null, goals: counts, ...values });
+  ({ state, focusDomains: null, goals: counts, ...values });
 
 function fixture(stored: OnboardingStateRecord | null = null, outcome: "success" | "conflict" = "success", profile: Partial<OnboardingOverviewRecord> = {}) {
   const goals: Goal[] = []; const events: ActivityEventDraft[] = []; const commands: OnboardingCommand[] = [];
@@ -38,7 +38,7 @@ function fixture(stored: OnboardingStateRecord | null = null, outcome: "success"
     }) },
     events: { append: vi.fn(async (event) => { events.push(event); }) },
     state: { complete: vi.fn(async (owner, value, version) => { completed.push(value); return record({ user_id: owner.userId, status: "completed", answers: value, catalog_version: version, completed_at: now }); }) },
-    profile: { applyOnboarding: vi.fn(async () => true), setCheckinRhythm: vi.fn(async () => true) },
+    profile: { applyOnboarding: vi.fn(async () => true) },
   };
   const unit: OnboardingUnitOfWork = {
     state: {
@@ -52,7 +52,6 @@ function fixture(stored: OnboardingStateRecord | null = null, outcome: "success"
       }),
     },
     overview: { read: vi.fn(async () => overviewOf(current, profile)) },
-    profile: { setCheckinRhythm: vi.fn(async () => true) },
     run: vi.fn<OnboardingUnitOfWork["run"]>(async (_actor, command, operation) => {
       commands.push(command);
       return outcome === "conflict" ? { kind: "conflict" } : { kind: "success", result: await operation(transaction) };
@@ -76,8 +75,9 @@ describe("onboarding state and draft (LFS-219)", () => {
 
   it("carries the profile values of the setup and the goal counts; a missing profile row is not found (LFS-220)", async () => {
     const state = await fixture(record({ status: "completed", completed_at: now }), "success",
-      { checkinRhythm: "weekly", focusDomains: ["health", "finance", "unknown"], goals: { total: 9, onboarding: 4, examples: 2 } }).service.get(actor);
-    expect(state).toMatchObject({ checkin_rhythm: "weekly", focus_domains: ["finance", "health"], goals: { total: 9, onboarding: 4, examples: 2 } });
+      { focusDomains: ["health", "finance", "unknown"], goals: { total: 9, onboarding: 4, examples: 2 } }).service.get(actor);
+    expect(state).toMatchObject({ focus_domains: ["finance", "health"], goals: { total: 9, onboarding: 4, examples: 2 } });
+    expect(state).not.toHaveProperty("checkin_rhythm");
     const missing = fixture(); missing.unit.overview.read = vi.fn(async () => null);
     expect(await rejected(missing.service.get(actor))).toBeInstanceOf(NotFoundError);
   });
@@ -93,7 +93,35 @@ describe("onboarding state and draft (LFS-219)", () => {
   });
 });
 
-describe("start choice and rhythm (LFS-220)", () => {
+describe("drafts saved with the rhythm step (LFS-222)", () => {
+  const legacy = { ...answers, step: "rhythm", rhythm: "weekly", timezone: "Europe/Oslo" };
+
+  it("drops the rhythm and the zone of a stored draft and resumes the rhythm step on the summary", async () => {
+    // The same draft as one saved without the old keys, read by the current schema (with its defaults).
+    const current = readStoredOnboardingAnswers(answers);
+    expect(current).not.toBeNull();
+    expect(readStoredOnboardingAnswers(legacy)).toEqual(current);
+    expect(readStoredOnboardingAnswers({ ...legacy, step: "health" })?.step).toBe("health");
+    const state = await fixture(record({ answers: legacy })).service.get(actor);
+    expect(state.answers).toEqual(current);
+    expect(state.answers).not.toHaveProperty("rhythm");
+    expect(state.answers).not.toHaveProperty("timezone");
+  });
+
+  it("still refuses a stored draft that is broken in another way, and a new draft or completion with the old keys", async () => {
+    for (const stored of [null, [], "draft", { ...legacy, step: "nowhere" }, { ...legacy, user_id: "other" }]) {
+      expect(readStoredOnboardingAnswers(stored)).toBeNull();
+    }
+    const { service, unit } = fixture();
+    expect(await rejected(service.saveDraft(actor, { answers: { ...answers, rhythm: "weekly" } }))).toBeInstanceOf(InvalidInputError);
+    expect(await rejected(service.saveDraft(actor, { answers: { ...answers, step: "rhythm" } }))).toBeInstanceOf(InvalidInputError);
+    expect(await rejected(service.complete(actor, { answers: { ...answers, timezone: "Europe/Oslo" }, selected }, options))).toBeInstanceOf(InvalidInputError);
+    expect(unit.state.saveDraft).not.toHaveBeenCalled();
+    expect(unit.run).not.toHaveBeenCalled();
+  });
+});
+
+describe("start choice (LFS-220)", () => {
   it("moves a new, started or dismissed setup to the chosen state and keeps the draft", async () => {
     const { service, unit } = fixture();
     expect(await service.update(actor, { status: "in_progress", choice: "wizard" })).toMatchObject({ status: "in_progress", choice: "wizard", answers: null });
@@ -112,23 +140,13 @@ describe("start choice and rhythm (LFS-220)", () => {
     }
   });
 
-  it("accepts only the pairs of the popup or the rhythm, never an owner id or another status", async () => {
+  it("accepts only the pairs of the popup, never the removed rhythm, an owner id or another status", async () => {
     const { service, unit } = fixture();
     for (const input of [{}, { status: "completed", choice: "example" }, { status: "in_progress", choice: "blank" }, { status: "not_started", choice: null },
-      { checkin_rhythm: "hourly" }, { checkin_rhythm: "weekly", status: "dismissed", choice: "blank" }, { checkin_rhythm: "weekly", user_id: "other" }]) {
+      { checkin_rhythm: "weekly" }, { checkin_rhythm: "weekly", status: "dismissed", choice: "blank" }, { status: "dismissed", choice: "blank", user_id: "other" }]) {
       expect(await rejected(service.update(actor, input))).toBeInstanceOf(InvalidInputError);
     }
     expect(unit.state.choose).not.toHaveBeenCalled();
-    expect(unit.profile.setCheckinRhythm).not.toHaveBeenCalled();
-  });
-
-  it("stores the rhythm on the actor's own profile without touching the state", async () => {
-    const { service, unit } = fixture(record({ status: "completed", completed_at: now }));
-    expect(await service.update(actor, { checkin_rhythm: "daily" })).toMatchObject({ status: "completed" });
-    expect(unit.profile.setCheckinRhythm).toHaveBeenCalledExactlyOnceWith(actor, "daily");
-    expect(unit.state.choose).not.toHaveBeenCalled();
-    unit.profile.setCheckinRhythm = vi.fn(async () => false);
-    expect(await rejected(service.update(actor, { checkin_rhythm: "daily" }))).toBeInstanceOf(NotFoundError);
   });
 });
 
@@ -142,7 +160,8 @@ describe("«Создать N целей» (LFS-219)", () => {
     expect(goals[1]).toMatchObject({ unit: "custom", unit_label: "км", baseline: "5", target: "21.1" });
     expect(events.map((event) => [event.event_type, event.goal_id])).toEqual(goals.map((goal) => ["goal.created", goal.id]));
     expect(commands[0]).toMatchObject({ operation: "onboarding.complete", source: "web", idempotencyKey: "onboarding-1", targetId: null });
-    expect(transaction.profile.applyOnboarding).toHaveBeenCalledWith(actor, { focusDomains: ["finance", "skills", "health"], checkinRhythm: "few_per_week", timezone: null });
+    // Only «сферы в фокусе»: the time zone is not written by the setup (LFS-222).
+    expect(transaction.profile.applyOnboarding).toHaveBeenCalledExactlyOnceWith(actor, { focusDomains: ["finance", "skills", "health"] });
     expect(completed[0]).toMatchObject({ step: "domains", extra: [], unchecked: [], domains: ["finance", "skills", "health"] });
     expect(completed[0]?.spheres.health?.choices).toHaveLength(2);
   });
@@ -159,14 +178,11 @@ describe("«Создать N целей» (LFS-219)", () => {
     expect(second.goals).toEqual([]);
   });
 
-  it("checks the confirmed time zone and the transport context", async () => {
-    const { service, transaction } = fixture();
-    const zone = await rejected(service.complete(actor, { answers: { ...answers, timezone: "Mars/Olympus" }, selected }, options));
-    expect(isDomainError(zone) && zone.field).toBe("timezone");
+  it("checks the transport context and the ticked goals", async () => {
+    const { service, unit } = fixture();
     expect(await rejected(service.complete(actor, { answers, selected }, { idempotencyKey: "bad key", source: "web" }))).toBeInstanceOf(InvalidInputError);
     expect(await rejected(service.complete(actor, { answers, selected: [] }, options))).toBeInstanceOf(InvalidInputError);
-    await service.complete(actor, { answers: { ...answers, timezone: "europe/oslo" }, selected }, options);
-    expect(transaction.profile.applyOnboarding).toHaveBeenCalledWith(actor, expect.objectContaining({ timezone: "Europe/Oslo" }));
+    expect(unit.run).not.toHaveBeenCalled();
   });
 
   it("turns a reused key with other data into a conflict", async () => {

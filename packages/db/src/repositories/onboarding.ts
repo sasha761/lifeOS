@@ -79,7 +79,7 @@ export function createOnboardingOverviewRepository(database: LifeosDatabase): On
   return {
     read(actor) {
       return database.transaction(async (transaction) => {
-        const [profile] = await transaction.select({ checkinRhythm: user.checkinRhythm, focusDomains: user.focusDomains, state: onboardingState })
+        const [profile] = await transaction.select({ focusDomains: user.focusDomains, state: onboardingState })
           .from(user).leftJoin(onboardingState, eq(onboardingState.userId, user.id)).where(ownedBy(user.id, actor)).limit(1);
         if (!profile) return null;
         const origins = await transaction.select({ origin: goals.origin, total: sql<string>`count(*)::text` })
@@ -87,7 +87,7 @@ export function createOnboardingOverviewRepository(database: LifeosDatabase): On
         const by = (origin: string) => count(origins.find((row) => row.origin === origin)?.total ?? "0");
         return {
           state: profile.state ? toRecord(profile.state) : null,
-          checkinRhythm: profile.checkinRhythm, focusDomains: profile.focusDomains,
+          focusDomains: profile.focusDomains,
           goals: { total: origins.reduce((sum, row) => sum + count(row.total), 0), onboarding: by("onboarding"), examples: by("starter") },
         };
       }, readSnapshot);
@@ -95,18 +95,14 @@ export function createOnboardingOverviewRepository(database: LifeosDatabase): On
   };
 }
 
-/** «Сферы в фокусе», rhythm and the confirmed zone on the actor's own `user` row; a null value keeps the stored one. */
+/** «Сферы в фокусе» on the actor's own `user` row. The time zone is not touched: it changes only in Settings (LFS-222). */
 export function createOnboardingProfileRepository(database: Pick<LifeosDatabase, "update">): OnboardingProfileRepository {
   return {
-    async applyOnboarding(actor, { focusDomains, checkinRhythm, timezone }) {
-      // Undefined keys are skipped by Drizzle; updated_at is bumped by the schema's $onUpdate.
+    async applyOnboarding(actor, { focusDomains }) {
+      // updated_at is bumped by the schema's $onUpdate.
       const rows = await database.update(user)
-        .set({ focusDomains: focusDomains.length ? [...focusDomains] : null, checkinRhythm: checkinRhythm ?? undefined, timezone: timezone ?? undefined })
+        .set({ focusDomains: focusDomains.length ? [...focusDomains] : null })
         .where(ownedBy(user.id, actor)).returning({ id: user.id });
-      return rows.length === 1;
-    },
-    async setCheckinRhythm(actor, rhythm) {
-      const rows = await database.update(user).set({ checkinRhythm: rhythm }).where(ownedBy(user.id, actor)).returning({ id: user.id });
       return rows.length === 1;
     },
   };

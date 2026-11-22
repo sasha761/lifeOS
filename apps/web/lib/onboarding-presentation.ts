@@ -1,22 +1,22 @@
 import { goalDecimalSchema, LANGUAGE_LEVELS } from "@lifeos/contracts";
-import type { CheckinRhythm, DomainKey, OnboardingAnswers, OnboardingState, OnboardingStep, UserPreferences } from "@lifeos/contracts";
-import { CHECKIN_RHYTHM_OPTIONS, findOnboardingOption, LANGUAGE_LEVEL_UNIT_LABEL } from "@lifeos/domain/onboarding";
+import type { DomainKey, OnboardingAnswers, OnboardingState, OnboardingStep, UserPreferences } from "@lifeos/contracts";
+import { findOnboardingOption, LANGUAGE_LEVEL_UNIT_LABEL } from "@lifeos/domain/onboarding";
 import type { OnboardingIssueField, OnboardingProposal } from "@lifeos/domain/onboarding";
 import { plural } from "./dashboard-presentation.ts";
 import { formatGoalNumber, goalUnitLabel } from "./goal-presentation.ts";
-import { endOfLocalDay, instantToLocalDate } from "./goal-time.ts";
+import { instantToLocalDate } from "./goal-time.ts";
 import { formatDate } from "./user-preferences.ts";
 
-/** Screens of the wizard (LFS-219): spheres, one question per chosen sphere in registry order, rhythm and summary. */
+/** Screens of the wizard (LFS-219, rhythm removed by LFS-222): spheres, one question per chosen sphere in registry order, summary. */
 export function onboardingSteps(answers: Pick<OnboardingAnswers, "domains">): OnboardingStep[] {
-  return ["domains", ...answers.domains, "rhythm", "summary"];
+  return ["domains", ...answers.domains, "summary"];
 }
 /** The step to show; a step that no longer exists (the sphere was deselected) falls back to the spheres. */
 export function currentOnboardingStep(answers: OnboardingAnswers): OnboardingStep {
   return onboardingSteps(answers).includes(answers.step) ? answers.step : "domains";
 }
 export function isSphereStep(step: OnboardingStep): step is DomainKey {
-  return step !== "domains" && step !== "rhythm" && step !== "summary";
+  return step !== "domains" && step !== "summary";
 }
 
 export const DIRECTION_LABELS = { increase: "Увеличить до значения", decrease: "Уменьшить до значения" } as const;
@@ -71,13 +71,6 @@ export function issueMessage(field: OnboardingIssueField, proposal: Pick<Onboard
   }
 }
 
-export function rhythmLabel(rhythm: CheckinRhythm | null): string {
-  return CHECKIN_RHYTHM_OPTIONS.find((option) => option.key === rhythm)?.label ?? "не выбран";
-}
-/** «сначала 4 выбранные сферы» (mockup 27). */
-export function focusLabel(count: number): string {
-  return `сначала ${count} ${plural(count, ["выбранная сфера", "выбранные сферы", "выбранных сфер"])}`;
-}
 
 /**
  * Status chip of «Начальная настройка» in Settings (mockup 30, LFS-220): «пройдена 18.11.2026 · 4 цели», «не пройдена» or
@@ -92,14 +85,7 @@ export function setupStatus(state: Pick<OnboardingState, "status" | "choice" | "
   return { label: goals > 0 ? `пройдена ${date} · ${goals} ${plural(goals, ["цель", "цели", "целей"])}` : `пройдена ${date}`, done: true };
 }
 
-/** Calendar date of a deadline in the zone the wizard uses, for the native date field. */
+/** Calendar date of a deadline in the profile zone the wizard uses, for the native date field. */
 export function deadlineDate(dueAt: string | null, timeZone: string): string {
   return dueAt ? instantToLocalDate(dueAt, timeZone) : "";
-}
-/** A changed zone on the rhythm step keeps every chosen calendar date: the deadline moves to the end of that day there. */
-export function moveDeadlines(answers: OnboardingAnswers, from: string, to: string): OnboardingAnswers {
-  const move = (dueAt: string | null) => dueAt ? endOfLocalDay(instantToLocalDate(dueAt, from), to) : null;
-  const spheres = Object.fromEntries(Object.entries(answers.spheres).map(([key, sphere]) =>
-    [key, { ...sphere, choices: sphere.choices.map((choice) => ({ ...choice, due_at: move(choice.due_at) })) }]));
-  return { ...answers, spheres, extra: answers.extra.map((goal) => ({ ...goal, due_at: move(goal.due_at) })) };
 }

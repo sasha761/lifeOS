@@ -1,7 +1,7 @@
 import {
   createGoalInputSchema, DOMAIN_KEYS, GOAL_UNIT_LABEL_MAX_LENGTH, goalDecimalSchema, LANGUAGE_LEVELS, ONBOARDING_CHOICE_LIMITS, ONBOARDING_LANGUAGE_MAX_LENGTH, ONBOARDING_NAME_MAX_LENGTH, ONBOARDING_OPTIONS, ONBOARDING_OWN_TITLE_MAX_LENGTH,
 } from "@lifeos/contracts";
-import type { CheckinRhythm, CreateGoalInput, DomainKey, Goal, OnboardingAnswers, OnboardingChoice } from "@lifeos/contracts";
+import type { CreateGoalInput, DomainKey, Goal, OnboardingAnswers, OnboardingChoice } from "@lifeos/contracts";
 
 /*
  * Question catalog v1 of the onboarding wizard (LFS-219, ADR-012, docs/reference/ui/ONBOARDING.md) as data, outside the
@@ -215,14 +215,6 @@ export const ONBOARDING_QUESTIONS: Readonly<Record<DomainKey, OnboardingQuestion
   },
 });
 
-/** Rhythm step: the stored value, its label and a short explanation. */
-export const CHECKIN_RHYTHM_OPTIONS: readonly { key: CheckinRhythm; label: string; description: string }[] = Object.freeze([
-  { key: "daily", label: "Каждый день", description: "короткая отметка в конце дня" },
-  { key: "few_per_week", label: "2–3 раза в неделю", description: "в удобные дни" },
-  { key: "weekly", label: "Раз в неделю", description: "итоги недели" },
-  { key: "self", label: "Сам, без напоминаний", description: "отмечаю, когда захочу" },
-]);
-
 /** A field of the step where the person can fix the reason a proposed goal is not valid yet. */
 export type OnboardingIssueField = "subject" | "direction" | "unit" | "unit_label" | "baseline" | "target" | "due_at";
 /**
@@ -317,7 +309,7 @@ export function selectedOnboardingGoals(answers: OnboardingAnswers, proposals = 
 
 /** An empty draft for the first visit (and a draft of another catalog version). */
 export function emptyOnboardingAnswers(): OnboardingAnswers {
-  return { step: "domains", domains: [], spheres: {}, rhythm: null, timezone: null, extra: [], unchecked: [] };
+  return { step: "domains", domains: [], spheres: {}, extra: [], unchecked: [] };
 }
 
 /** A fresh choice of an option: the template's prefilled numbers, NOK for money, «Увеличить» for an own goal. */

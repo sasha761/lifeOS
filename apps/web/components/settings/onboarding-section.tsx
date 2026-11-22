@@ -3,16 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
-import { onboardingStateSchema } from "@lifeos/contracts";
-import type { CheckinRhythm, DomainKey, OnboardingState, UserPreferences } from "@lifeos/contracts";
-import { CHECKIN_RHYTHM_OPTIONS } from "@lifeos/domain/onboarding";
+import type { ReactNode } from "react";
+import type { DomainKey, OnboardingState, UserPreferences } from "@lifeos/contracts";
 import { plural } from "../../lib/dashboard-presentation.ts";
 import { domainPresentation } from "../../lib/domain-presentation.ts";
-import { rhythmLabel, setupStatus } from "../../lib/onboarding-presentation.ts";
+import { setupStatus } from "../../lib/onboarding-presentation.ts";
 import { useDismiss } from "../../lib/use-dismiss.ts";
 import { FormAlert } from "../auth/form-parts.tsx";
-import { MutationError, useGoalMutation } from "../goals/shared.tsx";
 import { ExamplesConfirm } from "../onboarding/examples-confirm.tsx";
 import { StartDialog } from "../onboarding/start-dialog.tsx";
 import type { ExampleGoalPreview } from "../onboarding/start-dialog.tsx";
@@ -32,40 +29,11 @@ function Row({ id, title, children, hint }: { id: string; title: string; hint: R
   </div>;
 }
 
-/** «Ритм отметок»: stored on the profile with PATCH /api/v1/onboarding; reminders by it come with Telegram (Stage 3). */
-function RhythmForm({ initial }: { initial: CheckinRhythm | null }) {
-  const router = useRouter();
-  const action = useGoalMutation();
-  const [saved, setSaved] = useState<CheckinRhythm | null>(null);
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const value = new FormData(event.currentTarget).get("checkin_rhythm");
-    const rhythm = CHECKIN_RHYTHM_OPTIONS.find((option) => option.key === value)?.key;
-    if (!rhythm) return;
-    setSaved(null);
-    void action.save({ url: "/api/v1/onboarding", method: "PATCH", body: { checkin_rhythm: rhythm } }, onboardingStateSchema, (state) => {
-      setSaved(state.checkin_rhythm);
-      router.refresh();
-    });
-  }
-  return <form onSubmit={submit} className="grid gap-2 sm:justify-items-end" aria-busy={action.pending}>
-    <div className="flex flex-wrap items-center gap-2.5">
-      <select name="checkin_rhythm" defaultValue={initial ?? ""} required aria-labelledby="settings-rhythm-title" aria-describedby="settings-rhythm-hint"
-        className="field-control w-full sm:w-[220px]">
-        {initial === null && <option value="" disabled>Не выбран</option>}
-        {CHECKIN_RHYTHM_OPTIONS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
-      </select>
-      <button type="submit" disabled={action.pending} className="action-link-secondary action-compact disabled:opacity-60">{action.pending ? "Сохраняем…" : "Сохранить"}</button>
-    </div>
-    <MutationError error={action.error} uncertain={action.uncertain} />
-    {saved && <p role="status" className="text-xs text-muted-foreground">Сохранено: {rhythmLabel(saved)}.</p>}
-  </form>;
-}
-
 /**
  * Settings → «Начальная настройка» (mockup 30, LFS-220): the status of the setup, the button that opens the same popup as
- * the first visit (mockup 31), «Ритм отметок», «Сферы в фокусе» (view only) and the example goals with «Удалить все
- * примеры». The server passes the state; every change re-renders the page from the server.
+ * the first visit (mockup 31), «Сферы в фокусе» (view only) and the example goals with «Удалить все примеры». The
+ * «Ритм отметок» row of the mockup was removed by LFS-222. The server passes the state; every change re-renders the page
+ * from the server.
  */
 export function OnboardingSection({ state, preferences, sphereNames, examples }: {
   state: OnboardingState; preferences: UserPreferences; sphereNames: Record<DomainKey, string>; examples: readonly ExampleGoalPreview[];
@@ -89,9 +57,6 @@ export function OnboardingSection({ state, preferences, sphereNames, examples }:
         hint="Тот же выбор, что при первом входе: загрузить примерные цели или ответить на вопросы и получить цели со своими цифрами. Текущие цели не удаляются.">
         <button type="button" onClick={() => { setMessage(null); setOpen(true); }} aria-haspopup="dialog"
           className="action-link action-compact self-start sm:shrink-0 sm:self-auto">Открыть начальную настройку</button>
-      </Row>
-      <Row id="settings-rhythm" title="Ритм отметок" hint="Как часто вы хотите отмечать прогресс. Напоминания включатся, когда подключите Telegram.">
-        <RhythmForm initial={state.checkin_rhythm} />
       </Row>
       <Row id="settings-focus" title="Сферы в фокусе" hint="Показываются первыми в Кабинете. Меняются при повторной настройке.">
         {state.focus_domains.length
