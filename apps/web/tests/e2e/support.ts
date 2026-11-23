@@ -41,6 +41,12 @@ export async function goalAction(page: Page, name: "Изменить цель" |
   await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
   await page.getByRole("button", { name, exact: true }).click();
 }
+/** «История изменений · N ›» opens the goal's own journal under the panel (mockup 32, LFS-224). */
+export async function openHistory(page: Page) {
+  const toggle = page.getByRole("button", { name: /^История изменений/ });
+  if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
+  return page.getByTestId("goal-history");
+}
 /** Row of a sphere in «Сферы жизни» showing the given goal as its newest active one (mockup 04, LFS-213). */
 export function sphereRow(page: Page, key: string, label: string, title: string) {
   return page.getByTestId(`dashboard-domain-${key}`).filter({ has: page.getByRole("link", { name: `${label}: ${title}`, exact: true }) });

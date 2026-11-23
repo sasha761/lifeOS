@@ -120,13 +120,26 @@ async function main() {
     const shots: Shot[] = [
       { name: "home", path: "/", mockup: "04-progress.png" },
       { name: "dashboard", path: "/dashboard", mockup: "04-progress.png" },
-      { name: "goals", path: "/goals", mockup: "09-goals.png" },
-      { name: "goal", path: `/goals/${goalId}`, mockup: "09-goals.png" },
-      { name: "goal-menu", path: `/goals/${goalId}`, mockup: "09-goals.png", open: async (page) => {
+      // LFS-224: the goals list and the lighter panel of mockup 32 (390 px — mockup 44, the list phone).
+      { name: "goals", path: "/goals", mockup: "32-goals-list.png" },
+      { name: "goal", path: `/goals/${goalId}`, mockup: "32-goals-list.png" },
+      { name: "goal-menu", path: `/goals/${goalId}`, mockup: "32-goals-list.png", open: async (page) => {
         await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
       } },
+      // «Как считается» and «История изменений» opened under the panel.
+      { name: "goal-sections", path: `/goals/${goalId}`, mockup: "32-goals-list.png", open: async (page) => {
+        await page.getByRole("button", { name: "Как считается" }).click();
+        await page.getByRole("button", { name: /^История изменений/ }).click();
+      } },
+      // «Удалить» on a row: hover shows it (mouse), the confirmation is the panel's one.
+      { name: "goals-row-delete", path: "/goals", mockup: "32-goals-list.png", open: async (page) => {
+        const row = page.getByTestId("goal-row").nth(1);
+        await row.hover();
+        await row.getByRole("button", { name: /^Удалить цель/ }).click();
+        await page.getByRole("alertdialog", { name: "Удалить цель?" }).waitFor();
+      } },
       ...[{ name: "goal-delete", id: goalId }, { name: "goal-delete-archived", id: archivedId }].map(({ name, id }): Shot => ({
-        name, path: `/goals/${id}`, mockup: "09-goals.png", open: async (page) => {
+        name, path: `/goals/${id}`, mockup: "32-goals-list.png", open: async (page) => {
           await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
           await page.getByRole("button", { name: "Удалить цель", exact: true }).click();
         },
