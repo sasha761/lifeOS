@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  activityEventDraftSchema, createGoalInputSchema, createGoalMeasurementInputSchema, dashboardSchema, DOMAIN_KEYS, goalMeasurementSchema,
+  activityEventDraftSchema, createGoalInputSchema, createNumericGoalInputSchema, createGoalMeasurementInputSchema, dashboardSchema, DOMAIN_KEYS, goalMeasurementSchema,
   goalProgressSchema, goalSchema, goalValueMatchesUnit, starterPackAppliedSchema, starterPackRemovedSchema, updateGoalInputSchema,
 } from "../src/index.ts";
 
@@ -15,7 +15,7 @@ describe("USD (LFS-218)", () => {
   it("is a money unit with two decimal places, like NOK, and keeps no conversion", () => {
     expect(goalValueMatchesUnit("1200.55", "USD")).toBe(true);
     expect(goalValueMatchesUnit("1200.555", "USD")).toBe(false);
-    expect(createGoalInputSchema.parse({ domain_key: "finance", title: "Save", unit: "USD", baseline: "0", target: "5000.5", direction: "increase" }).unit).toBe("USD");
+    expect(createNumericGoalInputSchema.parse({ domain_key: "finance", title: "Save", unit: "USD", baseline: "0", target: "5000.5", direction: "increase" }).unit).toBe("USD");
     expect(createGoalInputSchema.safeParse({ domain_key: "finance", title: "Save", unit: "USD", baseline: "0", target: "5000.505", direction: "increase" }).success).toBe(false);
     expect(createGoalInputSchema.safeParse({ domain_key: "finance", title: "Save", unit: "USD", unit_label: "$", baseline: "0", target: "5000", direction: "increase" }).success).toBe(false);
   });

@@ -39,7 +39,14 @@ async function seed(fixture: UiFixture) {
   const applications = await create({ domain_key: "work", title: "Отклики на вакансии", unit: "count", baseline: "0", target: "15", direction: "increase", due_at: due(5) });
   const archived = await create({ domain_key: "projects", title: "Черновик сайта портфолио", unit: "count", baseline: "0", target: "5", direction: "increase" });
   await apiWrite(base, cookies.owner, `/api/v1/goals/${archived.goal.id}`, { status: "archived" }, "PATCH");
-  return { goalId: savings.goal.id, archivedId: archived.goal.id, unmeasuredId: applications.goal.id };
+  // LFS-225: goals without measurements (through the API until LFS-227/228) and phases of numeric goals.
+  const phase = (id: string, value: string) => apiWrite(base, cookies.owner, `/api/v1/goals/${id}`, { phase: value }, "PATCH");
+  await phase(weight.goal.id, "paused");
+  const course = await create({ kind: "unmeasured", domain_key: "skills", title: "Пройти курс по SQL" });
+  await phase(course.goal.id, "achieved");
+  const job = await create({ kind: "unmeasured", domain_key: "work", title: "Сменить работу", description: "Тестовое описание цели без измерений.",
+    starts_at: new Date(Date.now() - 20 * day).toISOString(), due_at: due(130) });
+  return { goalId: savings.goal.id, archivedId: archived.goal.id, unmeasuredId: applications.goal.id, jobId: job.goal.id, courseId: course.goal.id };
 }
 
 /**
@@ -109,7 +116,7 @@ async function main() {
     // Russian number and date formats, as on the mockups.
     fixture = await startUiFixture({ suite: "lfs212_shots", ownerLocale: "ru", onStage: (value) => { stage = value; } });
     stage = "test data through the API";
-    const { goalId, archivedId, unmeasuredId } = await seed(fixture);
+    const { goalId, archivedId, unmeasuredId, jobId, courseId } = await seed(fixture);
     stage = "example through the API";
     const example = await fetch(`${fixture.base}/api/v1/starter-pack`, { method: "POST", headers: { cookie: fixture.cookies.exampleDesktop, "idempotency-key": randomUUID() } });
     assert(example.ok, `POST /api/v1/starter-pack → ${example.status}`);
@@ -130,6 +137,12 @@ async function main() {
       { name: "goal-sections", path: `/goals/${goalId}`, mockup: "32-goals-list.png", open: async (page) => {
         await page.getByRole("button", { name: "Как считается" }).click();
         await page.getByRole("button", { name: /^История изменений/ }).click();
+      } },
+      // LFS-225: a goal without measurements in progress (mockup 36) and achieved (described by the owner, no mockup of its own).
+      { name: "goal-no-measure", path: `/goals/${jobId}`, mockup: "36-goals-list-no-measure.png" },
+      { name: "goal-achieved", path: `/goals/${courseId}`, mockup: "36-goals-list-no-measure.png" },
+      { name: "goal-phase-menu", path: `/goals/${jobId}`, mockup: "36-goals-list-no-measure.png", open: async (page) => {
+        await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
       } },
       // «Удалить» on a row: hover shows it (mouse), the confirmation is the panel's one.
       { name: "goals-row-delete", path: "/goals", mockup: "32-goals-list.png", open: async (page) => {

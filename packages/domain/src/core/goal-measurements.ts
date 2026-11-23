@@ -4,7 +4,7 @@ import {
 } from "@lifeos/contracts";
 import type {
   CreateGoalMeasurementInput, Goal, GoalCommandOptions, GoalMeasurement, GoalMeasurementCurrent,
-  GoalMeasurementDeletion, UpdateGoalMeasurementInput,
+  GoalMeasurementDeletion, NumericGoal, UpdateGoalMeasurementInput,
 } from "@lifeos/contracts";
 import type { Actor } from "./actor.ts";
 import { goalAuditSnapshot, measurementDeletedEvent, measurementSnapshot } from "./events.ts";
@@ -16,7 +16,7 @@ import { requireFound, requireOwned } from "./ownership.ts";
 /** What a repository writes: the public input, or an example measurement written only by the example command (LFS-218). */
 export type MeasurementDraft = Omit<CreateGoalMeasurementInput, "source"> & { source: GoalMeasurement["source"] };
 export type GoalMeasurementsRepository = {
-  create(actor: Actor, goal: Goal, input: MeasurementDraft): Promise<GoalMeasurement>;
+  create(actor: Actor, goal: NumericGoal, input: MeasurementDraft): Promise<GoalMeasurement>;
   find(actor: Actor, id: string): Promise<GoalMeasurement | null>;
   update(actor: Actor, id: string, input: UpdateGoalMeasurementInput): Promise<GoalMeasurement | null>;
   remove(actor: Actor, id: string): Promise<GoalMeasurement | null>;
@@ -64,15 +64,19 @@ function owned<T extends { user_id: string }>(actor: Actor, value: T | null): T 
 const snapshot = measurementSnapshot;
 
 export function createGoalMeasurementsService(unit: GoalMeasurementsUnitOfWork, clock: () => Date = () => new Date()): GoalMeasurementsService {
-  function validateValue(goal: Goal, value: string): void {
+  function validateValue(goal: NumericGoal, value: string): void {
     if (!goalValueMatchesUnit(value, goal.unit)) throw new InvalidInputError();
   }
   function validateTime(value: string): void {
     if (new Date(value).getTime() > clock().getTime() + MEASUREMENT_FUTURE_TOLERANCE_MS) throw new InvalidInputError();
   }
-  async function parent(actor: Actor, id: string, goals: Pick<GoalsRepository, "find">, writing = false): Promise<Goal> {
-    const goal = owned(actor, await goals.find(actor, id));
-    if (writing && goal.status === "archived") throw new ConflictError();
+  async function parent(actor: Actor, id: string, goals: Pick<GoalsRepository, "find">): Promise<Goal> {
+    return owned(actor, await goals.find(actor, id));
+  }
+  /** Measurements are written only to an active numeric goal: archive is terminal, a goal without measurements has none (LFS-225). */
+  async function writableParent(actor: Actor, id: string, goals: Pick<GoalsRepository, "find">): Promise<NumericGoal> {
+    const goal = await parent(actor, id, goals);
+    if (goal.status === "archived" || goal.kind !== "numeric") throw new ConflictError();
     return goal;
   }
   async function execute(actor: Actor, command: MeasurementCommand, work: (transaction: MeasurementTransaction) => Promise<MeasurementMutationResult>) {
@@ -88,7 +92,7 @@ export function createGoalMeasurementsService(unit: GoalMeasurementsUnitOfWork, 
       if (!parsed.success) throw new InvalidInputError();
       const key = identifier(goalId);
       const result = await execute(actor, { ...options(context), operation: "measurement.create", targetId: key, input: parsed.data }, async ({ goals, measurements, events }) => {
-        const goal = await parent(actor, key, goals, true);
+        const goal = await writableParent(actor, key, goals);
         validateValue(goal, parsed.data.value); validateTime(parsed.data.measured_at);
         // LFS-218: the first own value replaces the example ones, and an example goal becomes the person's own.
         // Audit order makes the person's measurement the newest fact.
@@ -117,7 +121,7 @@ export function createGoalMeasurementsService(unit: GoalMeasurementsUnitOfWork, 
       const key = identifier(id);
       const result = await execute(actor, { ...options(context), operation: "measurement.update", targetId: key, input: parsed.data }, async ({ goals, measurements, events }) => {
         const before = owned(actor, await measurements.find(actor, key));
-        const goal = await parent(actor, before.goal_id, goals, true);
+        const goal = await writableParent(actor, before.goal_id, goals);
         // An example value is not corrected into the person's data: they add their own, which replaces it (LFS-218).
         if (before.source === "example") throw new ConflictError();
         if (parsed.data.value !== undefined) validateValue(goal, parsed.data.value);
@@ -136,7 +140,7 @@ export function createGoalMeasurementsService(unit: GoalMeasurementsUnitOfWork, 
       const key = identifier(id);
       const result = await execute(actor, { ...options(context), operation: "measurement.delete", targetId: key, input: null }, async ({ goals, measurements, events }) => {
         const before = owned(actor, await measurements.find(actor, key));
-        const goal = await parent(actor, before.goal_id, goals, true);
+        const goal = await writableParent(actor, before.goal_id, goals);
         owned(actor, await measurements.remove(actor, key));
         await events.append({ goal_id: goal.id, domain_key: goal.domain_key, target_type: "goal_measurement", target_id: key,
           schema_version: 1, event_type: "goal_measurement.deleted", payload: { before: snapshot(before), after: null } });

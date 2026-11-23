@@ -71,6 +71,13 @@
       "when": 1795343377673,
       "tag": "0009_drop_checkin_rhythm",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795463930171,
+      "tag": "0010_goal_phases",
+      "breakpoints": true
     }
   ]
 }

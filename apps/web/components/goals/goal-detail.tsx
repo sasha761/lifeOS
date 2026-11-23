@@ -3,13 +3,13 @@
 import { useCallback, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ChevronRight, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
-import { activityFeedSchema, goalDeletionSchema, goalDetailsSchema, goalMeasurementDeletionSchema, measurementsPageSchema } from "@lifeos/contracts";
-import type { GoalDetails, GoalMeasurement, MeasurementsPage, UserPreferences } from "@lifeos/contracts";
+import { activityFeedSchema, GOAL_PHASE_LABELS, goalDeletionSchema, goalDetailsSchema, goalMeasurementDeletionSchema, measurementsPageSchema } from "@lifeos/contracts";
+import type { Goal, GoalDetails, GoalMeasurement, GoalPhase, MeasurementsPage, UserPreferences } from "@lifeos/contracts";
 import { describeActivity } from "../../lib/activity-presentation.ts";
 import { daysUntil, formatDaysLeft } from "../../lib/dashboard-presentation.ts";
 import { getGoalsData, GoalRequestError } from "../../lib/goals-api-client.ts";
 import { domainPresentation } from "../../lib/domain-presentation.ts";
-import { formatGoalPercent, formatGoalValue, remainingToTarget } from "../../lib/goal-presentation.ts";
+import { formatGoalPercent, formatGoalValue, phaseLabel, remainingToTarget } from "../../lib/goal-presentation.ts";
 import { useDismiss } from "../../lib/use-dismiss.ts";
 import { formatDate, formatDateTime, formatShortDateTime } from "../../lib/user-preferences.ts";
 import { FormAlert } from "../auth/form-parts.tsx";
@@ -19,7 +19,7 @@ import { SectionCard } from "../ui/section-card.tsx";
 import { SourceLabel } from "../ui/source-label.tsx";
 import { GoalForm } from "./goal-form.tsx";
 import { MeasurementForm } from "./measurement-form.tsx";
-import { ExampleChip, LoadState, Modal, MutationError, StatusBadge, useGoalData, useGoalMutation } from "./shared.tsx";
+import { ExampleChip, GoalStatusChip, LoadState, Modal, MutationError, useGoalData, useGoalMutation } from "./shared.tsx";
 import type { DomainChoice } from "./shared.tsx";
 
 type DialogState = { mode: "goal" | "add" | "archive" | "deleteGoal" } | { mode: "edit" | "delete"; row: GoalMeasurement };
@@ -43,6 +43,7 @@ function deadlineText(dueAt: string | null, now: Date, timeZone: string): string
  */
 export function GoalProgressPanel({ value, preferences, now = new Date() }: { value: GoalDetails; preferences: UserPreferences; now?: Date }) {
   const { goal, progress } = value;
+  if (goal.kind !== "numeric") return null;
   const formatted = (amount: string) => formatGoalValue(amount, goal, preferences.locale);
   return <div className="grid gap-3.5">
     {progress.current === null
@@ -61,9 +62,41 @@ export function GoalProgressPanel({ value, preferences, now = new Date() }: { va
   </div>;
 }
 
-/** «Как считается» (mockup 32): the start with its date, the target, the formula and the source of the numbers. */
+/** Large phase words of a goal without measurements (mockup 36, `.state` 26/32 · 800). */
+const PHASE_TEXT = { planned: "text-foreground", in_progress: "text-st-amber", paused: "text-st-blue", achieved: "text-st-green" } as const;
+
+/**
+ * Top of the panel of a goal without measurements (LFS-225): mockup 36 for «В процессе», the owner's description for
+ * «Достигнута» — its phase in large letters instead of a percentage, since when (or when it was marked) and why there is
+ * no percentage.
+ */
+export function PhaseState({ goal, preferences, now = new Date() }: { goal: Goal; preferences: UserPreferences; now?: Date }) {
+  const day = (instant: string) => <time dateTime={instant}>{formatDate(new Date(instant), preferences)}</time>;
+  const since = goal.phase === "paused" ? <>на паузе с {day(goal.phase_changed_at)}</> : goal.starts_at ? <>с {day(goal.starts_at)}</> : null;
+  return <div className="grid gap-3.5" data-testid="goal-phase">
+    <div className="grid gap-1">
+      <p className={`text-[26px] leading-8 font-extrabold tracking-[-0.01em] ${PHASE_TEXT[goal.phase]}`}>{phaseLabel(goal.phase)}</p>
+      {goal.phase === "achieved"
+        ? <p className="flex flex-wrap items-baseline gap-x-2.5 text-xs leading-5 text-muted-foreground tabular-nums">
+          <span>отмечена {day(goal.phase_changed_at)}</span><SourceLabel>ручная отметка</SourceLabel></p>
+        : <p className="text-xs leading-5 text-muted-foreground tabular-nums">{since}{since && " · "}{deadlineText(goal.due_at, now, preferences.timezone)}</p>}
+    </div>
+    <p className="text-xs leading-5 text-muted-foreground">{goal.phase === "achieved"
+      ? "Цель снова станет «В процессе», если вернуть её в работу. Отметка останется в истории."
+      : "Процента нет. Когда цель будет достигнута, отметьте её сами."}</p>
+  </div>;
+}
+
+/**
+ * «Как считается» (mockup 32): the start with its date, the target, the formula and the source of the numbers; for a goal
+ * without measurements, why there is no percentage and who sets its status (LFS-225).
+ */
 function GoalFormula({ value, preferences }: { value: GoalDetails; preferences: UserPreferences }) {
   const { goal, progress } = value;
+  if (goal.kind !== "numeric") return <div className="grid gap-1 rounded-[10px] border bg-surface-2 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
+    <p>Процента нет: у этой цели нет чисел и измерений. Статус ставите вы сами — кнопкой или в меню «⋯».</p>
+    <p>Система статус не меняет и не отмечает цель достигнутой сама. Каждая смена статуса остаётся в истории изменений.</p>
+  </div>;
   const formatted = (amount: string) => formatGoalValue(amount, goal, preferences.locale);
   return <div className="grid gap-1 rounded-[10px] border bg-surface-2 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
     <p className="tabular-nums">Старт <strong className="font-semibold text-foreground">{formatted(goal.baseline)}</strong> (<time dateTime={goal.created_at}>{formatDate(new Date(goal.created_at), preferences)}</time>),
@@ -101,8 +134,23 @@ function Disclosure({ open, controls, onToggle, className, children }: { open: b
 
 const Divider = () => <div aria-hidden="true" className="h-px bg-border" />;
 
-/** «⋯» from mockup 09: a disclosure with the goal commands; choosing one returns focus to the toggle before the dialog opens. */
-function GoalActions({ edit, archive, deleteGoal, active, disabled }: { edit(): void; archive(): void; deleteGoal(): void; active: boolean; disabled: boolean }) {
+/** «Начать», «Продолжить», «Вернуть в работу» all lead to «В процессе»; the word depends on where the goal is. */
+const TO_IN_PROGRESS: Record<GoalPhase, string> = { planned: "Начать", in_progress: "", paused: "Продолжить", achieved: "Вернуть в работу" };
+
+/** Every other phase from the current one (LFS-225): a manual command for any pair, and the same moves the board makes (LFS-229). */
+function phaseMoves(from: GoalPhase): { to: GoalPhase; label: string }[] {
+  const moves: { to: GoalPhase; label: string }[] = [
+    { to: "in_progress", label: TO_IN_PROGRESS[from] }, { to: "paused", label: "Поставить на паузу" },
+    { to: "achieved", label: "Отметить достигнутой" }, { to: "planned", label: "Перенести в запланированные" },
+  ];
+  return moves.filter((move) => move.to !== from);
+}
+
+/**
+ * «⋯» from mockup 09: a disclosure with the goal commands — the phase moves (LFS-225), then edit, archive and delete. Choosing
+ * one returns focus to the toggle before a dialog opens or the phase changes.
+ */
+function GoalActions({ edit, archive, deleteGoal, setPhase, phase, active, disabled }: { edit(): void; archive(): void; deleteGoal(): void; setPhase(phase: GoalPhase): void; phase: GoalPhase; active: boolean; disabled: boolean }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
@@ -113,8 +161,10 @@ function GoalActions({ edit, archive, deleteGoal, active, disabled }: { edit(): 
   return <div ref={box} className="relative">
     <button ref={toggle} type="button" aria-label="Действия с целью" aria-expanded={open} aria-controls={id} disabled={disabled}
       onClick={() => setOpen((value) => !value)} className={`${iconButton} size-8 disabled:opacity-50`}><MoreHorizontal aria-hidden="true" className="size-4" /></button>
-    <div id={id} hidden={!open} className="absolute top-full right-0 z-30 mt-1.5 grid w-48 gap-0.5 rounded-[14px] border bg-card p-1.5 shadow-popover">
-      {active && <><button type="button" className={menuItem} onClick={() => choose(edit)}>Изменить цель</button>
+    <div id={id} hidden={!open} className="absolute top-full right-0 z-30 mt-1.5 grid w-64 gap-0.5 rounded-[14px] border bg-card p-1.5 shadow-popover">
+      {active && <>{phaseMoves(phase).map((move) => <button key={move.to} type="button" className={menuItem} onClick={() => choose(() => setPhase(move.to))}>{move.label}</button>)}
+        <div aria-hidden="true" className="mx-1.5 my-1 h-px bg-border" />
+        <button type="button" className={menuItem} onClick={() => choose(edit)}>Изменить цель</button>
         <button type="button" className={menuItem} onClick={() => choose(archive)}>В архив</button></>}
       <button type="button" className={`${menuItem} text-destructive`} onClick={() => choose(deleteGoal)}>Удалить цель</button>
     </div>
@@ -132,6 +182,8 @@ export function GoalPanel({ id, preferences, domains, onChanged, onDeleted }: { 
   // One entry more than shown tells whether to write «10+» (the feed has no total).
   const journal = useGoalData(`/api/v1/activity?goal_id=${id}&limit=${HISTORY_LIMIT + 1}`, activityFeedSchema);
   const action = useGoalMutation();
+  // A phase change (LFS-225) has no dialog: its own mutation, error and retry live in the panel.
+  const phaseAction = useGoalMutation();
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [dialogBusy, setDialogBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -155,6 +207,12 @@ export function GoalPanel({ id, preferences, domains, onChanged, onDeleted }: { 
     finally { setMoreLoading(false); }
   }
   function open(value: DialogState) { setDialogBusy(false); setDialog(value); }
+  function changePhase(phase: GoalPhase) {
+    void phaseAction.save({ url: `/api/v1/goals/${id}`, method: "PATCH", body: { phase } }, goalDetailsSchema, () => {
+      setMessage(`Статус цели: «${GOAL_PHASE_LABELS[phase]}».`);
+      detail.reload(); journal.reload(); onChanged?.();
+    });
+  }
   const value = detail.data;
   if (!value || detail.error) return <SectionCard titleId="goal-panel-title" title="Цель и измерения"><LoadState loading={detail.loading} error={detail.error} retry={detail.reload} /></SectionCard>;
   const { goal } = value;
@@ -163,21 +221,31 @@ export function GoalPanel({ id, preferences, domains, onChanged, onDeleted }: { 
   // LFS-218: the measurements are either all examples or all the person's own — the first own value removes the examples.
   const onlyExamples = value.progress.provenance?.kind === "example";
   const entries = journal.data && !journal.loading && !journal.error ? journal.data.items : null;
+  const day = (instant: string) => <time dateTime={instant}>{formatDate(new Date(instant), preferences)}</time>;
+  const kind = goal.kind === "numeric" ? goal.direction === "increase" ? "увеличить ↑" : "уменьшить ↓" : "без измерений";
   return <SectionCard titleId="goal-panel-title" title={goal.title} icon={<DomainIcon domain={goal.domain_key} />} aria-busy={detail.loading}
-    titleAddon={<><StatusBadge status={goal.status} />{goal.origin === "starter" && <ExampleChip />}</>}
-    description={<span className="block pl-[38px] tabular-nums" data-testid="goal-meta">{domainLabel && <>{domainLabel} · </>}{goal.direction === "increase" ? "увеличить ↑" : "уменьшить ↓"}
-      {goal.due_at && <> · до <time dateTime={goal.due_at}>{formatDate(new Date(goal.due_at), preferences)}</time></>}</span>}
-    action={<GoalActions active={active} disabled={detail.loading} edit={() => open({ mode: "goal" })} archive={() => open({ mode: "archive" })} deleteGoal={() => open({ mode: "deleteGoal" })} />}
+    titleAddon={<><GoalStatusChip goal={goal} />{goal.origin === "starter" && <ExampleChip />}</>}
+    description={<span className="block pl-[38px] tabular-nums" data-testid="goal-meta">{domainLabel && <>{domainLabel} · </>}{kind}
+      {/* The start of a goal without measurements is in its status block (mockup 36). */}
+      {goal.kind === "numeric" && goal.starts_at && <> · с {day(goal.starts_at)}</>}{goal.due_at && <> · до {day(goal.due_at)}</>}</span>}
+    action={<GoalActions active={active} phase={goal.phase} disabled={detail.loading} setPhase={changePhase} edit={() => open({ mode: "goal" })} archive={() => open({ mode: "archive" })} deleteGoal={() => open({ mode: "deleteGoal" })} />}
     contentClassName="grid gap-3.5">
     {message && <div role="status" className="rounded-[10px] border border-st-green/40 bg-st-green/10 px-3 py-2.5 text-sm">{message}</div>}
+    <MutationError error={phaseAction.error} uncertain={phaseAction.uncertain} />
     {!active && <p className="rounded-[10px] border bg-surface-2 px-3 py-2.5 text-sm leading-6">Цель в архиве. Измерения и история сохранены и доступны для просмотра. Редактирование закрыто; цель можно удалить навсегда.</p>}
     {active && onlyExamples && <p className="rounded-[10px] border border-st-amber/35 bg-st-amber/10 px-3 py-2.5 text-sm leading-6" data-testid="example-hint">Это пример: поправьте старт и цель под себя или удалите цель.</p>}
-    <GoalProgressPanel value={value} preferences={preferences} />
-    {active && <button onClick={() => open({ mode: "add" })} disabled={detail.loading} className="action-link w-full py-2 text-[13px] pointer-fine:min-h-[38px] disabled:opacity-50"><Plus aria-hidden="true" className="size-4" />Добавить измерение</button>}
+    {goal.kind === "numeric" ? <GoalProgressPanel value={value} preferences={preferences} /> : <PhaseState goal={goal} preferences={preferences} />}
+    {active && (goal.kind === "numeric"
+      ? <button onClick={() => open({ mode: "add" })} disabled={detail.loading} className="action-link w-full py-2 text-[13px] pointer-fine:min-h-[38px] disabled:opacity-50"><Plus aria-hidden="true" className="size-4" />Добавить измерение</button>
+      // One element for both words: focus stays on it when the phase flips. Never disabled while saving, so it keeps focus;
+      // a second click during the request is ignored by the mutation lock.
+      : <button onClick={() => changePhase(goal.phase === "achieved" ? "in_progress" : "achieved")} aria-busy={phaseAction.pending}
+        className={`${goal.phase === "achieved" ? "action-link-secondary" : "action-link"} w-full py-2 text-[13px] pointer-fine:min-h-[38px]`}>
+        {goal.phase === "achieved" ? "↺ Вернуть в работу" : "✓ Отметить достигнутой"}</button>)}
     {goal.description && <><Divider />
       <section aria-labelledby="goal-description-title" className="grid gap-1.5"><h3 id="goal-description-title" className="field-label">Описание</h3>
         <p className="whitespace-pre-wrap wrap-anywhere text-sm leading-6">{goal.description}</p></section></>}
-    <Divider />
+    {goal.kind === "numeric" && <><Divider />
     <section aria-labelledby={MEASUREMENTS_TITLE} className="grid gap-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <h3 id={MEASUREMENTS_TITLE} tabIndex={-1} className="rounded text-sm font-bold">Измерения</h3>
@@ -200,7 +268,7 @@ export function GoalPanel({ id, preferences, domains, onChanged, onDeleted }: { 
         {moreError && <FormAlert tone="error">{moreError}</FormAlert>}
         {records.nextCursor && <div><button onClick={loadMore} disabled={moreLoading} className="action-link-secondary action-compact disabled:opacity-50">{moreLoading ? "Загружаем…" : "Показать ещё измерения"}</button></div>}
       </>}
-    </section>
+    </section></>}
     <Divider />
     <div className="flex flex-wrap items-center gap-x-4">
       <Disclosure open={shown.formula} controls="goal-formula" onToggle={() => setShown((value) => ({ ...value, formula: !value.formula }))}>Как считается</Disclosure>
@@ -221,11 +289,11 @@ export function GoalPanel({ id, preferences, domains, onChanged, onDeleted }: { 
     {dialog?.mode === "deleteGoal" && <DeleteGoalDialog id={id} close={() => setDialog(null)} onDeleted={onDeleted} />}
     {dialog && dialog.mode !== "deleteGoal" && <Modal title={dialog.mode === "goal" ? "Изменить цель" : dialog.mode === "add" ? "Новое измерение" : dialog.mode === "edit" ? "Исправить измерение" : dialog.mode === "delete" ? "Удалить измерение?" : "Архивировать цель?"}
       busy={dialogBusy || action.pending || action.uncertain} close={() => setDialog(null)}>
-      {dialog.mode === "goal" && <GoalForm initial={goal} definitionEditable={value.progress.measurementCount === 0 || onlyExamples} replacesExample={onlyExamples} domains={domains} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved("Изменения цели сохранены.")}
+      {dialog.mode === "goal" && <GoalForm initial={goal} definitionEditable={goal.kind === "numeric" && (value.progress.measurementCount === 0 || onlyExamples)} replacesExample={onlyExamples} domains={domains} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved("Изменения цели сохранены.")}
         cancel={<button type="button" disabled={dialogBusy} onClick={() => setDialog(null)} className="action-link-secondary action-compact disabled:opacity-50">Отмена</button>} />}
-      {(dialog.mode === "add" || dialog.mode === "edit") && <MeasurementForm goal={goal} initial={dialog.mode === "edit" ? dialog.row : undefined} replacesExample={dialog.mode === "add" && onlyExamples} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved(dialog.mode === "add" ? "Измерение добавлено." : "Измерение исправлено.")} />}
+      {(dialog.mode === "add" || dialog.mode === "edit") && goal.kind === "numeric" && <MeasurementForm goal={goal} initial={dialog.mode === "edit" ? dialog.row : undefined} replacesExample={dialog.mode === "add" && onlyExamples} preferences={preferences} onBusyChange={setDialogBusy} saved={() => saved(dialog.mode === "add" ? "Измерение добавлено." : "Измерение исправлено.")} />}
       {(dialog.mode === "delete" || dialog.mode === "archive") && <div className="grid gap-5"><MutationError error={action.error} uncertain={action.uncertain} />
-        <p className="text-sm leading-7">{dialog.mode === "delete" ? <>Будет удалено измерение <strong>{formatGoalValue(dialog.row.value, goal, preferences.locale)}</strong> от {formatDateTime(new Date(dialog.row.measured_at), preferences)}. Прогресс обновится, а факт удаления останется в журнале.</>
+        <p className="text-sm leading-7">{dialog.mode === "delete" ? <>Будет удалено измерение <strong>{goal.kind === "numeric" ? formatGoalValue(dialog.row.value, goal, preferences.locale) : dialog.row.value}</strong> от {formatDateTime(new Date(dialog.row.measured_at), preferences)}. Прогресс обновится, а факт удаления останется в журнале.</>
           : "Цель и её измерения сохранятся в архиве. Добавление, исправление и удаление измерений будут закрыты. Вернуть цель в активные в этом этапе нельзя."}</p>
         <div className="flex flex-wrap justify-end gap-2.5"><button autoFocus disabled={action.pending || action.uncertain} className="action-link-secondary action-compact disabled:opacity-50" onClick={() => setDialog(null)}>Отмена</button>
           <button disabled={action.pending} className="action-link action-compact disabled:opacity-50" onClick={() => {

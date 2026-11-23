@@ -9,10 +9,12 @@ export type ActivityEventsRepository = {
   /** At most 100 newest events; no unscoped or unlimited audit query. */
   listForGoal(actor: Actor, goalId: string): Promise<ActivityEvent[]>;
 };
+/** Kind, phase and start date (LFS-225) are part of every new snapshot; the definition is null for a goal without measurements. */
 export function goalAuditSnapshot(goal: Goal) {
   return goalAuditSnapshotSchema.parse({
     unit: goal.unit, baseline: goal.baseline, target: goal.target,
     direction: goal.direction, status: goal.status, due_at: goal.due_at,
+    kind: goal.kind, phase: goal.phase, starts_at: goal.starts_at,
   });
 }
 export function measurementSnapshot(value: GoalMeasurement) {

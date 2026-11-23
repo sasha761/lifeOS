@@ -9,7 +9,7 @@ import { FormAlert } from "../auth/form-parts.tsx";
 import { ModalDialog } from "../ui/modal-dialog.tsx";
 import { StatusChip } from "../ui/status-chip.tsx";
 import { createGoalCommand, getGoalsData, GoalRequestError } from "../../lib/goals-api-client.ts";
-import { formatGoalNumber, formatGoalPercent, formatGoalValue } from "../../lib/goal-presentation.ts";
+import { formatGoalNumber, formatGoalPercent, formatGoalValue, PHASE_TONES, phaseLabel } from "../../lib/goal-presentation.ts";
 import { instantToLocalDate, instantToLocalInput, zonedInstantChoices } from "../../lib/goal-time.ts";
 import type { GoalFieldErrors } from "../../lib/goal-form-input.ts";
 
@@ -94,7 +94,7 @@ export function DateTimeField({ name, label, hint, initial, timeZone, required, 
  * «Убрать срок» empties the field: an empty date saves a goal without a deadline. The input stays uncontrolled, so a
  * partly typed date is never overwritten.
  */
-export function DateField({ name, label, describedBy, initial, timeZone, errors }: { name: string; label: string; describedBy?: string; initial?: string | null; timeZone: string; errors: GoalFieldErrors }) {
+export function DateField({ name, label, describedBy, initial, timeZone, errors, clearLabel = "Убрать срок" }: { name: string; label: string; describedBy?: string; initial?: string | null; timeZone: string; errors: GoalFieldErrors; clearLabel?: string }) {
   const input = useRef<HTMLInputElement>(null);
   const [filled, setFilled] = useState(!!initial);
   const described = [describedBy, errors[name] ? `${name}-error` : null].filter(Boolean).join(" ") || undefined;
@@ -103,13 +103,13 @@ export function DateField({ name, label, describedBy, initial, timeZone, errors 
       aria-invalid={!!errors[name]} aria-describedby={described} onChange={(event) => setFilled(event.currentTarget.value !== "")} />
     {initial && <input type="hidden" name={`${name}_original`} value={initial} />}
     {filled && <button type="button" className="action-link-secondary action-sm justify-self-start"
-      onClick={() => { if (input.current) { input.current.value = ""; input.current.focus(); } setFilled(false); }}>Убрать срок</button>}
+      onClick={() => { if (input.current) { input.current.value = ""; input.current.focus(); } setFilled(false); }}>{clearLabel}</button>}
     {errors[name] && <p id={`${name}-error`} className="text-sm text-destructive">{errors[name]}</p>}</div>;
 }
 /** «12 000 из 50 000 NOK · 24%» (mockups 09/10); the percentage keeps its own element for tests and screen readers. */
 export function GoalAmount({ value, preferences, percentTestId }: { value: GoalDetails; preferences: UserPreferences; percentTestId?: string }) {
   const { goal, progress } = value;
-  if (progress.current === null) return null;
+  if (goal.kind !== "numeric" || progress.current === null) return null;
   return <span className="min-w-0 text-xs leading-5 wrap-anywhere tabular-nums">
     <strong className="font-semibold">{formatGoalNumber(progress.current, preferences.locale)}</strong> из {formatGoalValue(goal.target, goal, preferences.locale)}
     {progress.progressPercent !== null && <> · <span data-testid={percentTestId}>{formatGoalPercent(progress.progressPercent, preferences)}</span></>}
@@ -127,8 +127,10 @@ export function CloseButton({ onClick, disabled }: { onClick(): void; disabled?:
     className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border text-muted-foreground transition-colors duration-[120ms] hover:border-border-strong hover:bg-surface-3 hover:text-foreground disabled:opacity-50 pointer-coarse:size-11">
     <X aria-hidden="true" className="size-4" /></button>;
 }
-export function StatusBadge({ status }: { status: Goal["status"] }) {
-  return <StatusChip tone={status === "archived" ? "gray" : "green"}>{status === "archived" ? "В архиве" : "Активна"}</StatusChip>;
+/** Status of a goal (LFS-225, mockups 32–36): «В архиве», or the phase the person set («В процессе», «✓ Достигнута»…). */
+export function GoalStatusChip({ goal }: { goal: Pick<Goal, "status" | "phase"> }) {
+  if (goal.status === "archived") return <StatusChip tone="gray">В архиве</StatusChip>;
+  return <StatusChip tone={PHASE_TONES[goal.phase]}>{phaseLabel(goal.phase)}</StatusChip>;
 }
 /** «Пример» (mockup 28, `.chip.c-a`): a goal of the loaded example or an example value, never the person's data (LFS-218). */
 export function ExampleChip({ className }: { className?: string }) {

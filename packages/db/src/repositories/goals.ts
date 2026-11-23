@@ -1,4 +1,5 @@
 import { eq, ne, notExists, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { goalSchema } from "@lifeos/contracts";
 import type { Goal } from "@lifeos/contracts";
 import type { GoalsRepository } from "@lifeos/domain";
@@ -16,8 +17,10 @@ function storedDecimal(value: string): string {
 export function toGoal(row: typeof goals.$inferSelect): Goal {
   const parsed = goalSchema.safeParse({
     id: row.id, user_id: row.userId, domain_key: row.domainKey, title: row.title, description: row.description,
-    unit: row.unit, unit_label: row.unitLabel, baseline: storedDecimal(row.baseline), target: storedDecimal(row.target), direction: row.direction,
+    kind: row.kind, unit: row.unit, unit_label: row.unitLabel, baseline: row.baseline === null ? null : storedDecimal(row.baseline),
+    target: row.target === null ? null : storedDecimal(row.target), direction: row.direction,
     calculation_mode: row.calculationMode, metric_key: row.metricKey, status: row.status, origin: row.origin,
+    phase: row.phase, phase_changed_at: row.phaseChangedAt.toISOString(), starts_at: row.startsAt?.toISOString() ?? null,
     due_at: row.dueAt?.toISOString() ?? null, created_at: row.createdAt.toISOString(), updated_at: row.updatedAt.toISOString(),
   });
   if (!parsed.success) throw new Error("Invalid stored goal.");
@@ -32,13 +35,19 @@ export function createGoalsRepository(database: Pick<LifeosDatabase, "select" | 
       return row ? toGoal(row) : null;
     },
     async create(actor, input, options = {}) {
+      const definition = input.kind === "numeric"
+        ? { unit: input.unit, unitLabel: input.unit_label, baseline: input.baseline, target: input.target, direction: input.direction }
+        : { unit: null, unitLabel: null, baseline: null, target: null, direction: null };
+      const startsAt = input.starts_at === null ? null : new Date(input.starts_at);
+      // LFS-225: a start after the moment of creation (database time, as created_at) makes the goal planned.
+      const phase: SQL<"planned" | "in_progress"> | "in_progress" = startsAt === null ? "in_progress"
+        : sql<"planned" | "in_progress">`CASE WHEN ${startsAt.toISOString()}::timestamptz > clock_timestamp() THEN 'planned' ELSE 'in_progress' END`;
       const [row] = await database.insert(goals).values({
         userId: actor.userId, domainKey: input.domain_key, title: input.title, description: input.description,
-        unit: input.unit, unitLabel: input.unit_label, baseline: input.baseline, target: input.target,
-        direction: input.direction, calculationMode: input.calculation_mode, metricKey: input.metric_key,
-        status: "active", origin: options.origin ?? "manual", dueAt: input.due_at === null ? null : new Date(input.due_at),
+        kind: input.kind, ...definition, calculationMode: input.calculation_mode, metricKey: input.metric_key,
+        status: "active", origin: options.origin ?? "manual", phase, startsAt, dueAt: input.due_at === null ? null : new Date(input.due_at),
         // Statement time, not transaction start: goals created by one command (the example, LFS-218) keep their order.
-        createdAt: sql`clock_timestamp()`, updatedAt: sql`clock_timestamp()`,
+        createdAt: sql`clock_timestamp()`, updatedAt: sql`clock_timestamp()`, phaseChangedAt: sql`clock_timestamp()`,
       }).returning();
       if (!row) throw new Error("Goal insert returned no row.");
       return toGoal(row);
@@ -63,15 +72,22 @@ export function createGoalsRepository(database: Pick<LifeosDatabase, "select" | 
       // (LFS-217/218): the guard repeats the service check in SQL, and the (user, goal, unit) FK also rejects a unit change
       // while any measurement, including an example one, is left. Any edit makes an example the person's own (LFS-218).
       const redefines = input.unit !== undefined;
+      const instant = (value: string | null | undefined) => value === undefined ? undefined : value === null ? null : new Date(value);
       const [row] = await database.update(goals).set({
         title: input.title, description: input.description,
-        dueAt: input.due_at === undefined ? undefined : input.due_at === null ? null : new Date(input.due_at),
+        startsAt: instant(input.starts_at), dueAt: instant(input.due_at),
         ...(redefines ? { unit: input.unit, unitLabel: input.unit_label ?? null, baseline: input.baseline, target: input.target, direction: input.direction } : {}),
         origin: sql`CASE WHEN ${goals.origin} = 'starter' THEN 'manual' ELSE ${goals.origin} END`,
         updatedAt: sql`clock_timestamp()`,
       }).where(ownedBy(goals.userId, actor, eq(goals.id, id), eq(goals.status, "active"),
-        ...(redefines ? [notExists(database.select({ id: goalMeasurements.id }).from(goalMeasurements)
+        // A goal without measurements never takes a definition (LFS-225); the kind CHECK would reject it as well.
+        ...(redefines ? [eq(goals.kind, "numeric"), notExists(database.select({ id: goalMeasurements.id }).from(goalMeasurements)
           .where(ownedBy(goalMeasurements.userId, actor, eq(goalMeasurements.goalId, id), ne(goalMeasurements.source, "example"))))] : []))).returning();
+      return row ? toGoal(row) : null;
+    },
+    async setPhase(actor, id, phase) {
+      const [row] = await database.update(goals).set({ phase, phaseChangedAt: sql`clock_timestamp()`, updatedAt: sql`clock_timestamp()` })
+        .where(ownedBy(goals.userId, actor, eq(goals.id, id), eq(goals.status, "active"))).returning();
       return row ? toGoal(row) : null;
     },
     async archive(actor, id) {

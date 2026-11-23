@@ -1,5 +1,7 @@
-import { createGoalInputSchema, GOAL_DEFINITION_FIELDS, GOAL_METADATA_FIELDS, goalCommandOptionsSchema, goalIdSchema, updateGoalInputSchema } from "@lifeos/contracts";
-import type { CreateGoalInput, Goal, GoalCommandOptions, GoalDeletion, UpdateGoalInput } from "@lifeos/contracts";
+import {
+  createGoalInputSchema, GOAL_DEFINITION_FIELDS, GOAL_METADATA_FIELDS, goalCommandOptionsSchema, goalIdSchema, setGoalPhaseInputSchema, updateGoalInputSchema,
+} from "@lifeos/contracts";
+import type { CreateGoalInput, Goal, GoalCommandOptions, GoalDeletion, GoalPhase, UpdateGoalInput } from "@lifeos/contracts";
 import type { Actor } from "./actor.ts";
 import { ConflictError, InvalidInputError, NotFoundError } from "./errors.ts";
 import { requireFound, requireOwned } from "./ownership.ts";
@@ -9,7 +11,10 @@ import type { GoalMeasurementsRepository } from "./goal-measurements.ts";
 
 /** Each operation is scoped to the verified actor in SQL; no unscoped resource lookup is allowed. */
 export type GoalsRepository = {
-  /** `origin` is assigned by the server only: `manual` unless the example command creates a `starter` goal (LFS-218). */
+  /**
+   * `origin` is assigned by the server only: `manual` unless the example command creates a `starter` goal (LFS-218). The
+   * phase is `planned` when the start lies after the moment of creation, otherwise `in_progress` (LFS-225).
+   */
   create(actor: Actor, input: CreateGoalInput, options?: { origin?: Goal["origin"] }): Promise<Goal>;
   find(actor: Actor, id: string): Promise<Goal | null>;
   /**
@@ -22,6 +27,8 @@ export type GoalsRepository = {
   hasOwnMeasurements(actor: Actor, id: string): Promise<boolean>;
   /** An example goal becomes the person's own (`starter` → `manual`, LFS-218); null if it was not an example. */
   claimExample(actor: Actor, id: string): Promise<Goal | null>;
+  /** Atomic phase change of an active goal with the time of the change (LFS-225); null if missing, foreign or archived. */
+  setPhase(actor: Actor, id: string, phase: GoalPhase): Promise<Goal | null>;
   /** Atomic transition to archived, or the unchanged row if already archived; never hard deletes. */
   archive(actor: Actor, id: string): Promise<Goal | null>;
   /** Owner-scoped hard delete; dependent rows cascade in the same transaction. */
@@ -33,13 +40,16 @@ export type GoalsService = {
   get(actor: Actor, id: unknown): Promise<Goal>;
   update(actor: Actor, id: unknown, input: unknown, options: unknown): Promise<Goal>;
   archive(actor: Actor, id: unknown, options: unknown): Promise<Goal>;
+  /** `{ phase }` (LFS-225): the person's own status of an active goal, for both kinds; nothing changes it automatically. */
+  setPhase(actor: Actor, id: unknown, input: unknown, options: unknown): Promise<Goal>;
   deleteGoal(actor: Actor, id: unknown, options: unknown): Promise<GoalDeletion>;
 };
 
 export type GoalCommand = GoalCommandOptions & {
-  operation: "create" | "update" | "archive";
+  operation: "create" | "update" | "archive" | "phase";
   targetId: string | null;
-  input: CreateGoalInput | UpdateGoalInput | null;
+  /** What the request fingerprint covers: the parsed input (for creation without the LFS-225 defaults, see `createFingerprint`). */
+  input: unknown;
 };
 export type GoalCommandOutcome = { kind: "success"; goal: Goal } | { kind: "conflict" | "not_found" };
 export type GoalTransaction = { goals: GoalsRepository; measurements: Pick<GoalMeasurementsRepository, "removeExamples">; events: ActivityEventWriter };
@@ -68,6 +78,15 @@ function ownedGoal(actor: Actor, value: Goal | null): Goal {
   return goal;
 }
 
+/**
+ * The defaults LFS-225 added to a parsed creation (`kind: numeric`, `starts_at: null`) stay out of the fingerprint, so a
+ * retry of a request first sent before the upgrade still matches its receipt instead of becoming a conflict (ADR-013).
+ */
+function createFingerprint(input: CreateGoalInput): Record<string, unknown> {
+  const { kind, starts_at: startsAt, ...rest } = input;
+  return { ...rest, ...(kind === "numeric" ? {} : { kind }), ...(startsAt === null ? {} : { starts_at: startsAt }) };
+}
+
 export function createGoalsService(unit: GoalsUnitOfWork): GoalsService {
   async function execute(actor: Actor, command: GoalCommand, operation: (transaction: GoalTransaction) => Promise<Goal>): Promise<Goal> {
     const result = await unit.run(actor, command, operation);
@@ -94,7 +113,7 @@ export function createGoalsService(unit: GoalsUnitOfWork): GoalsService {
     async create(actor, input, options) {
       const parsed = createGoalInputSchema.safeParse(input);
       if (!parsed.success) throw new InvalidInputError();
-      return execute(actor, { ...commandOptions(options), operation: "create", targetId: null, input: parsed.data }, async ({ goals, events }) => {
+      return execute(actor, { ...commandOptions(options), operation: "create", targetId: null, input: createFingerprint(parsed.data) }, async ({ goals, events }) => {
         const goal = ownedGoal(actor, await goals.create(actor, parsed.data));
         await events.append({ goal_id: goal.id, domain_key: goal.domain_key, target_type: "goal", target_id: goal.id, schema_version: 1,
           event_type: "goal.created", payload: { before: null, after: goalAuditSnapshot(goal) } });
@@ -113,6 +132,12 @@ export function createGoalsService(unit: GoalsUnitOfWork): GoalsService {
         // cannot change between the check and the update.
         const current = ownedGoal(actor, await goals.find(actor, key));
         if (current.status === "archived") throw new ConflictError();
+        // The kind never changes (LFS-225): a goal without measurements takes no definition.
+        if (current.kind === "unmeasured" && GOAL_DEFINITION_FIELDS.some((field) => parsed.data[field] !== undefined)) throw new ConflictError();
+        // One date may be edited alone; together with the stored other one the start is still not later than the deadline.
+        const startsAt = parsed.data.starts_at === undefined ? current.starts_at : parsed.data.starts_at;
+        const dueAt = parsed.data.due_at === undefined ? current.due_at : parsed.data.due_at;
+        if (startsAt && dueAt && startsAt > dueAt) throw new InvalidInputError();
         const edited = [...GOAL_METADATA_FIELDS, ...GOAL_DEFINITION_FIELDS]
           .filter((field) => parsed.data[field] !== undefined && parsed.data[field] !== current[field]);
         if (edited.length === 0) return current;
@@ -133,6 +158,24 @@ export function createGoalsService(unit: GoalsUnitOfWork): GoalsService {
         ownedGoal(actor, updated);
         await events.append({ goal_id: key, domain_key: updated.domain_key, target_type: "goal", target_id: key, schema_version: 1,
           event_type: "goal.updated", payload: { before: goalAuditSnapshot(current), after: goalAuditSnapshot(updated), changed_fields } });
+        return updated;
+      });
+    },
+    async setPhase(actor, id, input, options) {
+      const parsed = setGoalPhaseInputSchema.safeParse(input);
+      if (!parsed.success) throw new InvalidInputError();
+      const key = resourceId(id);
+      return execute(actor, { ...commandOptions(options), operation: "phase", targetId: key, input: parsed.data }, async ({ goals, events }) => {
+        const current = ownedGoal(actor, await goals.find(actor, key));
+        // Archive is terminal (ADR-007). The same phase again changes nothing, like a repeated archive. An example goal
+        // stays an example (LFS-218): a phase is not an edit of the goal.
+        if (current.status === "archived") throw new ConflictError();
+        if (current.phase === parsed.data.phase) return current;
+        const updated = await goals.setPhase(actor, key, parsed.data.phase);
+        if (!updated) throw new ConflictError();
+        ownedGoal(actor, updated);
+        await events.append({ goal_id: key, domain_key: updated.domain_key, target_type: "goal", target_id: key, schema_version: 1,
+          event_type: "goal.updated", payload: { before: goalAuditSnapshot(current), after: goalAuditSnapshot(updated), changed_fields: ["phase"] } });
         return updated;
       });
     },

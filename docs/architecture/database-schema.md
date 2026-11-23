@@ -20,6 +20,7 @@
 | `0007_starter_pack` | LFS-218 | `goals.origin`, `starter_pack_receipts` | [Пример по выбору](#пример-по-выбору--lfs-218) |
 | `0008_onboarding` | LFS-219 | `onboarding_state`, `onboarding_receipts`; `user.focus_domains`, `user.checkin_rhythm` | [Начальная настройка](#начальная-настройка--lfs-219) |
 | `0009_drop_checkin_rhythm` | LFS-222 | удаляет `user.checkin_rhythm` и `user_checkin_rhythm_check` вместе с данными | [Начальная настройка](#начальная-настройка--lfs-219) |
+| `0010_goal_phases` | LFS-225 | `goals.kind`, `phase`, `phase_changed_at`, `starts_at`; определение цели nullable; новые CHECK событий и квитанций | [Вид цели, статус и дата начала](#вид-цели-статус-и-дата-начала--lfs-225) |
 
 Очередь pg-boss создаёт свои объекты сама — [Queue schema](#queue-schema). Новая миграция добавляет строку
 в эту таблицу и свой раздел.
@@ -256,23 +257,44 @@ FK `user_id → user.id CASCADE`; FK на цель отсутствует, чт�
 | `user_id` | text NOT NULL FK → user.id CASCADE; определяется Actor |
 | `domain_key` | text, CHECK по шести DOMAIN_KEYS |
 | `title`, `description` | title 1..200; description null или 1..4000, текст нормализуется contract |
-| `unit`, `unit_label` | NOK/count/minutes/percent/custom; label обязателен только для custom (1..40) |
-| `baseline`, `target` | точный numeric без typmod; 0 ≤ value < 10^22, до 8 дробных знаков; DTO decimal string |
-| `direction` | increase: target > baseline; decrease: target < baseline; равенство запрещено |
+| `kind` | `numeric` (по умолчанию) или `unmeasured` (LFS-225); не меняется |
+| `unit`, `unit_label` | NOK/USD/count/minutes/percent/custom; label обязателен только для custom (1..40); у `unmeasured` оба NULL |
+| `baseline`, `target` | точный numeric без typmod; 0 ≤ value < 10^22, до 8 дробных знаков; DTO decimal string; у `unmeasured` NULL |
+| `direction` | increase: target > baseline; decrease: target < baseline; равенство запрещено; у `unmeasured` NULL |
 | `calculation_mode`, `metric_key` | только manual / null в Stage 2; computed отклоняется |
 | `status` | active по умолчанию; archived сохраняет данные и запрещает правку |
+| `phase`, `phase_changed_at` | статус активной цели `planned/in_progress/paused/achieved` и время его смены (LFS-225) |
+| `starts_at` | nullable timestamptz(3), начало; не позже `due_at`, если оба заданы (LFS-225) |
 | `due_at` | nullable timestamptz(3), абсолютный срок, finite, UTC DTO |
 | `created_at`, `updated_at` | timestamptz(3), серверное now(), finite |
 
 NOK: до 2 дробных знаков; count: целое; percent: 0..100; minutes/custom:
 до 8. БД отклоняет избыточную значащую точность, а не округляет. Определение
-цели неизменно через domain API; правятся только title/description/due_at,
-архивирование — отдельная команда. Repository каждый раз использует user_id;
+цели неизменно через domain API после первого измерения; правятся
+title/description/starts_at/due_at, архивирование и смена статуса — отдельные команды. Repository каждый раз использует user_id;
 чужой ресурс не раскрывается. Индексы `(user_id, domain_key, status)` и
 `(user_id, status, due_at, id)` не требуют выборок по другим пользователям.
 
 Таблица не содержит current/progress: current читается из measurements
 (LFS-206), расчёт progress и HTTP — LFS-207; UI целей пока не реализован.
+
+## Вид цели, статус и дата начала · LFS-225
+
+`0010_goal_phases.sql`; решение — [ADR-013](../adr/013-goal-kinds-phases.md).
+
+- `goals.kind text NOT NULL DEFAULT 'numeric'` + CHECK `numeric|unmeasured`. `goals_kind_definition_check`: у
+  `numeric` `unit`, `baseline`, `target`, `direction` не NULL; у `unmeasured` они и `unit_label` NULL. С этих
+  четырёх колонок снят `NOT NULL`; прежние CHECK значений на NULL проходят, вид решает этот.
+- `goals.phase text NOT NULL DEFAULT 'in_progress'` + `phase_changed_at timestamptz(3) NOT NULL`
+  (`goals_phase_check`: значение из четырёх и конечное время). Существующим целям миграция ставит
+  `phase_changed_at = created_at` (строка дописана руками после генерации).
+- `goals.starts_at timestamptz(3)` nullable; `goals_starts_at_check`: конечное, годы 1..9999, не позже `due_at`.
+- Измерение цели без измерений SQL не пропускает: составной FK `(user_id, goal_id, unit)` не находит цель с
+  `unit = NULL`.
+- `activity_events_{before,after}_fields_check` допускают в снимке цели ещё `kind`, `phase`, `starts_at`;
+  `goal_command_receipts` — операцию `phase` (ресурс `goal`).
+
+Существующие цели становятся `numeric` / `in_progress`; события и квитанции не переписываются.
 
 ## Activity events и command receipts · LFS-210
 

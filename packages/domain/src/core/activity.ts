@@ -37,25 +37,33 @@ export function toActivityEntry({ event, goal, unitChangedAt = null }: ActivityR
   else if (event.event_type === "goal_measurement.updated") measurement = { value: event.payload.after.value, previousValue: event.payload.before.value, ...unit };
   else if (event.event_type === "goal_measurement.deleted") measurement = { value: event.payload.before.value, previousValue: null, ...unit };
   const changedFields = event.event_type === "goal.updated" ? [...event.payload.changed_fields] : null;
-  const dueAt = event.event_type === "goal.updated" && event.payload.changed_fields.includes("due_at")
-    ? { before: event.payload.before.due_at, after: event.payload.after.due_at } : null;
-  const definitionOf = ({ unit, baseline, target, direction }: { unit: Goal["unit"]; baseline: string; target: string; direction: Goal["direction"] }) => ({ unit, baseline, target, direction });
-  const definition = event.event_type === "goal.updated" && event.payload.changed_fields.some((field) => ["unit", "baseline", "target", "direction"].includes(field))
-    ? { before: definitionOf(event.payload.before), after: definitionOf(event.payload.after) } : null;
+  const edit = event.event_type === "goal.updated" ? event.payload : null;
+  const startsAt = edit?.changed_fields.includes("starts_at") ? { before: edit.before.starts_at ?? null, after: edit.after.starts_at ?? null } : null;
+  const dueAt = edit?.changed_fields.includes("due_at") ? { before: edit.before.due_at, after: edit.after.due_at } : null;
+  // Only a numeric goal has a definition to change; its snapshots hold all four values.
+  type Snapshot = NonNullable<typeof edit>["before"];
+  const definitionOf = ({ unit, baseline, target, direction }: Snapshot) =>
+    unit !== null && baseline !== null && target !== null && direction !== null ? { unit, baseline, target, direction } : null;
+  const definitionBefore = edit && definitionOf(edit.before);
+  const definitionAfter = edit && definitionOf(edit.after);
+  const definition = edit?.changed_fields.some((field) => ["unit", "baseline", "target", "direction"].includes(field)) && definitionBefore && definitionAfter
+    ? { before: definitionBefore, after: definitionAfter } : null;
+  // A phase change (LFS-225) always stores both phases (activityEventDraftSchema).
+  const phase = edit?.changed_fields.includes("phase") && edit.before.phase && edit.after.phase ? { before: edit.before.phase, after: edit.after.phase } : null;
   // LFS-218: written by loading the example, or about an example value (also when the person removes it).
   const snapshot = event.target_type === "goal_measurement" ? (event.payload.after ?? event.payload.before) : null;
   const example = event.source === "starter" || snapshot?.source === "example";
   return {
     id: event.id, type: event.event_type, occurredAt: event.occurred_at, source: event.source, domainKey: event.domain_key,
-    goal: { id: goal.id, title: goal.title, status: goal.status }, measurement, changedFields, dueAt, definition, example,
+    goal: { id: goal.id, title: goal.title, status: goal.status }, measurement, changedFields, startsAt, dueAt, definition, phase, example,
   };
 }
 
-/** The Dashboard keeps its LFS-204 shape: the same fact without edit details. */
+/** The Dashboard keeps its LFS-204 shape: the same fact without edit details, except a phase change (LFS-225). */
 export function toDashboardActivity(record: ActivityRecord): DashboardActivity {
-  const { id, type, occurredAt, source, domainKey, goal, measurement, example } = toActivityEntry(record);
+  const { id, type, occurredAt, source, domainKey, goal, measurement, example, phase } = toActivityEntry(record);
   return { id, type, occurredAt, source, domainKey, goal,
-    measurement: measurement && { value: measurement.value, unit: measurement.unit, unitLabel: measurement.unitLabel }, example };
+    measurement: measurement && { value: measurement.value, unit: measurement.unit, unitLabel: measurement.unitLabel }, example, phase };
 }
 
 /** GET /api/v1/activity: the actor's own journal, optionally for one sphere or one goal; foreign ids simply match nothing. */

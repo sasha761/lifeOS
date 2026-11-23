@@ -131,6 +131,13 @@ write endpoints. Тело DELETE измерения и цели проверяе
 modal `alertdialog` с отменой и возвратом фокуса на «⋯», затем возвращает на
 `/goals` с фильтрами и заново читает список и счётчики Dashboard.
 
+## Дополнение LFS-225 · 2026-11-23
+
+`PATCH /api/v1/goals/:goalId` принимает третью отдельную команду — `{ phase }` (смена статуса цели), с тем же
+`Idempotency-Key` и квитанцией операции `phase`. `POST` принимает цель без измерений (`kind: "unmeasured"`) и
+`starts_at` у любой цели. У цели без измерений `progress.status = "unmeasured"`: процента, методики и чисел нет,
+`explanation` — слово статуса. Подробно — [ADR-013](013-goal-kinds-phases.md).
+
 ## Миграция, альтернативы и границы
 
 В исходном LFS-207 новых таблиц, индексов, migrations, dependencies и runtime нет.

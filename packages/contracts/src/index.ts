@@ -19,8 +19,10 @@ export {
   goalCalculationModeSchema, goalDecimalSchema, goalDecimalToScaledInteger, goalDirectionSchema,
   goalIdSchema, goalInstantSchema, goalSchema, goalStatusSchema, goalUnitSchema, goalValueMatchesUnit, updateGoalInputSchema,
   GOAL_DEFINITION_FIELDS, GOAL_METADATA_FIELDS, GOAL_CURRENCY_UNITS, GOAL_ORIGINS, goalOriginSchema,
+  GOAL_KINDS, GOAL_PHASES, GOAL_PHASE_LABELS, goalKindSchema, goalPhaseSchema, setGoalPhaseInputSchema,
+  createNumericGoalInputSchema, createUnmeasuredGoalInputSchema,
 } from "./goals.ts";
-export type { CreateGoalInput, Goal, UpdateGoalInput } from "./goals.ts";
+export type { CreateGoalInput, CreateNumericGoalInput, Goal, GoalKind, GoalPhase, NumericGoal, SetGoalPhaseInput, UpdateGoalInput } from "./goals.ts";
 export {
   ACTIVITY_EVENT_TYPES, ACTIVITY_SOURCES, activeActivitySourceSchema, activityEventDraftSchema,
   activityEventMetadataSchema, activitySourceSchema, GOAL_AUDIT_FIELDS, GOAL_CHANGED_FIELDS, goalAuditSnapshotSchema,

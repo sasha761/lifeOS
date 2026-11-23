@@ -32,8 +32,9 @@ test("goals list and the chosen goal sit side by side; choosing keeps the list, 
     const toggle = page.getByRole("button", { name: "Действия с целью", exact: true });
     await toggle.focus(); await page.keyboard.press("Enter");
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    // The phase moves come first (LFS-225); a goal in progress starts with «Поставить на паузу».
     await page.keyboard.press("Tab");
-    await expect(page.getByRole("button", { name: "Изменить цель", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Поставить на паузу", exact: true })).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     await expect(toggle).toBeFocused();

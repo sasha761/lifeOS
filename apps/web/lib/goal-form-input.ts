@@ -1,6 +1,6 @@
-import { createGoalInputSchema, createGoalMeasurementInputSchema, updateGoalInputSchema, updateGoalMeasurementInputSchema } from "@lifeos/contracts";
+import { createGoalMeasurementInputSchema, createNumericGoalInputSchema, updateGoalInputSchema, updateGoalMeasurementInputSchema } from "@lifeos/contracts";
 import type { z } from "zod";
-import { endOfLocalDay, instantToLocalDate, resolveGoalTime } from "./goal-time.ts";
+import { endOfLocalDay, instantToLocalDate, resolveGoalTime, startOfLocalDay } from "./goal-time.ts";
 
 export type GoalFieldErrors = Record<string, string>;
 export type FormResult<T> = { data: T; errors: null } | { data: null; errors: GoalFieldErrors };
@@ -10,7 +10,7 @@ const decimal = (value: string) => value.trim().replace(",", ".");
 const messages: Record<string, string> = { title: "Введите название (до 200 символов).", description: "Описание — до 4000 символов.", domain_key: "Выберите сферу.",
   unit: "Выберите единицу.", unit_label: "Укажите название единицы (до 40 символов).", baseline: "Укажите неотрицательное точное число в выбранной единице.",
   target: "Цель должна отличаться от начального значения и соответствовать направлению и единице.", value: "Укажите неотрицательное точное число в единице цели.",
-  note: "Заметка — до 1000 символов.", direction: "Выберите направление изменения." };
+  note: "Заметка — до 1000 символов.", direction: "Выберите направление изменения.", starts_at: "Дата начала не может быть позже срока." };
 function validate<T extends z.ZodType>(schema: T, input: unknown): FormResult<z.infer<T>> {
   const parsed = schema.safeParse(input);
   if (parsed.success) return { data: parsed.data, errors: null };
@@ -23,26 +23,30 @@ function dateValue(values: FormData, name: string, timeZone: string): string | n
   return value ? resolveGoalTime(value, timeZone, nullable(text(values, `${name}_offset`))) : null;
 }
 /**
- * Date-only deadline (LFS-213): the end of the chosen day in the account's zone. A stored deadline whose
- * calendar date was not changed is sent back unchanged, so older deadlines with a time of day keep it.
+ * Date-only start (LFS-225) and deadline (LFS-213): the start or the end of the chosen day in the account's zone. A stored
+ * date whose calendar day was not changed is sent back unchanged, so older deadlines with a time of day keep it.
  */
-function deadlineValue(values: FormData, timeZone: string): string | null {
-  const date = text(values, "due_at");
+function dayValue(values: FormData, name: "starts_at" | "due_at", timeZone: string): string | null {
+  const date = text(values, name);
   if (!date) return null;
-  const original = nullable(text(values, "due_at_original"));
+  const original = nullable(text(values, `${name}_original`));
   if (original && instantToLocalDate(original, timeZone) === date) return original;
-  return endOfLocalDay(date, timeZone);
+  return name === "starts_at" ? startOfLocalDay(date, timeZone) : endOfLocalDay(date, timeZone);
 }
 export function goalFormInput(values: FormData, timeZone: string, editing = false) {
-  let due_at: string | null;
-  try { due_at = deadlineValue(values, timeZone); }
-  catch (error) { return { data: null, errors: { due_at: (error as Error).message } } as const; }
-  const metadata = { title: text(values, "title"), description: nullable(text(values, "description")), due_at };
+  const dates: { starts_at?: string | null; due_at: string | null } = { due_at: null };
+  for (const name of ["starts_at", "due_at"] as const) {
+    // «Новая цель» has no start field yet (LFS-228): then the start is not sent at all.
+    if (name === "starts_at" && !values.has("starts_at")) continue;
+    try { dates[name] = dayValue(values, name, timeZone); }
+    catch (error) { return { data: null, errors: { [name]: (error as Error).message } } as const; }
+  }
+  const metadata = { title: text(values, "title"), description: nullable(text(values, "description")), ...dates };
   const definition = () => ({ baseline: decimal(text(values, "baseline")), target: decimal(text(values, "target")), unit: text(values, "unit"),
     unit_label: text(values, "unit") === "custom" ? nullable(text(values, "unit_label")) : null, direction: text(values, "direction") });
   // An edit carries the definition only when the form shows it, i.e. while the goal has no measurements (LFS-217).
   if (editing) return validate(updateGoalInputSchema, values.has("unit") ? { ...metadata, ...definition() } : metadata);
-  return validate(createGoalInputSchema, { ...metadata, domain_key: text(values, "domain_key"), ...definition() });
+  return validate(createNumericGoalInputSchema, { ...metadata, domain_key: text(values, "domain_key"), ...definition() });
 }
 export function measurementFormInput(values: FormData, timeZone: string, editing = false) {
   let measured_at: string | null;

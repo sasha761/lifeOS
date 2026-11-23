@@ -24,7 +24,7 @@ describe("exact goal decimals", () => {
 describe("manual goal definition", () => {
   it("normalizes text and explicit offsets, applies server-safe defaults", () => {
     expect(createGoalInputSchema.parse({ ...input, title: " Save ", due_at: "2026-11-15T23:30:00+01:00" })).toEqual({
-      ...input, description: null, unit_label: null, calculation_mode: "manual", metric_key: null, due_at: "2026-11-15T22:30:00.000Z",
+      kind: "numeric", ...input, description: null, unit_label: null, calculation_mode: "manual", metric_key: null, starts_at: null, due_at: "2026-11-15T22:30:00.000Z",
     });
     expect(goalCalculationModeSchema.parse("computed")).toBe("computed");
     expect(createGoalInputSchema.safeParse({ ...input, calculation_mode: "computed" }).success).toBe(false);

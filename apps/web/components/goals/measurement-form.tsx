@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { goalMeasurementSchema, goalValueMatchesUnit } from "@lifeos/contracts";
-import type { Goal, GoalMeasurement, UserPreferences } from "@lifeos/contracts";
+import type { GoalMeasurement, NumericGoal, UserPreferences } from "@lifeos/contracts";
 import { Field, focusFirstInvalid, SubmitButton } from "../auth/form-parts.tsx";
 import { measurementFormInput } from "../../lib/goal-form-input.ts";
 import type { GoalFieldErrors } from "../../lib/goal-form-input.ts";
@@ -11,7 +11,7 @@ import { DateTimeField, MutationError, TextArea, useGoalMutation } from "./share
 import { GOAL_UNIT_LABELS } from "../../lib/goal-presentation.ts";
 
 /** `replacesExample`: the goal shows only example values (LFS-218); the first own value removes them on the server. */
-export function MeasurementForm({ goal, initial, preferences, saved, onBusyChange, replacesExample = false }: { goal: Goal; initial?: GoalMeasurement; preferences: UserPreferences; saved(): void; onBusyChange?(busy: boolean): void; replacesExample?: boolean }) {
+export function MeasurementForm({ goal, initial, preferences, saved, onBusyChange, replacesExample = false }: { goal: NumericGoal; initial?: GoalMeasurement; preferences: UserPreferences; saved(): void; onBusyChange?(busy: boolean): void; replacesExample?: boolean }) {
   const mutation = useGoalMutation();
   const [errors, setErrors] = useState<GoalFieldErrors>({});
   const [now] = useState(() => new Date().toISOString());

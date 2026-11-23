@@ -1,3 +1,4 @@
+import { GOAL_PHASE_LABELS } from "@lifeos/contracts";
 import type { Dashboard, DashboardActivity } from "@lifeos/contracts";
 
 const ACTIVITY_LABELS = {
@@ -12,7 +13,10 @@ const SOURCE_LABELS = {
   web: "веб", manual: "вручную", telegram: "Telegram", import: "импорт", ai_proposed: "предложение ассистента", starter: "стартовый набор",
 } as const satisfies Record<DashboardActivity["source"], string>;
 
-export function activityLabel(type: DashboardActivity["type"]): string { return ACTIVITY_LABELS[type]; }
+/** A phase change (LFS-225) is named by the new phase: «Статус: Достигнута»; other facts by their type. */
+export function activityLabel(type: DashboardActivity["type"], phase: DashboardActivity["phase"] = null): string {
+  return phase ? `Статус: ${GOAL_PHASE_LABELS[phase.after]}` : ACTIVITY_LABELS[type];
+}
 export function sourceLabel(source: DashboardActivity["source"]): string { return SOURCE_LABELS[source]; }
 
 /** Russian plural form: 1 цель, 2 цели, 5 целей, 11 целей, 21 цель. */

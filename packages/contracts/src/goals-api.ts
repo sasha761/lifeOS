@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { domainKeySchema } from "./domains.ts";
-import { goalDecimalSchema, goalDirectionSchema, goalIdSchema, goalInstantSchema, goalSchema, goalStatusSchema, goalUnitSchema, updateGoalInputSchema } from "./goals.ts";
+import {
+  GOAL_PHASE_LABELS, goalDecimalSchema, goalDirectionSchema, goalIdSchema, goalInstantSchema, goalSchema, goalStatusSchema, goalUnitSchema,
+  setGoalPhaseInputSchema, updateGoalInputSchema,
+} from "./goals.ts";
 import { goalMeasurementSchema } from "./goal-measurements.ts";
 
 export const goalDeletionSchema = z.strictObject({ id: goalIdSchema, user_id: z.string().min(1).max(128), deleted: z.literal(true) });
@@ -43,16 +46,21 @@ export type GoalsListQuery = z.infer<typeof goalsListQuerySchema>;
 export const measurementsListQuerySchema = z.strictObject({ limit: limitSchema, cursor: measurementsCursorToken.optional() });
 export type MeasurementsListQuery = z.infer<typeof measurementsListQuerySchema>;
 
-// Archiving is a separate command: mixing it with metadata edits is rejected atomically.
-export const patchGoalInputSchema = z.union([updateGoalInputSchema, z.strictObject({ status: z.literal("archived") })]);
+// Archiving and a phase change (LFS-225) are separate commands: mixing either with metadata edits is rejected atomically.
+export const patchGoalInputSchema = z.union([updateGoalInputSchema, z.strictObject({ status: z.literal("archived") }), setGoalPhaseInputSchema]);
 export type PatchGoalInput = z.infer<typeof patchGoalInputSchema>;
 export const goalProgressInputSchema = z.strictObject({ baseline: goalDecimalSchema, target: goalDecimalSchema,
   current: goalDecimalSchema.nullable(), direction: goalDirectionSchema });
 export type GoalProgressInput = z.infer<typeof goalProgressInputSchema>;
+type PhaseLabel = (typeof GOAL_PHASE_LABELS)[keyof typeof GOAL_PHASE_LABELS];
+const PHASE_LABELS = Object.values(GOAL_PHASE_LABELS) as [PhaseLabel, ...PhaseLabel[]];
+const phaseLabelSchema = z.enum(PHASE_LABELS);
 export const progressComputationSchema = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal("measured"), progressPercent: z.number().min(0).max(100), explanation: z.null() }),
   z.strictObject({ status: z.literal("insufficient_data"), progressPercent: z.null(), explanation: z.literal("Недостаточно данных") }),
   z.strictObject({ status: z.literal("invalid_definition"), progressPercent: z.null(), explanation: z.literal("Некорректное определение цели") }),
+  // LFS-225 (ADR-013): a goal without measurements has no percentage; the explanation is its phase in words.
+  z.strictObject({ status: z.literal("unmeasured"), progressPercent: z.null(), explanation: phaseLabelSchema }),
 ]);
 export type ProgressComputation = z.infer<typeof progressComputationSchema>;
 const provenanceFields = { measurementId: goalIdSchema, measuredAt: goalInstantSchema, recordedAt: goalInstantSchema, updatedAt: goalInstantSchema };
@@ -61,22 +69,31 @@ const provenanceSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("self_report"), source: z.literal("manual"), ...provenanceFields }),
   z.strictObject({ kind: z.literal("example"), source: z.literal("example"), ...provenanceFields }),
 ]);
+/**
+ * A goal without measurements (`status: unmeasured`, LFS-225) has no methodology, unit, start, target, current or
+ * provenance: everything numeric is null and the explanation names its phase.
+ */
 export const goalProgressSchema = z.strictObject({
   methodology: z.strictObject({ version: z.literal(1), mode: z.literal("manual"),
     formula: z.enum(["(current-baseline)/(target-baseline)", "(baseline-current)/(baseline-target)"]),
-    percentDecimals: z.literal(2), rounding: z.literal("half_up"), clamped: z.literal(true) }),
-  source: z.literal("manual"), provenance: provenanceSchema.nullable(), unit: goalUnitSchema,
-  baseline: goalDecimalSchema, target: goalDecimalSchema, current: goalDecimalSchema.nullable(),
-  status: z.enum(["measured", "insufficient_data", "invalid_definition"]), progressPercent: z.number().min(0).max(100).nullable(),
-  explanation: z.enum(["Недостаточно данных", "Некорректное определение цели"]).nullable(),
+    percentDecimals: z.literal(2), rounding: z.literal("half_up"), clamped: z.literal(true) }).nullable(),
+  source: z.literal("manual"), provenance: provenanceSchema.nullable(), unit: goalUnitSchema.nullable(),
+  baseline: goalDecimalSchema.nullable(), target: goalDecimalSchema.nullable(), current: goalDecimalSchema.nullable(),
+  status: z.enum(["measured", "insufficient_data", "invalid_definition", "unmeasured"]), progressPercent: z.number().min(0).max(100).nullable(),
+  explanation: z.enum(["Недостаточно данных", "Некорректное определение цели", ...PHASE_LABELS]).nullable(),
   updatedAt: goalInstantSchema, measurementCount: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
-}).refine((value) => value.current === null
-  ? value.provenance === null && value.measurementCount === 0 && value.status === "insufficient_data"
-  : value.provenance !== null && value.measurementCount > 0 && value.status !== "insufficient_data")
+}).refine((value) => value.status === "unmeasured"
+  ? value.methodology === null && value.unit === null && value.baseline === null && value.target === null
+  : value.methodology !== null && value.unit !== null && value.baseline !== null && value.target !== null)
+  .refine((value) => value.current === null
+    ? value.provenance === null && value.measurementCount === 0 && (value.status === "insufficient_data" || value.status === "unmeasured")
+    : value.provenance !== null && value.measurementCount > 0 && value.status !== "insufficient_data" && value.status !== "unmeasured")
   .refine((value) => progressComputationSchema.safeParse({ status: value.status, progressPercent: value.progressPercent, explanation: value.explanation }).success);
 export type GoalProgress = z.infer<typeof goalProgressSchema>;
 export const goalDetailsSchema = z.strictObject({ goal: goalSchema, progress: goalProgressSchema })
-  .refine(({ goal, progress }) => goal.unit === progress.unit && goal.baseline === progress.baseline && goal.target === progress.target);
+  .refine(({ goal, progress }) => goal.unit === progress.unit && goal.baseline === progress.baseline && goal.target === progress.target
+    && (goal.kind === "unmeasured") === (progress.status === "unmeasured")
+    && (goal.kind === "numeric" || progress.explanation === GOAL_PHASE_LABELS[goal.phase]));
 export type GoalDetails = z.infer<typeof goalDetailsSchema>;
 export const goalsPageSchema = z.strictObject({ items: z.array(goalDetailsSchema).max(GOALS_PAGE_MAX), nextCursor: goalsCursorToken.nullable() });
 export type GoalsPage = z.infer<typeof goalsPageSchema>;

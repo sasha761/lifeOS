@@ -1,7 +1,7 @@
 import {
-  createGoalInputSchema, DOMAIN_KEYS, GOAL_UNIT_LABEL_MAX_LENGTH, goalDecimalSchema, LANGUAGE_LEVELS, ONBOARDING_CHOICE_LIMITS, ONBOARDING_LANGUAGE_MAX_LENGTH, ONBOARDING_NAME_MAX_LENGTH, ONBOARDING_OPTIONS, ONBOARDING_OWN_TITLE_MAX_LENGTH,
+  createNumericGoalInputSchema, DOMAIN_KEYS, GOAL_UNIT_LABEL_MAX_LENGTH, goalDecimalSchema, LANGUAGE_LEVELS, ONBOARDING_CHOICE_LIMITS, ONBOARDING_LANGUAGE_MAX_LENGTH, ONBOARDING_NAME_MAX_LENGTH, ONBOARDING_OPTIONS, ONBOARDING_OWN_TITLE_MAX_LENGTH,
 } from "@lifeos/contracts";
-import type { CreateGoalInput, DomainKey, Goal, OnboardingAnswers, OnboardingChoice } from "@lifeos/contracts";
+import type { CreateNumericGoalInput, DomainKey, NumericGoal, OnboardingAnswers, OnboardingChoice } from "@lifeos/contracts";
 
 /*
  * Question catalog v1 of the onboarding wizard (LFS-219, ADR-012, docs/reference/ui/ONBOARDING.md) as data, outside the
@@ -11,7 +11,7 @@ import type { CreateGoalInput, DomainKey, Goal, OnboardingAnswers, OnboardingCho
 
 /** Unit of a template: fixed, a currency the person picks (NOK/USD), a language level or the person's own unit. */
 export type OnboardingUnitSpec =
-  | { kind: "fixed"; unit: Goal["unit"]; unit_label: string | null }
+  | { kind: "fixed"; unit: NumericGoal["unit"]; unit_label: string | null }
   | { kind: "currency" }
   | { kind: "level" }
   | { kind: "own" };
@@ -23,7 +23,7 @@ export type OnboardingOption = {
   label: string;
   description: string | null;
   /** `own`: the person chooses «Увеличить» or «Уменьшить». */
-  direction: Goal["direction"] | "own";
+  direction: NumericGoal["direction"] | "own";
   unit: OnboardingUnitSpec;
   /** A text the title is made of: the own title, the language, a project or course name. */
   subject: OnboardingSubjectField | null;
@@ -32,7 +32,7 @@ export type OnboardingOption = {
   /** Title of the goal from the subject and the target as typed; never invents a number. */
   title(values: { subject: string; target: string | null }): string;
 };
-export type OnboardingUnitHint = { unit: Goal["unit"]; unit_label: string | null };
+export type OnboardingUnitHint = { unit: NumericGoal["unit"]; unit_label: string | null };
 export type OnboardingQuestion = {
   domainKey: DomainKey;
   /** Step 1 card: what the sphere covers. */
@@ -227,8 +227,8 @@ export type OnboardingProposal = {
   /** From a template, from «Свой вариант» (or «Другой» language) or added on the summary. */
   source: "answer" | "own" | "extra";
   option: string | null;
-  draft: Pick<CreateGoalInput, "title" | "direction" | "unit" | "unit_label" | "baseline" | "target" | "due_at">;
-  input: CreateGoalInput | null;
+  draft: Pick<CreateNumericGoalInput, "title" | "direction" | "unit" | "unit_label" | "baseline" | "target" | "due_at">;
+  input: CreateNumericGoalInput | null;
   issues: readonly OnboardingIssueField[];
 };
 
@@ -241,7 +241,7 @@ export function findOnboardingOption(domainKey: DomainKey, option: string): Onbo
   return ONBOARDING_QUESTIONS[domainKey].options.find((candidate) => candidate.key === option) ?? null;
 }
 
-function unitOf(spec: OnboardingUnitSpec, choice: OnboardingChoice): Pick<CreateGoalInput, "unit" | "unit_label"> {
+function unitOf(spec: OnboardingUnitSpec, choice: OnboardingChoice): Pick<CreateNumericGoalInput, "unit" | "unit_label"> {
   if (spec.kind === "fixed") return { unit: spec.unit, unit_label: spec.unit_label };
   if (spec.kind === "level") return { unit: "custom", unit_label: LANGUAGE_LEVEL_UNIT_LABEL };
   if (spec.kind === "currency") return { unit: choice.unit, unit_label: null };
@@ -271,7 +271,7 @@ function proposalOf(domainKey: DomainKey, choice: OnboardingChoice): OnboardingP
     direction: option.direction === "own" ? choice.direction : option.direction,
     ...unit, baseline, target, due_at: choice.due_at,
   };
-  const parsed = createGoalInputSchema.safeParse({ domain_key: domainKey, ...draft });
+  const parsed = createNumericGoalInputSchema.safeParse({ domain_key: domainKey, ...draft });
   if (!parsed.success) for (const issue of parsed.error.issues) issues.add(ISSUE_PATHS[String(issue.path[0])] ?? "target");
   const source = option.unit.kind === "own" || option.key === "other" ? "own" : "answer";
   return { key: `${domainKey}.${option.key}`, domainKey, source, option: option.key, draft,

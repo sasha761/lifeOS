@@ -19,7 +19,7 @@ import { PageHeader } from "../ui/page-header.tsx";
 import { ProgressBar } from "../ui/progress-bar.tsx";
 import { SegmentedTabs } from "../ui/segmented-tabs.tsx";
 import { DeleteGoalDialog, GoalPanel } from "./goal-detail.tsx";
-import { ExampleChip, LoadState, StatusBadge, useGoalData } from "./shared.tsx";
+import { ExampleChip, GoalStatusChip, LoadState, useGoalData } from "./shared.tsx";
 import type { DomainChoice } from "./shared.tsx";
 
 type Browser = { preferences: UserPreferences; domains: DomainChoice[]; firstId: string | null; filters: string; deletedId: string | null; reloadList(): void; deleted(id: string): void };
@@ -27,8 +27,9 @@ const BrowserContext = createContext<Browser | null>(null);
 const GOAL_FORMS = ["активная цель", "активные цели", "активных целей"] as const;
 
 /**
- * One goal as a row card of mockup 32 (LFS-224): sphere square, title, «сфера · срок»; on the right the bar, the
- * percentage and «X из Y» (or «Нет данных»). The title is a link stretched over the whole card, so a click anywhere opens
+ * One goal as a row card of mockup 32 (LFS-224, LFS-225): sphere square, title, «сфера · с <начало> · до <срок>» (an
+ * achieved goal: «сфера · отмечена <дата>»); on the right the bar, the percentage and «X из Y» (or «Нет данных»), for a
+ * goal without measurements its status chip. A numeric goal that is not «В процессе» shows its status by the title. The title is a link stretched over the whole card, so a click anywhere opens
  * the goal; «Удалить» is a separate button above it — no control is nested in the link. With a mouse on a wide screen
  * the button shows on hover and on focus inside the row; on touch screens and below 1024px it is always visible (40px).
  */
@@ -39,6 +40,10 @@ export function GoalRow({ value, label, preferences, href, selected, onDelete }:
 }) {
   const { goal, progress } = value;
   const tone = domainPresentation[goal.domain_key].tone;
+  const active = goal.status === "active";
+  const day = (instant: string) => <time dateTime={instant}>{formatDate(new Date(instant), preferences)}</time>;
+  const when = active && goal.phase === "achieved" ? <> · отмечена {day(goal.phase_changed_at)}</>
+    : <>{goal.starts_at && <> · с {day(goal.starts_at)}</>}{goal.due_at && <> · до {day(goal.due_at)}</>}</>;
   const look = selected === true ? "bg-primary/6 ring-primary" : selected === "wide"
     ? "hover:bg-surface-2 hover:ring-border-strong lg:bg-primary/6 lg:ring-primary lg:hover:bg-primary/6 lg:hover:ring-primary" : "hover:bg-surface-2 hover:ring-border-strong";
   return <Card size="sm" data-testid="goal-row" data-selected={selected || undefined}
@@ -48,13 +53,15 @@ export function GoalRow({ value, label, preferences, href, selected, onDelete }:
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
         <Link data-goal-link={goal.id} href={href} scroll={false} aria-current={selected ? "true" : undefined}
           className="min-w-0 rounded text-sm leading-5 font-bold wrap-anywhere after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none">{goal.title}</Link>
-        {goal.status === "archived" && <StatusBadge status={goal.status} />}
+        {(!active || (goal.kind === "numeric" && goal.phase !== "in_progress")) && <GoalStatusChip goal={goal} />}
         {goal.origin === "starter" && <ExampleChip />}
       </div>
-      <p className="text-xs leading-4 text-muted-foreground tabular-nums">{label}{goal.due_at && <> · до <time dateTime={goal.due_at}>{formatDate(new Date(goal.due_at), preferences)}</time></>}</p>
+      <p className="text-xs leading-4 text-muted-foreground tabular-nums">{label}{when}</p>
     </div>
     <div className="col-start-2 grid min-w-0 gap-1 md:col-start-3 md:row-start-1" data-testid="goal-row-progress">
-      {progress.current === null
+      {goal.kind === "unmeasured"
+        ? <div className="justify-self-start"><GoalStatusChip goal={{ status: "active", phase: goal.phase }} /></div>
+        : progress.current === null
         ? <><span className="text-xs leading-4 text-muted-foreground">Нет данных</span>
           {goal.status === "active" && <span className="text-[11px] leading-4 text-muted-foreground max-md:hidden">добавьте первое измерение</span>}</>
         : <>{progress.progressPercent !== null && <div className="flex items-center gap-2">

@@ -195,7 +195,7 @@ pnpm dev
 - `/api/health` — JSON `{ data, meta, errors }`, текущий timestamp и IDs, no-store.
 - `/api/v1/me` — текущий пользователь; 401 без сессии.
 - `/api/v1/me/preferences` — `GET`/`PATCH` своих `timezone`/`locale`; 401 без сессии, 400 для невалидных значений и `userId` в body.
-- `/api/v1/goals` — `GET` списка с прогрессом, `POST` ручной цели; `/api/v1/goals/:goalId` — `GET`/`PATCH` metadata или archive, `DELETE` — удаление цели (LFS-216).
+- `/api/v1/goals` — `GET` списка с прогрессом, `POST` ручной цели (числовой или без измерений, LFS-225); `/api/v1/goals/:goalId` — `GET`/`PATCH` metadata, archive или статус цели `{ phase }` (LFS-225), `DELETE` — удаление цели (LFS-216).
 - `/api/v1/dashboard` — `GET` read model Dashboard владельца; [DTO](docs/api/contracts.md#dashboard-сфер-lfs-204).
 - `/api/v1/activity` — `GET` журнала действий владельца, фильтр `domain_key` или `goal_id`, `limit` до 50; [DTO](docs/api/contracts.md#журнал-действий-lfs-213).
 - `/api/v1/goals/:goalId/measurements` — `GET` истории с cursor/limit, `POST` измерения; `/api/v1/goal-measurements/:measurementId` — `PATCH`/`DELETE`. Все записи требуют `Idempotency-Key`; [DTO и примеры](docs/api/contracts.md#http-целей-и-прогресс-lfs-207).

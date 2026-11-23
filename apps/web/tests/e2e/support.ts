@@ -36,8 +36,9 @@ export async function add(page: Page, value: string, note = "Браузерно�
   await dialog.getByLabel("Заметка (необязательно)").fill(note);
   await dialog.getByRole("button", { name: "Добавить измерение", exact: true }).click();
 }
-/** Commands of the goal panel live in its «⋯» menu (mockup 09, LFS-213). */
-export async function goalAction(page: Page, name: "Изменить цель" | "В архив" | "Удалить цель") {
+/** Commands of the goal panel live in its «⋯» menu (mockup 09, LFS-213); the phase moves too (LFS-225). */
+type PhaseMove = "Начать" | "Продолжить" | "Вернуть в работу" | "Поставить на паузу" | "Отметить достигнутой" | "Перенести в запланированные";
+export async function goalAction(page: Page, name: "Изменить цель" | "В архив" | "Удалить цель" | PhaseMove) {
   await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
   await page.getByRole("button", { name, exact: true }).click();
 }

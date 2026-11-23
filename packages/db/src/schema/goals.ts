@@ -3,7 +3,7 @@ import type { SQL } from "drizzle-orm";
 import { check as pgCheck, index, numeric, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import {
   DOMAIN_KEYS, GOAL_DECIMAL_INTEGER_DIGITS, GOAL_DECIMAL_SCALE, GOAL_DESCRIPTION_MAX_LENGTH,
-  GOAL_DIRECTIONS, GOAL_ORIGINS, GOAL_STATUSES, GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, GOAL_UNITS,
+  GOAL_DIRECTIONS, GOAL_KINDS, GOAL_ORIGINS, GOAL_PHASES, GOAL_STATUSES, GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, GOAL_UNITS,
 } from "@lifeos/contracts";
 import { user } from "./auth.ts";
 
@@ -17,18 +17,24 @@ export const goals = pgTable("goals", {
   domainKey: text("domain_key", { enum: DOMAIN_KEYS }).notNull(),
   title: text("title").notNull(),
   description: text("description"),
-  unit: text("unit", { enum: GOAL_UNITS }).notNull(),
+  // LFS-225 (ADR-013): `numeric` has the four definition values below, `unmeasured` none of them (goals_kind_definition_check).
+  kind: text("kind", { enum: GOAL_KINDS }).default("numeric").notNull(),
+  unit: text("unit", { enum: GOAL_UNITS }),
   unitLabel: text("unit_label"),
   // Unconstrained numeric + CHECK rejects excess fractional precision instead of rounding on assignment.
   // Drizzle/pg retain strings: never use numeric mode:number or Number() for amounts.
-  baseline: numeric("baseline").notNull(),
-  target: numeric("target").notNull(),
-  direction: text("direction", { enum: GOAL_DIRECTIONS }).notNull(),
+  baseline: numeric("baseline"),
+  target: numeric("target"),
+  direction: text("direction", { enum: GOAL_DIRECTIONS }),
   calculationMode: text("calculation_mode", { enum: ["manual", "computed"] }).default("manual").notNull(),
   metricKey: text("metric_key"),
   status: text("status", { enum: GOAL_STATUSES }).default("active").notNull(),
   // LFS-218: existing and ordinary goals are the person's own; the server marks the chosen example `starter`.
   origin: text("origin", { enum: GOAL_ORIGINS }).default("manual").notNull(),
+  // LFS-225: the person's own status of an active goal and when it was last set; archive stays `status`.
+  phase: text("phase", { enum: GOAL_PHASES }).default("in_progress").notNull(),
+  phaseChangedAt: timestamp("phase_changed_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+  startsAt: timestamp("starts_at", { withTimezone: true, precision: 3 }),
   dueAt: timestamp("due_at", { withTimezone: true, precision: 3 }),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
@@ -38,6 +44,9 @@ export const goals = pgTable("goals", {
   check("goals_domain_key_check", sql`${table.domainKey} IN (${choices(DOMAIN_KEYS)})`),
   check("goals_title_check", sql`char_length(${table.title}) BETWEEN 1 AND ${GOAL_TITLE_MAX_LENGTH} AND btrim(${table.title}) <> ''`),
   check("goals_description_check", sql`${table.description} IS NULL OR (char_length(${table.description}) BETWEEN 1 AND ${GOAL_DESCRIPTION_MAX_LENGTH} AND btrim(${table.description}) <> '')`),
+  check("goals_kind_check", sql`${table.kind} IN (${choices(GOAL_KINDS)})`),
+  // The checks below of unit, values and direction pass on NULL; this one decides which kind may have NULL there.
+  check("goals_kind_definition_check", sql`(${table.kind} = 'numeric' AND ${table.unit} IS NOT NULL AND ${table.baseline} IS NOT NULL AND ${table.target} IS NOT NULL AND ${table.direction} IS NOT NULL) OR (${table.kind} = 'unmeasured' AND ${table.unit} IS NULL AND ${table.unitLabel} IS NULL AND ${table.baseline} IS NULL AND ${table.target} IS NULL AND ${table.direction} IS NULL)`),
   check("goals_unit_check", sql`${table.unit} IN (${choices(GOAL_UNITS)})`),
   check("goals_unit_label_check", sql`CASE WHEN ${table.unit} = 'custom' THEN ${table.unitLabel} IS NOT NULL AND char_length(${table.unitLabel}) BETWEEN 1 AND ${GOAL_UNIT_LABEL_MAX_LENGTH} AND btrim(${table.unitLabel}) <> '' ELSE ${table.unitLabel} IS NULL END`),
   check("goals_values_check", sql`${table.baseline} >= 0 AND ${table.target} >= 0 AND ${table.baseline} < power(10::numeric, ${GOAL_DECIMAL_INTEGER_DIGITS}) AND ${table.target} < power(10::numeric, ${GOAL_DECIMAL_INTEGER_DIGITS}) AND ${table.baseline} = trunc(${table.baseline}, ${GOAL_DECIMAL_SCALE}) AND ${table.target} = trunc(${table.target}, ${GOAL_DECIMAL_SCALE})`),
@@ -46,6 +55,8 @@ export const goals = pgTable("goals", {
   check("goals_manual_check", sql`${table.calculationMode} = 'manual' AND ${table.metricKey} IS NULL`),
   check("goals_status_check", sql`${table.status} IN (${choices(GOAL_STATUSES)})`),
   check("goals_origin_check", sql`${table.origin} IN (${choices(GOAL_ORIGINS)})`),
+  check("goals_phase_check", sql`${table.phase} IN (${choices(GOAL_PHASES)}) AND isfinite(${table.phaseChangedAt})`),
+  check("goals_starts_at_check", sql`${table.startsAt} IS NULL OR (isfinite(${table.startsAt}) AND EXTRACT(YEAR FROM ${table.startsAt} AT TIME ZONE 'UTC') BETWEEN 1 AND 9999 AND (${table.dueAt} IS NULL OR ${table.startsAt} <= ${table.dueAt}))`),
   check("goals_due_at_check", sql`${table.dueAt} IS NULL OR (isfinite(${table.dueAt}) AND EXTRACT(YEAR FROM ${table.dueAt} AT TIME ZONE 'UTC') BETWEEN 1 AND 9999)`),
   check("goals_timestamps_check", sql`isfinite(${table.createdAt}) AND isfinite(${table.updatedAt}) AND EXTRACT(YEAR FROM ${table.createdAt} AT TIME ZONE 'UTC') BETWEEN 1 AND 9999 AND EXTRACT(YEAR FROM ${table.updatedAt} AT TIME ZONE 'UTC') BETWEEN 1 AND 9999`),
   index("goals_user_domain_status_idx").on(table.userId, table.domainKey, table.status),

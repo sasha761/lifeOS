@@ -247,6 +247,15 @@ Decimal: 0 ≤ value < 10^22, максимум 8 дробных знаков, б
 равенство отклоняется. `Goal` возвращает user_id, серверные id/status и ISO UTC
 timestamps; current доступен отдельной measurement projection, progress — LFS-207.
 
+**LFS-225 ([ADR-013](../adr/013-goal-kinds-phases.md)).** `createGoalInputSchema` — объединение двух видов:
+числовая цель (как выше, `kind: "numeric"` по умолчанию) и `{ kind: "unmeasured", domain_key, title, description?,
+starts_at?, due_at? }` без единицы и чисел (лишнее поле — VALIDATION_ERROR). У любой цели optional `starts_at`;
+если заданы обе даты, `starts_at ≤ due_at`, иначе VALIDATION_ERROR (и при правке одной даты против сохранённой
+другой). `Goal` добавляет `kind`, `phase` (`planned | in_progress | paused | achieved`), `phase_changed_at`,
+`starts_at`; у цели без измерений `unit`, `unit_label`, `baseline`, `target`, `direction` — `null`. Определение
+у цели без измерений не правится — CONFLICT. Мастер, пример и «Новая цель» пользуются
+`createNumericGoalInputSchema`.
+
 Публичные endpoints целей в LFS-205 не создаются. `GoalsService` проверяет
 unknown input, Actor/ownership; ошибки VALIDATION_ERROR, NOT_FOUND,
 CONFLICT совместимы с HTTP mapper. Политики — [ADR-007](../adr/007-goals.md).
@@ -327,12 +336,12 @@ headers. Неподдерживаемый метод обрабатываетс�
 | `GET /api/v1/goals` | optional query limit/cursor/domain_key/status; `GoalsPage { items: GoalDetails[], nextCursor }` |
 | `POST /api/v1/goals` | CreateGoalInput; `GoalDetails` |
 | `GET /api/v1/goals/:goalId` | `GoalDetails { goal: Goal, progress: GoalProgress }` |
-| `PATCH /api/v1/goals/:goalId` | UpdateGoalInput (metadata и/или определение целиком, LFS-217) **либо** `{status:"archived"}`; `GoalDetails` |
+| `PATCH /api/v1/goals/:goalId` | UpdateGoalInput (metadata, в том числе `starts_at`, и/или определение целиком, LFS-217) **либо** `{status:"archived"}` **либо** `{phase}` (LFS-225: смена статуса, тот же статус — без изменений, архивная цель — 409); `GoalDetails` |
 | `DELETE /api/v1/goals/:goalId` (LFS-216) | без body; `GoalDeletion { id, user_id, deleted:true }` |
 | `POST /api/v1/starter-pack` (LFS-218) | без body; `StarterPackApplied { version:1, created_goals, created_measurements }`; пример уже в аккаунте — 409 |
 | `DELETE /api/v1/starter-pack` (LFS-218) | без body; `StarterPackRemoved { deleted_goals }` |
 | `GET /api/v1/goals/:goalId/measurements` | optional query limit/cursor; `MeasurementsPage { items: GoalMeasurement[], nextCursor, measurementCount }` |
-| `POST /api/v1/goals/:goalId/measurements` | CreateGoalMeasurementInput; `GoalMeasurement` |
+| `POST /api/v1/goals/:goalId/measurements` | CreateGoalMeasurementInput; `GoalMeasurement`; цель без измерений (LFS-225) и архивная — 409 |
 | `PATCH /api/v1/goal-measurements/:measurementId` | UpdateGoalMeasurementInput; `GoalMeasurement` |
 | `DELETE /api/v1/goal-measurements/:measurementId` | без body; `GoalMeasurementDeletion { id, goal_id, user_id, deleted:true }` |
 
@@ -375,9 +384,9 @@ metadata) остаётся для успешного повтора с тем ж
 
 | Поле | Смысл |
 |---|---|
-| `methodology` | version=1, mode=manual, formula increase/decrease, percentDecimals=2, rounding=half_up, clamped=true |
-| `unit`, `baseline`, `target`, `current` | исходные точные значения; current=null без фактов измерений |
-| `progressPercent`, `status`, `explanation` | число 0..100 / measured / null либо null / insufficient_data / «Недостаточно данных» |
+| `methodology` | version=1, mode=manual, formula increase/decrease, percentDecimals=2, rounding=half_up, clamped=true; null у цели без измерений |
+| `unit`, `baseline`, `target`, `current` | исходные точные значения; current=null без фактов измерений; у цели без измерений все null |
+| `progressPercent`, `status`, `explanation` | число 0..100 / measured / null либо null / insufficient_data / «Недостаточно данных»; у цели без измерений (LFS-225) null / unmeasured / слово статуса («В процессе», «Достигнута»…) |
 | `source` | manual — способ задания цели; само по себе не подтверждает current |
 | `provenance` | null без замера; иначе kind=self_report и source=manual (своё значение) или kind=example и source=example (LFS-218), measurementId, measuredAt, recordedAt, updatedAt |
 | `measurementCount` | все существующие замеры этой цели, не длина страницы и не количество событий |
@@ -437,7 +446,7 @@ no-store в общем envelope. Владелец берётся только и
 |---|---|
 | `domains` | ровно 6 сфер в порядке `DOMAIN_KEYS`: `{ key, activeCount, archivedCount, goals }`. `goals` — до 5 (`DASHBOARD_GOALS_PER_DOMAIN`) новейших **активных** целей сферы в формате `GoalDetails`, тот же DTO и расчёт, что `GET /api/v1/goals/:goalId`. Счётчики точные, даже если целей больше лимита. Процента сферы, Life Score или «уровня» нет |
 | `today.dueGoals` | до 8 (`DASHBOARD_DUE_GOALS_LIMIT`) активных целей со сроком, ближайшие первыми (включая просроченные), `GoalDetails` |
-| `activity` | до 10 (`DASHBOARD_ACTIVITY_LIMIT`) новейших событий `activity_events` владельца: `{ id, type, occurredAt, source, domainKey, goal: { id, title, status }, measurement }`. `measurement` — `{ value, unit, unitLabel }` только у `goal_measurement.*` (для удаления — значение до удаления), иначе null. Title — текущий из goals: audit не хранит названия (ADR-008); заметки и before/after цели не выдаются |
+| `activity` | до 10 (`DASHBOARD_ACTIVITY_LIMIT`) новейших событий `activity_events` владельца: `{ id, type, occurredAt, source, domainKey, goal: { id, title, status }, measurement }`. `measurement` — `{ value, unit, unitLabel }` только у `goal_measurement.*` (для удаления — значение до удаления), иначе null. Title — текущий из goals: audit не хранит названия (ADR-008); заметки и before/after цели не выдаются, кроме `phase` — `{ before, after }` у смены статуса (LFS-225), иначе null |
 | `examples` | LFS-218: `{ goals, measurements }` — цели с `origin = starter` (активные и архивные) и измерения с `source = example`; для баннера «Это пример». Два счётчика в том же snapshot, без запроса на цель |
 | `focus_domains` | LFS-219: сферы в фокусе из мастера, в порядке реестра; `[]`, если мастер не пройден. Порядок `domains` не меняется |
 
@@ -475,7 +484,9 @@ VALIDATION_ERROR. Курсора пока нет: панель и страниц
 | `id`, `type`, `occurredAt`, `source`, `domainKey`, `goal` | как в `activity` Dashboard; `goal.title` — текущее название (audit не хранит названия, ADR-008) |
 | `measurement` | `{ value, previousValue, unit, unitLabel }` у `goal_measurement.*`, иначе null; `previousValue` — значение до исправления, только у `goal_measurement.updated`. `unit` и `unitLabel` — null у измерения, записанного до последней смены единицы цели (LFS-217): журнал не хранит единицу измерения, поэтому значение показывается числом |
 | `changedFields` | у `goal.updated` — какие поля изменены (`GOAL_CHANGED_FIELDS`), иначе null. Сами название, описание и своя единица в журнале не хранятся |
+| `startsAt` | у `goal.updated` с изменённой датой начала (LFS-225) — `{ before, after }` (UTC instant или null), иначе null |
 | `dueAt` | у `goal.updated` с изменённым сроком — `{ before, after }` (UTC instant или null), иначе null |
+| `phase` | у смены статуса (`changed_fields: ["phase"]`, LFS-225) — `{ before, after }`, иначе null |
 | `definition` | у `goal.updated` с изменёнными `unit`/`baseline`/`target`/`direction` — `{ before, after }` с этими четырьмя полями (LFS-217), иначе null |
 
 Чтение — один owner-scoped SQL-запрос с join на `goals` по составному ключу

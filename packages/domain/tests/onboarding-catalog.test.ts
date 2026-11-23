@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createGoalInputSchema, DOMAIN_KEYS, ONBOARDING_CHOICE_LIMITS, ONBOARDING_OPTIONS, onboardingAnswersSchema } from "@lifeos/contracts";
+import { createGoalInputSchema, createNumericGoalInputSchema, DOMAIN_KEYS, ONBOARDING_CHOICE_LIMITS, ONBOARDING_OPTIONS, onboardingAnswersSchema } from "@lifeos/contracts";
 import type { DomainKey, OnboardingAnswers, OnboardingChoice } from "@lifeos/contracts";
 import {
   buildOnboardingGoals, emptyOnboardingAnswers, findOnboardingOption, LANGUAGE_LEVEL_UNIT_LABEL, newOnboardingChoice, ONBOARDING_QUESTIONS,
@@ -78,7 +78,7 @@ describe("question catalog v1 (LFS-219)", () => {
   });
 
   it("builds up to three Health goals, skips skipped and unchosen spheres, and adds the extra goals last", () => {
-    const extra = createGoalInputSchema.parse({ domain_key: "work", title: "Отклики", unit: "count", baseline: "0", target: "10", direction: "increase" });
+    const extra = createNumericGoalInputSchema.parse({ domain_key: "work", title: "Отклики", unit: "count", baseline: "0", target: "10", direction: "increase" });
     const proposals = buildOnboardingGoals(answers(["finance", "skills", "health"], {
       finance: { skipped: false, choices: [valid("finance", "invest")] },
       skills: { skipped: true, choices: [valid("skills", "chess")] },

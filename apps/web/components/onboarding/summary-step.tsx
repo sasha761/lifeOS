@@ -4,8 +4,8 @@ import { useState } from "react";
 import type { FormEvent, Ref } from "react";
 import { Check } from "lucide-react";
 import { cn } from "cn";
-import { createGoalInputSchema, DOMAIN_KEYS } from "@lifeos/contracts";
-import type { CreateGoalInput, DomainKey, OnboardingAnswers, OnboardingChoice, UserPreferences } from "@lifeos/contracts";
+import { createNumericGoalInputSchema, DOMAIN_KEYS } from "@lifeos/contracts";
+import type { CreateNumericGoalInput, DomainKey, OnboardingAnswers, OnboardingChoice, UserPreferences } from "@lifeos/contracts";
 import { buildOnboardingGoals } from "@lifeos/domain/onboarding";
 import type { OnboardingProposal } from "@lifeos/domain/onboarding";
 import { plural } from "../../lib/dashboard-presentation.ts";
@@ -149,7 +149,7 @@ export function EditChoiceDialog({ answers, domainKey, choice, preferences, time
  * «+ Добавить цель в другой сфере»: the fields of «Новая цель» (mockup 10) for a sphere that was not chosen. The goal is
  * added to the summary list and created with the others by «Создать N целей» (owner decision 2026-11-20).
  */
-export function ExtraGoalDialog({ domains, preferences, close, add }: { domains: { key: DomainKey; label: string }[]; preferences: UserPreferences; close(): void; add(goal: CreateGoalInput): void }) {
+export function ExtraGoalDialog({ domains, preferences, close, add }: { domains: { key: DomainKey; label: string }[]; preferences: UserPreferences; close(): void; add(goal: CreateNumericGoalInput): void }) {
   const [errors, setErrors] = useState<GoalFieldErrors>({});
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -157,7 +157,7 @@ export function ExtraGoalDialog({ domains, preferences, close, add }: { domains:
     const result = goalFormInput(new FormData(form), preferences.timezone);
     if (result.errors) { setErrors(result.errors); focusFirstInvalid(form); return; }
     // goalFormInput without `editing` validates by the creation contract; the parse narrows the type.
-    const goal = createGoalInputSchema.safeParse(result.data);
+    const goal = createNumericGoalInputSchema.safeParse(result.data);
     if (goal.success) add(goal.data);
   }
   return <Modal title="Цель в другой сфере" close={close}>

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { DOMAIN_KEYS, domainKeySchema } from "./domains.ts";
 import type { DomainKey } from "./domains.ts";
-import { createGoalInputSchema, GOAL_UNIT_LABEL_MAX_LENGTH, goalDirectionSchema, goalInstantSchema, goalUnitSchema } from "./goals.ts";
+import { createNumericGoalInputSchema, GOAL_UNIT_LABEL_MAX_LENGTH, goalDirectionSchema, goalInstantSchema, goalUnitSchema } from "./goals.ts";
 
 /**
  * Onboarding wizard (LFS-219, ADR-012): spheres → one question per chosen sphere in registry order → summary. The
@@ -90,7 +90,7 @@ export const onboardingAnswersSchema = z.strictObject({
   step: onboardingStepSchema,
   domains: z.array(domainKeySchema).max(DOMAIN_KEYS.length),
   spheres: z.partialRecord(domainKeySchema, onboardingSphereAnswerSchema),
-  extra: z.array(createGoalInputSchema).max(ONBOARDING_EXTRA_GOALS_MAX),
+  extra: z.array(createNumericGoalInputSchema).max(ONBOARDING_EXTRA_GOALS_MAX),
   unchecked: z.array(onboardingGoalKeySchema).max(ONBOARDING_GOALS_MAX),
 }).superRefine((answers, context) => {
   // Registry order without repeats: the order of questions and of «сферы в фокусе» on the dashboard.

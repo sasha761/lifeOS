@@ -30,39 +30,44 @@ function FormulaPreview({ baseline, target }: { baseline: string; target: string
 /**
  * Mockup 10: one row Единица / Старт / Цель / Срок; the deadline is an optional date (end of that day in the account's
  * zone). Editing shows the same definition fields while the goal has no measurements (LFS-217); after the first
- * measurement only the title, description and deadline change.
+ * measurement only the title, description and dates change. An edit has its own row «Дата начала · Срок» (LFS-225: the
+ * start is the beginning of that day); a goal without measurements has no definition at all.
  */
 export function GoalFields({ initial, definitionEditable = !initial, replacesExample = false, domainKey, domains, preferences, errors }: { initial?: Goal; definitionEditable?: boolean; replacesExample?: boolean; domainKey?: DomainKey; domains: DomainChoice[]; preferences: UserPreferences; errors: GoalFieldErrors }) {
   const [unit, setUnit] = useState<string>(initial?.unit ?? "NOK");
   const [baseline, setBaseline] = useState(initial?.baseline ?? "0");
   const [target, setTarget] = useState(initial?.target ?? "");
+  const numeric = initial?.kind !== "unmeasured";
   const [describing, setDescribing] = useState(false);
   const hint = <p id="goal-fields-hint" className="-mt-1 text-xs leading-5 text-muted-foreground">
-    {definitionEditable ? "NOK и $ — до 2 знаков после запятой, шт. и мин — целые. " : ""}Срок действует до конца выбранного дня ({preferences.timezone}).
+    {definitionEditable ? "NOK и $ — до 2 знаков после запятой, шт. и мин — целые. " : ""}{initial ? "Дата начала — с начала выбранного дня, срок — до его конца" : "Срок действует до конца выбранного дня"} ({preferences.timezone}).
     {replacesExample && " Если изменить старт, цель или единицу, примерное измерение удалится: оно относится к прежним значениям."}</p>;
   const deadline = <DateField name="due_at" label="Срок · необязательно" describedBy="goal-fields-hint" initial={initial?.due_at} timeZone={preferences.timezone} errors={errors} />;
+  const dates = <div className="grid gap-2.5 sm:max-w-md sm:grid-cols-2">
+    <DateField name="starts_at" label="Дата начала · необязательно" describedBy="goal-fields-hint" initial={initial?.starts_at} timeZone={preferences.timezone} errors={errors} clearLabel="Убрать дату начала" />
+    {deadline}</div>;
   const definition = <>
     <SegmentedChoice name="direction" legend="Как считать прогресс" options={DIRECTIONS} defaultValue={initial?.direction ?? "increase"} error={errors.direction} />
     {/* The deadline column is wider than on mockup 10: «Срок · необязательно» and the date mask stay on one line. */}
-    <div className="grid grid-cols-2 items-start gap-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.45fr)]">
+    <div className={`grid grid-cols-2 items-start gap-2.5 ${initial ? "sm:grid-cols-3" : "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.45fr)]"}`}>
       <div className="grid min-w-0 gap-1.5"><label htmlFor="unit" className="field-label">Единица</label>
         <select id="unit" name="unit" value={unit} onChange={(event) => setUnit(event.target.value)} className={inputClass}>{GOAL_UNITS.map((value) => <option key={value} value={value}>{goalUnitOptionLabel(value)}</option>)}</select></div>
       <Field id="baseline" name="baseline" type="text" inputMode="decimal" label="Старт" labelClassName="field-label" defaultValue={initial?.baseline ?? "0"} required error={errors.baseline} onChange={(event) => setBaseline(event.target.value)} />
-      <Field id="target" name="target" type="text" inputMode="decimal" label="Цель" labelClassName="field-label" defaultValue={initial?.target} required error={errors.target} onChange={(event) => setTarget(event.target.value)} />
-      {deadline}
+      <Field id="target" name="target" type="text" inputMode="decimal" label="Цель" labelClassName="field-label" defaultValue={initial?.target ?? undefined} required error={errors.target} onChange={(event) => setTarget(event.target.value)} />
+      {!initial && deadline}
     </div>
     {unit === "custom" && <Field id="unit_label" name="unit_label" label="Название своей единицы" labelClassName="field-label" required maxLength={40} defaultValue={initial?.unit_label ?? undefined} error={errors.unit_label} placeholder="км" />}
   </>;
   if (initial) {
     const title = <Field id="title" name="title" label="Название" labelClassName="field-label" required maxLength={200} defaultValue={initial.title} error={errors.title} />;
     const description = <TextArea name="description" label="Описание (необязательно)" initial={initial.description} maxLength={4000} errors={errors} rows={2} />;
-    // Without measurements the order is that of «Новая цель» (mockup 10): definition, hint, description, preview.
-    if (definitionEditable) return <>{title}{definition}{hint}{description}<FormulaPreview baseline={baseline} target={target} /></>;
+    // Without measurements the order is that of «Новая цель» (mockup 10): definition, dates, hint, description, preview.
+    if (definitionEditable && numeric) return <>{title}{definition}{dates}{hint}{description}<FormulaPreview baseline={baseline} target={target} /></>;
     return <>
       {title}{description}
-      <div className="grid gap-2.5 sm:max-w-56">{deadline}</div>
+      {dates}
       {hint}
-      <p className="text-xs leading-5 text-muted-foreground">Старт и цель фиксируются после первого измерения, чтобы история измерений не меняла смысл.</p>
+      {numeric && <p className="text-xs leading-5 text-muted-foreground">Старт и цель фиксируются после первого измерения, чтобы история измерений не меняла смысл.</p>}
     </>;
   }
   const describe = describing || !!errors.description;
