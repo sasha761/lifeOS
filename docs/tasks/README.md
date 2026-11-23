@@ -11,8 +11,8 @@
 
 | | |
 |---|---|
-| Этап | 2 — LifeOS Core. Основная очередь закрыта; по замечаниям владельца после проверки страниц добавлены доработки LFS-222–228 ([STAGE-02-FEEDBACK](STAGE-02-FEEDBACK.md)) |
-| Следующая задача по очереди | **LFS-223** — макеты доработок, после проверки LFS-222 владельцем. Ветки идут цепочкой: `lfs-222-remove-rhythm` от `lfs-221-open-signup`, та от `lfs-220-first-login-popup`, та от `lfs-219-onboarding-wizard`; код LFS-219 ещё не влит в `main` (PR #7 влит в `lfs-218-starter-pack`) |
+| Этап | 2 — LifeOS Core. Основная очередь закрыта; по замечаниям владельца после проверки страниц добавлены доработки LFS-222–229 ([STAGE-02-FEEDBACK](STAGE-02-FEEDBACK.md)) |
+| Следующая задача по очереди | **LFS-224** — список целей в новом виде, по макетам LFS-223 (`32`–`45`). Ветки идут цепочкой: `lfs-223-rework-mockups` от `lfs-222-remove-rhythm`, та от `lfs-221-open-signup`, та от `lfs-220-first-login-popup`, та от `lfs-219-onboarding-wizard`; код LFS-219 ещё не влит в `main` (PR #7 влит в `lfs-218-starter-pack`) |
 | Вне очереди | LFS-214, LFS-215: риски LFS-213, Stage 3 не блокируют, место назначает владелец |
 | Миграции | Последняя в репозитории — `0009_drop_checkin_rhythm` (LFS-222: удаляет `user.checkin_rhythm`). Основная база владельца мигрирована до `0009` по его решению (отчёт LFS-222); код веток до LFS-222 на ней не запускается |
 | Приёмка | Stage 1 — [STAGE-01-ACCEPTANCE](STAGE-01-ACCEPTANCE.md); Stage 2 — [STAGE-02-ACCEPTANCE](STAGE-02-ACCEPTANCE.md). Hosted CI проходил на PR #2 (LFS-212), #3 (LFS-209), #4 (LFS-213) |
@@ -63,15 +63,17 @@
 | 10f | [LFS-220](LFS-220.md) | First-login popup and settings entry | ✅ 2026-11-21 |
 | 10g | [LFS-221](LFS-221.md) | Open registration (`AUTH_SIGNUP_MODE`) | ✅ 2026-11-21 |
 | 10h | [LFS-222](LFS-222.md) | Remove check-in rhythm | ✅ 2026-11-22 |
-| 10i | [LFS-223](LFS-223.md) | Mockups for Stage 2 rework | ▶ |
-| 10j | [LFS-224](LFS-224.md) | Goal card: whole-card click, hover, delete | |
-| 10k | [LFS-225](LFS-225.md) | Goals without measurements, start date | |
+| 10i | [LFS-223](LFS-223.md) | Mockups for Stage 2 rework | ✅ 2026-11-23 |
+| 10j | [LFS-224](LFS-224.md) | Goals list: row, whole-card click, hover, delete | ▶ |
+| 10k | [LFS-225](LFS-225.md) | Goal statuses, goals without measurements, start date | |
 | 10l | [LFS-226](LFS-226.md) | Contribution measurements, dialog per goal kind | |
-| 10m | [LFS-227](LFS-227.md) | Onboarding catalog v2 | |
-| 10n | [LFS-228](LFS-228.md) | New goal as a question wizard | |
+| 10m | [LFS-229](LFS-229.md) | Goals board, view switch, drag and drop | |
+| 10n | [LFS-227](LFS-227.md) | Onboarding catalog v2 | |
+| 10o | [LFS-228](LFS-228.md) | New goal as a question wizard | |
 
 Описание первого входа и макеты для LFS-218–220 — [ONBOARDING](../reference/ui/ONBOARDING.md).
-Замечания владельца, его решения и пожелания к будущим модулям для LFS-222–228 — [STAGE-02-FEEDBACK](STAGE-02-FEEDBACK.md).
+Замечания владельца, его решения и пожелания к будущим модулям для LFS-222–229 — [STAGE-02-FEEDBACK](STAGE-02-FEEDBACK.md).
+Макеты доработок и решения владельца при их одобрении — [LFS-223](LFS-223.md).
 
 ### Вне очереди
 

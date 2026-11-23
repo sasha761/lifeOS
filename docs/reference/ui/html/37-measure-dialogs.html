@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ru"><head>
+<!-- Эталон вёрстки LifeOS (Design System v2), LFS-223. Данные на макете примерные, в код их не переносить. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"><meta charset="utf-8">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#16131D}
+a{color:#9D90F8;text-decoration:none}
+.app{position:relative;background:#16131D;color:#F2EDF8;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden;font-size:13px;line-height:1.45}
+.top{height:56px;padding:0 28px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.logo{width:26px;height:26px;border-radius:8px;background:#8B7CF6;color:#16131D;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.brand{font-size:14px;font-weight:700}
+.crumb{font-size:13px;color:#B4A8C8}
+.nav{margin-left:auto;display:flex;gap:8px;align-items:center}
+.pill{padding:6px 12px;border-radius:999px;border:1px solid #372F47;color:#B4A8C8;font-size:13px;font-weight:500;white-space:nowrap}
+.pill.on{border-color:#4A4060;background:#282236;color:#F2EDF8;font-weight:600}
+.ib{width:32px;height:32px;border-radius:999px;border:1px solid #372F47;color:#B4A8C8;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.ib.on{border-color:#4A4060;background:#282236;color:#F2EDF8}
+.wrap{width:1180px;margin:0 auto;padding:16px 0 32px;display:flex;flex-direction:column;gap:16px}
+.h1{margin:0;font-size:30px;line-height:36px;font-weight:700;letter-spacing:-0.02em}
+.h2{margin:0;font-size:16px;line-height:22px;font-weight:700}
+.h3{margin:0;font-size:14px;font-weight:700}
+.sub{font-size:14px;color:#B4A8C8}
+.sub b{color:#F2EDF8}
+.mut{color:#B4A8C8}.t3{color:#857A99}.fg{color:#F2EDF8}
+.sm{font-size:12px}.xs{font-size:11px}.b{font-weight:600}.bb{font-weight:700}
+.num{font-variant-numeric:tabular-nums}
+.big{font-size:30px;line-height:34px;font-weight:800;font-variant-numeric:tabular-nums}
+.card{background:#1F1A2A;border:1px solid #372F47;border-radius:16px;padding:18px 20px}
+.card.tight{padding:12px 14px;border-radius:12px}
+.s2{background:#282236}.s3{background:#322B42}
+.row{display:flex;align-items:center;gap:10px}
+.col{display:flex;flex-direction:column;gap:10px}
+.gap4{gap:4px}.gap6{gap:6px}.gap14{gap:14px}.gap18{gap:18px}
+.grow{flex:1 1 0;min-width:0}
+.ml{margin-left:auto}
+.wrapx{flex-wrap:wrap}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.seg{display:inline-flex;padding:3px;gap:2px;border-radius:999px;background:#16131D;border:1px solid #372F47;flex-shrink:0}
+.seg span{padding:4px 11px;border-radius:999px;color:#B4A8C8;font-size:12px;font-weight:500;white-space:nowrap}
+.seg .on{background:#322B42;color:#F2EDF8;font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;border:1px solid #4A4060;background:#282236;color:#F2EDF8;font-size:13px;font-weight:600;white-space:nowrap}
+.btn.p{background:#8B7CF6;border-color:#8B7CF6;color:#16131D}
+.btn.g{background:transparent;border-color:#372F47;color:#B4A8C8}
+.btn.d{background:transparent;border-color:rgba(229,96,94,.55);color:#F09896}
+.btn.s{padding:4px 10px;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#322B42;color:#CFC5DD;white-space:nowrap}
+.c-v{background:rgba(139,124,246,.18);color:#C3B9FB}.c-g{background:rgba(79,191,131,.16);color:#8FDDB2}.c-b{background:rgba(91,141,239,.18);color:#A9C3F6}.c-a{background:rgba(232,176,74,.18);color:#F0CD8A}.c-o{background:rgba(238,138,69,.2);color:#F5B48A}.c-r{background:rgba(229,96,94,.18);color:#F09896}.c-c{background:rgba(86,194,230,.16);color:#9DDCF1}.c-x{background:transparent;border:1px solid #4A4060;color:#B4A8C8}
+.src{font-size:11px;color:#B4A8C8}
+.src:before{content:"◉ ";color:#857A99}
+.bar{height:6px;border-radius:999px;background:#322B42;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:#8B7CF6}
+.dom{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.dom.sm{width:22px;height:22px;border-radius:7px;font-size:11px}
+.d-lang{background:rgba(139,124,246,.2);color:#B5AAFA}.d-fin{background:rgba(79,191,131,.18);color:#8FDDB2}.d-work{background:rgba(91,141,239,.2);color:#A9C3F6}.d-proj{background:rgba(232,176,74,.2);color:#F0CD8A}.d-skill{background:rgba(86,194,230,.18);color:#9DDCF1}.d-health{background:rgba(229,96,94,.2);color:#F09896}
+.inp{min-height:38px;border-radius:10px;border:1px solid #372F47;background:#16131D;padding:9px 12px;display:flex;align-items:center;color:#F2EDF8;font-size:13px}
+.inp.ph{color:#857A99}
+.inp.focus{border-color:#9D90F8;box-shadow:0 0 0 3px rgba(157,144,248,.25)}
+.lbl{font-size:12px;font-weight:600;color:#B4A8C8}
+.kbd{padding:1px 6px;border-radius:6px;border:1px solid #4A4060;background:#282236;font-size:11px;color:#CFC5DD;font-family:ui-monospace,monospace}
+.hr{height:1px;background:#372F47;flex-shrink:0}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.chk{width:18px;height:18px;border-radius:50%;border:1.5px solid #4A4060;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#16131D}
+.chk.done{background:#4FBF83;border-color:#4FBF83}
+.chk.half{background:linear-gradient(90deg,#E8B04A 50%,transparent 50%);border-color:#E8B04A}
+.sel{border-color:#8B7CF6!important;background:#241E33!important}
+.dash{border:1.5px dashed #4A4060;border-radius:14px;background:transparent}
+.note{padding:10px 12px;border-radius:10px;background:#282236;border:1px solid #372F47;font-size:12px;color:#CFC5DD}
+.warn{padding:10px 12px;border-radius:10px;background:rgba(232,176,74,.10);border:1px solid rgba(232,176,74,.35);font-size:12px;color:#F0CD8A}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:11px;font-weight:600;color:#B4A8C8;padding:8px 10px;border-bottom:1px solid #372F47}
+.tbl td{padding:10px;border-bottom:1px solid #2C2539;vertical-align:middle}
+.bubble{padding:10px 14px;border-radius:14px;max-width:560px;font-size:13px;line-height:1.5}
+.me{align-self:flex-end;background:#322B42;border-bottom-right-radius:4px}
+.bot{align-self:flex-start;background:#1F1A2A;border:1px solid #372F47;border-bottom-left-radius:4px}
+.cap{font-size:11px;font-weight:600;color:#B4A8C8;letter-spacing:.02em}
+.ovl{position:absolute;inset:0;background:rgba(10,8,14,.66)}
+.modal{position:absolute;left:50%;transform:translateX(-50%);background:#1F1A2A;border:1px solid #372F47;border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,.45);padding:24px 26px;display:flex;flex-direction:column;gap:16px}
+.opt{display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:14px;border:1px solid #372F47;background:#1F1A2A;font-size:14px;font-weight:600;color:#F2EDF8}
+.opt .d{font-size:12px;font-weight:400;color:#B4A8C8}
+.radio{width:18px;height:18px;border-radius:50%;border:1.5px solid #4A4060;flex-shrink:0}
+.radio.on{border-color:#8B7CF6;background:#8B7CF6;box-shadow:inset 0 0 0 4px #241E33}
+.box{width:18px;height:18px;border-radius:6px;border:1.5px solid #4A4060;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#16131D}
+.box.on{background:#8B7CF6;border-color:#8B7CF6}
+.steps{display:flex;gap:6px}
+.st{flex:1 1 0;display:flex;flex-direction:column;gap:6px;font-size:11px;color:#857A99;white-space:nowrap}
+.st i{display:block;height:4px;border-radius:999px;background:#322B42}
+.st.done{color:#B4A8C8}.st.done i{background:#6F63C9}
+.st.cur{color:#F2EDF8;font-weight:600}.st.cur i{background:#8B7CF6}
+.wtop{height:56px;padding:0 28px;display:flex;align-items:center;gap:12px;flex-shrink:0;border-bottom:1px solid #2C2539}
+.wfoot{position:absolute;left:0;right:0;bottom:0;height:72px;border-top:1px solid #372F47;background:#1A1623;display:flex;align-items:center;gap:10px;padding:0 130px}
+.q{font-size:26px;line-height:32px;font-weight:700;letter-spacing:-0.01em;margin:0}
+.ta{min-height:64px;align-items:flex-start}
+.pv{border-radius:14px;border:1px solid #372F47;background:#16131D;padding:14px;display:flex;flex-direction:column;gap:8px}
+.kv{display:flex;font-size:12px;gap:8px}.kv span:first-child{color:#857A99;width:96px;flex-shrink:0}
+.banner{padding:12px 16px;border-radius:14px;background:rgba(139,124,246,.12);border:1px solid rgba(139,124,246,.4);display:flex;align-items:center;gap:12px}
+.gap10{gap:10px}
+/* LFS-223: элементы макетов 32–41. Только цвета палитры выше. */
+.gc{cursor:pointer}
+.gc.hov{border-color:#4A4060;background:#282236}
+.gc.foc{box-shadow:0 0 0 2px #16131D,0 0 0 4px #9D90F8}
+.del{width:32px;height:32px;border-radius:999px;border:1px solid transparent;color:#B4A8C8;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.del svg{width:15px;height:15px}
+.del.hot{color:#F09896;border-color:rgba(229,96,94,.55);background:rgba(229,96,94,.18)}
+.ic{width:28px;height:28px;border-radius:999px;border:1px solid #372F47;color:#B4A8C8;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.ic svg{width:13px;height:13px}
+.state{font-size:26px;line-height:32px;font-weight:800;letter-spacing:-0.01em}
+.dlg{background:#1F1A2A;border:1px solid #372F47;border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,.45);padding:22px 24px;display:flex;flex-direction:column;gap:14px}
+.q2{font-size:20px;line-height:26px;font-weight:700;margin:0}
+.ta2{min-height:76px;align-items:flex-start;line-height:1.55}
+.opt.c{padding:10px 14px;font-size:13px}
+.hint{font-size:11px;color:#857A99}
+.sheet-head{padding:22px 44px 0}
+.w1352{width:1352px;margin:0 auto}
+.kcol{background:#1B1725;border:1px solid #2F283D;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.kc{background:#1F1A2A;border:1px solid #372F47;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.kc.hov{border-color:#4A4060;background:#282236}
+.bar.thin{height:4px}
+</style>
+<style>body{margin:0;font-family:Inter,sans-serif}</style></head><body data-done="1"><div id="root">
+
+<div class="app" style="width: 1440px; height: 1240px;">
+<div class="sheet-head row"><span class="logo">L</span><span class="h2">Окно измерения по виду цели</span><span class="chip c-v">1440</span><span class="ml sm mut">Открывается кнопкой в панели цели: «+ Внести платёж», «+ Пополнить», «+ Новое значение»; исправление — ✎ в списке.</span></div>
+<div class="row" style="width:1160px;margin:0 auto;padding-top:22px;gap:40px;flex-wrap:wrap;align-items:flex-start">
+
+  <div class="col gap6" style="width:560px"><div class="row gap6"><span class="cap">ДОЛГ</span><span class="xs t3">взносы · «уменьшить»</span></div>
+  <section class="dlg">
+    <div class="row"><span class="h2">Внести платёж</span><span class="ml ib">✕</span></div>
+    <div class="note row" style="gap:10px"><span class="dom sm d-fin">Ф</span><span class="grow"><b class="fg">Закрыть долг</b> · выплачено 800 из 2 000 $ · осталось 1 200 $</span></div>
+    <div class="col gap6"><span class="lbl">Сумма платежа, $</span><div class="inp focus num">500</div></div>
+    <div class="col gap6"><span class="lbl">Дата и время платежа</span><div class="inp num">22.11.2026, 10:30</div><span class="xs mut">Часовой пояс: Europe/Oslo.</span></div>
+    <div class="col gap6"><span class="lbl">Заметка <span class="t3" style="font-weight:400">· необязательно</span></span><div class="inp ta">Фриланс, ноябрь</div></div>
+    <div class="note">После платежа: выплачено <b class="fg">1 300 из 2 000 $</b> · осталось 700 $ · 65%. Источник: ручной ввод, самоотчёт. Платёж можно записать задним числом.</div>
+    <div class="row"><a href="#" class="ml btn g">Отмена</a><a href="#" class="btn p">Внести платёж</a></div>
+  </section></div>
+
+  <div class="col gap6" style="width:560px"><div class="row gap6"><span class="cap">НАКОПЛЕНИЯ, ПОКУПКА, ИНВЕСТИЦИИ</span><span class="xs t3">взносы · «увеличить»</span></div>
+  <section class="dlg">
+    <div class="row"><span class="h2">Пополнить</span><span class="ml ib">✕</span></div>
+    <div class="note row" style="gap:10px"><span class="dom sm d-fin">Ф</span><span class="grow"><b class="fg">Подушка безопасности</b> · накоплено 3 000 из 10 000 NOK</span></div>
+    <div class="col gap6"><span class="lbl">Сумма пополнения, NOK</span><div class="inp focus num">1 500</div></div>
+    <div class="col gap6"><span class="lbl">Дата и время пополнения</span><div class="inp num">22.11.2026, 09:00</div><span class="xs mut">Часовой пояс: Europe/Oslo.</span></div>
+    <div class="col gap6"><span class="lbl">Заметка <span class="t3" style="font-weight:400">· необязательно</span></span><div class="inp ta">Зарплата за ноябрь</div></div>
+    <div class="note">После пополнения: накоплено <b class="fg">4 500 из 10 000 NOK</b> · 45%. Источник: ручной ввод, самоотчёт.</div>
+    <div class="row"><a href="#" class="ml btn g">Отмена</a><a href="#" class="btn p">Пополнить</a></div>
+  </section></div>
+
+  <div class="col gap6" style="width:560px"><div class="row gap6"><span class="cap">ВЕС, РАСХОДЫ ЗА МЕСЯЦ, УРОВЕНЬ</span><span class="xs t3">текущее значение</span></div>
+  <section class="dlg">
+    <div class="row"><span class="h2">Новое значение</span><span class="ml ib">✕</span></div>
+    <div class="note row" style="gap:10px"><span class="dom sm d-health">З</span><span class="grow"><b class="fg">Вес до 80 кг</b> · сейчас 85 кг · цель 80 кг</span></div>
+    <div class="col gap6"><span class="lbl">Вес сейчас, кг</span><div class="inp focus num">84,2</div></div>
+    <div class="col gap6"><span class="lbl">Дата и время измерения</span><div class="inp num">22.11.2026, 07:40</div><span class="xs mut">Часовой пояс: Europe/Oslo.</span></div>
+    <div class="col gap6"><span class="lbl">Заметка <span class="t3" style="font-weight:400">· необязательно</span></span><div class="inp ta ph">Например, утром натощак</div></div>
+    <div class="note">Новое значение заменит текущее: сейчас <b class="fg">84,2 кг</b> · цель 80 кг · 47,5%. Прежние значения останутся в списке.</div>
+    <div class="row"><a href="#" class="ml btn g">Отмена</a><a href="#" class="btn p">Сохранить</a></div>
+  </section></div>
+
+  <div class="col gap6" style="width:560px"><div class="row gap6"><span class="cap">ИСПРАВЛЕНИЕ ВЗНОСА</span><span class="xs t3">то же окно, открывается ✎ у строки платежа</span></div>
+  <section class="dlg">
+    <div class="row"><span class="h2">Исправить платёж</span><span class="ml ib">✕</span></div>
+    <div class="note row" style="gap:10px"><span class="dom sm d-fin">Ф</span><span class="grow"><b class="fg">Закрыть долг</b> · платёж от 20.11.2026 на 500 $</span></div>
+    <div class="col gap6"><span class="lbl">Сумма платежа, $</span><div class="inp focus num">550</div></div>
+    <div class="col gap6"><span class="lbl">Дата и время платежа</span><div class="inp num">20.11.2026, 11:44</div><span class="xs mut">Часовой пояс: Europe/Oslo.</span></div>
+    <div class="col gap6"><span class="lbl">Заметка <span class="t3" style="font-weight:400">· необязательно</span></span><div class="inp ta">Фриланс, ноябрь</div></div>
+    <div class="note">Было 500 $, станет 550 $: выплачено <b class="fg">850 из 2 000 $</b> · осталось 1 150 $ · 42,5%. Правка попадёт в журнал.</div>
+    <div class="row"><a href="#" class="ml btn g">Отмена</a><a href="#" class="btn p">Сохранить</a></div>
+  </section></div>
+
+</div>
+</div>
+</div></body></html>
