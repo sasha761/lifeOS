@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ACTIVITY_EVENT_TYPES, activitySourceSchema } from "./activity-events.ts";
 import { DOMAIN_KEYS, domainKeySchema } from "./domains.ts";
 import {
-  GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, goalDecimalSchema, goalIdSchema, goalInstantSchema, goalStatusSchema, goalUnitSchema,
+  GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, goalDecimalSchema, goalIdSchema, goalInstantSchema, goalPhaseSchema, goalStatusSchema, goalUnitSchema,
 } from "./goals.ts";
 import { goalDetailsSchema } from "./goals-api.ts";
 import { focusDomainsSchema, onboardingStatusSchema } from "./onboarding.ts";
@@ -44,7 +44,10 @@ export const dashboardActivitySchema = z.strictObject({
   }).refine((measurement) => measurement.unit !== null || measurement.unitLabel === null).nullable(),
   /** As in the journal (LFS-218): a fact of the example, labelled «Пример». */
   example: z.boolean(),
-}).refine((item) => item.type.startsWith("goal_measurement.") === (item.measurement !== null));
+  /** A phase change (LFS-225) is named by its new phase; older clients and fixtures without the field read as none. */
+  phase: z.strictObject({ before: goalPhaseSchema, after: goalPhaseSchema }).nullable().default(null),
+}).refine((item) => item.type.startsWith("goal_measurement.") === (item.measurement !== null))
+  .refine((item) => item.phase === null || item.type === "goal.updated");
 export type DashboardActivity = z.infer<typeof dashboardActivitySchema>;
 
 export const dashboardSchema = z.strictObject({

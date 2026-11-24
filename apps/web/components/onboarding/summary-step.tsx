@@ -4,21 +4,21 @@ import { useState } from "react";
 import type { FormEvent, Ref } from "react";
 import { Check } from "lucide-react";
 import { cn } from "cn";
-import { createGoalInputSchema, DOMAIN_KEYS } from "@lifeos/contracts";
-import type { CreateGoalInput, DomainKey, OnboardingAnswers, OnboardingChoice, UserPreferences } from "@lifeos/contracts";
+import { createNumericGoalInputSchema, DOMAIN_KEYS } from "@lifeos/contracts";
+import type { CreateNumericGoalInput, DomainKey, OnboardingAnswers, OnboardingChoice, UserPreferences } from "@lifeos/contracts";
 import { buildOnboardingGoals } from "@lifeos/domain/onboarding";
 import type { OnboardingProposal } from "@lifeos/domain/onboarding";
 import { plural } from "../../lib/dashboard-presentation.ts";
 import { goalFormInput } from "../../lib/goal-form-input.ts";
 import type { GoalFieldErrors } from "../../lib/goal-form-input.ts";
-import { focusLabel, GOAL_FORMS, issueMessage, proposalLine, rhythmLabel } from "../../lib/onboarding-presentation.ts";
+import { GOAL_FORMS, issueMessage, proposalLine } from "../../lib/onboarding-presentation.ts";
 import { focusFirstInvalid } from "../auth/form-parts.tsx";
 import { GoalFields } from "../goals/goal-form.tsx";
 import { Modal } from "../goals/shared.tsx";
 import { DomainIcon } from "../ui/domain-icon.tsx";
 import { StatusChip } from "../ui/status-chip.tsx";
 import { ChoiceEditor } from "./choice-editor.tsx";
-import { Cap, KeyValue, TickBox } from "./controls.tsx";
+import { Cap, TickBox } from "./controls.tsx";
 import type { SphereLabels } from "./preview-panel.tsx";
 import { headingClass } from "./steps.tsx";
 
@@ -96,23 +96,17 @@ function TickMark() {
   return <Check aria-hidden="true" strokeWidth={3} className="pointer-events-none absolute inset-0 m-auto hidden size-3 text-primary-foreground peer-checked:block" />;
 }
 
-/** Right panel of the summary (mockup 27): the rhythm and what happens after «Создать». */
-export function SummaryAside({ answers, timeZone, selected }: { answers: OnboardingAnswers; timeZone: string; selected: number }) {
+/**
+ * Right panel of the summary (mockup 27 without its «Ритм» card, removed by LFS-222): what happens after «Создать». The
+ * card's «Главная» line moved into the second step.
+ */
+export function SummaryAside({ answers, selected }: { answers: OnboardingAnswers; selected: number }) {
   const steps = [
     selected > 0 ? `Создадим ${selected} ${plural(selected, GOAL_FORMS)}. Каждая попадёт в журнал действий как обычная.` : "Отметьте цели, которые нужно создать.",
-    "Откроется Кабинет с вашими сферами.",
+    answers.domains.length > 0 ? "Откроется Кабинет, выбранные сферы будут первыми." : "Откроется Кабинет с вашими сферами.",
     "Первое измерение добавите, когда будете готовы. Прогресс считается только по вашим данным.",
   ];
-  return <aside aria-label="Ритм и что будет дальше" className="grid min-w-0 content-start gap-3.5">
-    <div className="grid gap-2.5 rounded-2xl border bg-card px-5 py-[18px]">
-      <Cap>Ритм</Cap>
-      <dl className="grid gap-2.5">
-        <KeyValue label="Отмечать">{rhythmLabel(answers.rhythm)}</KeyValue>
-        <KeyValue label="Напоминания">{answers.rhythm === "self" ? "не нужны" : "в Telegram, когда подключите"}</KeyValue>
-        <KeyValue label="Часовой пояс">{timeZone}</KeyValue>
-        <KeyValue label="Главная">{answers.domains.length > 0 ? focusLabel(answers.domains.length) : "порядок реестра"}</KeyValue>
-      </dl>
-    </div>
+  return <aside aria-label="Что будет дальше" className="grid min-w-0 content-start gap-3.5">
     <div className="grid gap-2.5 rounded-2xl border bg-card px-5 py-[18px]">
       <Cap>Что будет дальше</Cap>
       <ol className="grid gap-2.5 text-xs leading-5">
@@ -155,7 +149,7 @@ export function EditChoiceDialog({ answers, domainKey, choice, preferences, time
  * «+ Добавить цель в другой сфере»: the fields of «Новая цель» (mockup 10) for a sphere that was not chosen. The goal is
  * added to the summary list and created with the others by «Создать N целей» (owner decision 2026-11-20).
  */
-export function ExtraGoalDialog({ domains, preferences, close, add }: { domains: { key: DomainKey; label: string }[]; preferences: UserPreferences; close(): void; add(goal: CreateGoalInput): void }) {
+export function ExtraGoalDialog({ domains, preferences, close, add }: { domains: { key: DomainKey; label: string }[]; preferences: UserPreferences; close(): void; add(goal: CreateNumericGoalInput): void }) {
   const [errors, setErrors] = useState<GoalFieldErrors>({});
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -163,7 +157,7 @@ export function ExtraGoalDialog({ domains, preferences, close, add }: { domains:
     const result = goalFormInput(new FormData(form), preferences.timezone);
     if (result.errors) { setErrors(result.errors); focusFirstInvalid(form); return; }
     // goalFormInput without `editing` validates by the creation contract; the parse narrows the type.
-    const goal = createGoalInputSchema.safeParse(result.data);
+    const goal = createNumericGoalInputSchema.safeParse(result.data);
     if (goal.success) add(goal.data);
   }
   return <Modal title="Цель в другой сфере" close={close}>

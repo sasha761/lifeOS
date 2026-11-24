@@ -39,7 +39,14 @@ async function seed(fixture: UiFixture) {
   const applications = await create({ domain_key: "work", title: "Отклики на вакансии", unit: "count", baseline: "0", target: "15", direction: "increase", due_at: due(5) });
   const archived = await create({ domain_key: "projects", title: "Черновик сайта портфолио", unit: "count", baseline: "0", target: "5", direction: "increase" });
   await apiWrite(base, cookies.owner, `/api/v1/goals/${archived.goal.id}`, { status: "archived" }, "PATCH");
-  return { goalId: savings.goal.id, archivedId: archived.goal.id, unmeasuredId: applications.goal.id };
+  // LFS-225: goals without measurements (through the API until LFS-227/228) and phases of numeric goals.
+  const phase = (id: string, value: string) => apiWrite(base, cookies.owner, `/api/v1/goals/${id}`, { phase: value }, "PATCH");
+  await phase(weight.goal.id, "paused");
+  const course = await create({ kind: "unmeasured", domain_key: "skills", title: "Пройти курс по SQL" });
+  await phase(course.goal.id, "achieved");
+  const job = await create({ kind: "unmeasured", domain_key: "work", title: "Сменить работу", description: "Тестовое описание цели без измерений.",
+    starts_at: new Date(Date.now() - 20 * day).toISOString(), due_at: due(130) });
+  return { goalId: savings.goal.id, archivedId: archived.goal.id, unmeasuredId: applications.goal.id, jobId: job.goal.id, courseId: course.goal.id };
 }
 
 /**
@@ -49,7 +56,7 @@ async function seed(fixture: UiFixture) {
 function onboardingDraft(step: string) {
   const due = (days: number) => new Date(Date.now() + days * day).toISOString();
   const choice = (option: string, values: Record<string, unknown>) => ({ option, subject: "", direction: "increase", unit: "custom", unit_label: "", baseline: "", target: "", due_at: null, ...values });
-  return { answers: { step, domains: ["languages", "finance", "skills", "health"], rhythm: "weekly", timezone: null, extra: [], unchecked: [], spheres: {
+  return { answers: { step, domains: ["languages", "finance", "skills", "health"], extra: [], unchecked: [], spheres: {
     languages: { skipped: false, choices: [choice("german", { baseline: "1", target: "3", due_at: due(240) })] },
     finance: { skipped: false, choices: [choice("emergency_fund", { unit: "NOK", target: "60000", baseline: "15000", due_at: due(200) })] },
     skills: { skipped: true, choices: [] },
@@ -109,7 +116,7 @@ async function main() {
     // Russian number and date formats, as on the mockups.
     fixture = await startUiFixture({ suite: "lfs212_shots", ownerLocale: "ru", onStage: (value) => { stage = value; } });
     stage = "test data through the API";
-    const { goalId, archivedId, unmeasuredId } = await seed(fixture);
+    const { goalId, archivedId, unmeasuredId, jobId, courseId } = await seed(fixture);
     stage = "example through the API";
     const example = await fetch(`${fixture.base}/api/v1/starter-pack`, { method: "POST", headers: { cookie: fixture.cookies.exampleDesktop, "idempotency-key": randomUUID() } });
     assert(example.ok, `POST /api/v1/starter-pack → ${example.status}`);
@@ -120,13 +127,32 @@ async function main() {
     const shots: Shot[] = [
       { name: "home", path: "/", mockup: "04-progress.png" },
       { name: "dashboard", path: "/dashboard", mockup: "04-progress.png" },
-      { name: "goals", path: "/goals", mockup: "09-goals.png" },
-      { name: "goal", path: `/goals/${goalId}`, mockup: "09-goals.png" },
-      { name: "goal-menu", path: `/goals/${goalId}`, mockup: "09-goals.png", open: async (page) => {
+      // LFS-224: the goals list and the lighter panel of mockup 32 (390 px — mockup 44, the list phone).
+      { name: "goals", path: "/goals", mockup: "32-goals-list.png" },
+      { name: "goal", path: `/goals/${goalId}`, mockup: "32-goals-list.png" },
+      { name: "goal-menu", path: `/goals/${goalId}`, mockup: "32-goals-list.png", open: async (page) => {
         await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
       } },
+      // «Как считается» and «История изменений» opened under the panel.
+      { name: "goal-sections", path: `/goals/${goalId}`, mockup: "32-goals-list.png", open: async (page) => {
+        await page.getByRole("button", { name: "Как считается" }).click();
+        await page.getByRole("button", { name: /^История изменений/ }).click();
+      } },
+      // LFS-225: a goal without measurements in progress (mockup 36) and achieved (described by the owner, no mockup of its own).
+      { name: "goal-no-measure", path: `/goals/${jobId}`, mockup: "36-goals-list-no-measure.png" },
+      { name: "goal-achieved", path: `/goals/${courseId}`, mockup: "36-goals-list-no-measure.png" },
+      { name: "goal-phase-menu", path: `/goals/${jobId}`, mockup: "36-goals-list-no-measure.png", open: async (page) => {
+        await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
+      } },
+      // «Удалить» on a row: hover shows it (mouse), the confirmation is the panel's one.
+      { name: "goals-row-delete", path: "/goals", mockup: "32-goals-list.png", open: async (page) => {
+        const row = page.getByTestId("goal-row").nth(1);
+        await row.hover();
+        await row.getByRole("button", { name: /^Удалить цель/ }).click();
+        await page.getByRole("alertdialog", { name: "Удалить цель?" }).waitFor();
+      } },
       ...[{ name: "goal-delete", id: goalId }, { name: "goal-delete-archived", id: archivedId }].map(({ name, id }): Shot => ({
-        name, path: `/goals/${id}`, mockup: "09-goals.png", open: async (page) => {
+        name, path: `/goals/${id}`, mockup: "32-goals-list.png", open: async (page) => {
           await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
           await page.getByRole("button", { name: "Удалить цель", exact: true }).click();
         },
@@ -165,7 +191,7 @@ async function main() {
       // LFS-219: the wizard on a fresh account; the draft puts it on the step of each mockup.
       ...([["onboarding-spheres", "domains", "24-onb-spheres.png"], ["onboarding-question", "finance", "25-onb-question.png"],
         ["onboarding-own", "health", "26-onb-own-answer.png"], ["onboarding-summary", "summary", "27-onb-summary.png"],
-        ["onboarding-languages", "languages", "29-onb-mobile.png"], ["onboarding-rhythm", "rhythm", "25-onb-question.png"]] as const).map(([name, step, mockup]): Shot => ({
+        ["onboarding-languages", "languages", "29-onb-mobile.png"]] as const).map(([name, step, mockup]): Shot => ({
         name, path: "/onboarding", mockup, account: "onboarding",
         prepare: async () => { await apiWrite(fixture!.base, fixture!.cookies.onboardingDesktop, "/api/v1/onboarding", onboardingDraft(step), "PUT"); },
       })),

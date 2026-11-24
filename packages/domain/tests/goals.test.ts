@@ -38,7 +38,14 @@ function memory() {
     updateActive: vi.fn<GoalsRepository["updateActive"]>(async (actor, id, changes) => {
       const row = rows.get(id);
       if (!row || row.user_id !== actor.userId || row.status !== "active") return null;
-      const updated = { ...row, ...changes, origin: row.origin === "starter" ? "manual" as const : row.origin, updated_at: "2026-11-15T10:00:01.000Z" };
+      const updated = goalSchema.parse({ ...row, ...changes, origin: row.origin === "starter" ? "manual" : row.origin, updated_at: "2026-11-15T10:00:01.000Z" });
+      rows.set(id, updated);
+      return { ...updated };
+    }),
+    setPhase: vi.fn<GoalsRepository["setPhase"]>(async (actor, id, phase) => {
+      const row = rows.get(id);
+      if (!row || row.user_id !== actor.userId || row.status !== "active") return null;
+      const updated: Goal = { ...row, phase, phase_changed_at: "2026-11-15T10:00:03.000Z", updated_at: "2026-11-15T10:00:03.000Z" };
       rows.set(id, updated);
       return { ...updated };
     }),

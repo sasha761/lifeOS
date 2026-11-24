@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { create, goalAction, login, noOverflow } from "./support.ts";
+import { create, goalAction, login, noOverflow, openHistory } from "./support.ts";
 
 // Page layout per mockups (LFS-213): /goals list and goal panel (09), date-only deadline (10), sphere page (10).
 const desktop = (name: string) => name === "desktop";
@@ -32,8 +32,9 @@ test("goals list and the chosen goal sit side by side; choosing keeps the list, 
     const toggle = page.getByRole("button", { name: "Действия с целью", exact: true });
     await toggle.focus(); await page.keyboard.press("Enter");
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    // The phase moves come first (LFS-225); a goal in progress starts with «Поставить на паузу».
     await page.keyboard.press("Tab");
-    await expect(page.getByRole("button", { name: "Изменить цель", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Поставить на паузу", exact: true })).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     await expect(toggle).toBeFocused();
@@ -77,7 +78,7 @@ test("the deadline is a date: stored as the end of that day and kept when only t
   await page.getByRole("button", { name: "Сохранить изменения цели" }).click();
   await expect(page.getByRole("heading", { name: `${title} · ред.`, exact: true })).toBeVisible();
   expect(await dueAt()).toBe("2027-01-15T22:59:59.999Z");
-  await expect(page.getByTestId("goal-history")).toContainText("Название изменено");
+  await expect(await openHistory(page)).toContainText("Название изменено");
 });
 
 test("a sphere page shows the owner's goals and the sphere journal, a guest only the public text", async ({ page, browser }, testInfo) => {

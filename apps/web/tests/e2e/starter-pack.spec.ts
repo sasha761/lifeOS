@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
-import { goalAction, login, noOverflow } from "./support.ts";
+import { goalAction, login, noOverflow, openHistory } from "./support.ts";
 
 /** The example lives in its own fixture account per project, so 1280 and 390 never meet the same set (LFS-218). */
 test("the example: labels and banner, an edit makes a goal the person's own, «Удалить все примеры» keeps it (LFS-218)", async ({ page }, testInfo) => {
@@ -39,7 +39,7 @@ test("the example: labels and banner, an edit makes a goal the person's own, «�
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(panel.getByTestId("example-hint")).toHaveCount(0);
   await expect(panel.getByTestId("measurement-row")).toHaveCount(0);
-  await expect(page.getByTestId("goal-history")).toContainText(/Старт изменён: 0 → 500, метка «Пример» снята/);
+  await expect(await openHistory(page)).toContainText(/Старт изменён: 0 → 500, метка «Пример» снята/);
   await noOverflow(page);
 
   // «Удалить все примеры»: confirmation under the banner, Escape returns focus, then the six examples go.

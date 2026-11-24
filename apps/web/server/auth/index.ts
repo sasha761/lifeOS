@@ -3,7 +3,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { readWebEnv } from "@lifeos/config/env";
 import type { CurrentUser } from "@lifeos/contracts";
-import { createSignupPolicy } from "@lifeos/domain";
+import { createOpenSignupPolicy, createSignupPolicy } from "@lifeos/domain";
+import type { SignupMode, SignupPolicy } from "@lifeos/domain";
 import { safeRedirectPath } from "../../lib/safe-redirect.ts";
 import { getDatabase } from "../db.ts";
 import { createMailSender } from "../mail/index.ts";
@@ -12,7 +13,21 @@ import type { Auth } from "./create-auth.ts";
 import { findVerifiedSession } from "./session.ts";
 import type { VerifiedSession } from "./session.ts";
 
-const store = globalThis as typeof globalThis & { lifeosAuth?: Auth };
+const store = globalThis as typeof globalThis & { lifeosAuth?: Auth; lifeosSignupPolicy?: SignupPolicy };
+
+/** Registration rule from `AUTH_SIGNUP_MODE` and `AUTH_SIGNUP_ALLOWLIST`, composed once per process. */
+function getSignupPolicy(): SignupPolicy {
+  if (!store.lifeosSignupPolicy) {
+    const env = readWebEnv(process.env);
+    store.lifeosSignupPolicy = env.AUTH_SIGNUP_MODE === "open" ? createOpenSignupPolicy() : createSignupPolicy(env.AUTH_SIGNUP_ALLOWLIST);
+  }
+  return store.lifeosSignupPolicy;
+}
+
+/** For page texts only; the server-side check is the policy inside `getAuth()`. Call it from dynamic pages. */
+export function getSignupMode(): SignupMode {
+  return getSignupPolicy().mode;
+}
 
 /** Lazily composed at request time, never during `next build`; env is validated on first use. */
 export function getAuth(): Auth {
@@ -22,7 +37,7 @@ export function getAuth(): Auth {
       database: getDatabase(env.DATABASE_URL).db,
       secret: env.BETTER_AUTH_SECRET,
       baseURL: env.BETTER_AUTH_URL,
-      signupPolicy: createSignupPolicy(env.AUTH_SIGNUP_ALLOWLIST),
+      signupPolicy: getSignupPolicy(),
       mail: createMailSender(env.mail),
     });
   }

@@ -12,10 +12,10 @@
 |---|---|---|---|
 | `/` | Обзор | LFS-103, 204 | `04-progress.png` (компоновка), `01-main.png` (стиль) |
 | `/dashboard` | Dashboard шести сфер | LFS-204 | `04-progress.png`, только данные Stage 2 |
-| `/goals` | Список целей | LFS-208 | `09-goals.png` |
-| `/goals/[id]` | Цель: прогресс, замеры, история | LFS-206–208, 210 | `09-goals.png`, правая панель |
-| `/goals/new` | Новая цель | LFS-208 | `10-domain-new-goal.png`, диалог |
-| `/domains/[domainKey]` | Страница сферы | LFS-203 | `10-domain-new-goal.png` |
+| `/goals` | Цели: доска (по умолчанию) и список с переключателем | LFS-208, 224, 229 | `33-goals-board.png`, `34-goals-board-drag.png`, `32-goals-list.png`, `44-mobile-goals.png`; `09-goals.png` заменён ими (LFS-223) |
+| `/goals/[id]` | Цель: прогресс, измерения, история | LFS-206–208, 210, 224–226 | панель в `32-goals-list.png`, `35-goals-board-open.png`, `36-goals-list-no-measure.png`; окна измерения — `37-measure-dialogs.png` |
+| `/goals/new` | Новая цель: мастер вопросов | LFS-208, 228 | `42-goal-new.png`, `43-goal-new-steps.png`, `45-mobile-wizards.png`; диалог из `10-domain-new-goal.png` заменён ими |
+| `/domains/[domainKey]` | Страница сферы | LFS-203 | `10-domain-new-goal.png` (страница); «+ Цель в сфере» — `43-goal-new-steps.png` |
 | `/settings` | Профиль, часовой пояс, язык | LFS-202 | `16-settings.png` |
 | `/auth/sign-in`, `/auth/sign-up`, `/auth/forgot-password`, `/auth/reset-password` | Вход и восстановление | LFS-201 | отдельного макета нет: форма и карточка из `01-main.png`, оформлено в LFS-211 |
 | `error`, `not-found`, `loading` | Служебные состояния | LFS-103 | `01-main.png`, оформлено в LFS-211 |
@@ -27,9 +27,9 @@
 | Маршрут | Страница | Задачи | Макет |
 |---|---|---|---|
 | `/dashboard`, диалог | Попап первого входа: пример, настройка или чистый лист | LFS-220 | `23-onb-start.png`, `29-onb-mobile.png` |
-| `/onboarding` | Мастер: сферы, вопрос на сферу, ритм, итог | LFS-219 | `24-onb-spheres.png` – `27-onb-summary.png`, `29-onb-mobile.png` |
+| `/onboarding` | Мастер: сферы, вопрос на сферу, итог (шаг «Ритм» удалён в LFS-222) | LFS-219, LFS-222, LFS-227 | `24-onb-spheres.png`; вопросы и итог — `38-onb-finance-v2.png` – `41-onb-summary-v2.png`, `45-mobile-wizards.png` (заменили `25`–`27` и вопрос с итогом в `29-onb-mobile.png`) |
 | `/dashboard` с примером | Метки «Пример», баннер, «Удалить все примеры» | LFS-218 | `28-onb-example.png` |
-| `/settings` → Начальная настройка | Кнопка открытия попапа, ритм, сферы в фокусе, примеры | LFS-220 | `30-onb-settings.png`, `31-onb-reopen.png` |
+| `/settings` → Начальная настройка | Кнопка открытия попапа, сферы в фокусе, примеры (ритм удалён в LFS-222) | LFS-220, LFS-222 | `30-onb-settings.png`, `31-onb-reopen.png` |
 
 ## Этапы 3–8 — MVP (кода нет)
 
@@ -68,6 +68,7 @@
 
 - **Finance, Health, Skills, Integrations Hub, SaaS** (мастер-план §11): для них ещё нет спеки,
   макет был бы выдумкой. До своих модулей эти сферы живут на странице сферы (`10-domain-new-goal.png`).
+  Пожелания владельца к модулям Финансы и Проекты (22.11.2026) — [STAGE-02-FEEDBACK](../../tasks/STAGE-02-FEEDBACK.md#пожелания-к-будущим-модулям).
 - **Светлая тема** — отложена в ADR-011.
 
 ## Открытый вопрос: итоговая навигация

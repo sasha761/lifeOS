@@ -1,5 +1,5 @@
-import { createGoalInputSchema, goalCommandOptionsSchema, goalValueMatchesUnit, ONBOARDING_CATALOG_VERSION, STARTER_PACK_VERSION } from "@lifeos/contracts";
-import type { Goal, GoalCommandOptions, StarterPackApplied, StarterPackRemoved } from "@lifeos/contracts";
+import { createNumericGoalInputSchema, goalCommandOptionsSchema, goalValueMatchesUnit, ONBOARDING_CATALOG_VERSION, STARTER_PACK_VERSION } from "@lifeos/contracts";
+import type { GoalCommandOptions, NumericGoal, StarterPackApplied, StarterPackRemoved } from "@lifeos/contracts";
 import type { Actor } from "./actor.ts";
 import { ConflictError, InvalidInputError } from "./errors.ts";
 import { goalAuditSnapshot, measurementSnapshot } from "./events.ts";
@@ -93,11 +93,12 @@ export function createStarterPackService(unit: StarterPackUnitOfWork, clock: () 
         // «Пример уже в аккаунте»: a second set is never added next to the first.
         if (await examples.countExamples(actor) > 0) throw new ConflictError();
         const measuredAt = clock().toISOString();
-        const created: { goal: Goal; example: string }[] = [];
+        const created: { goal: NumericGoal; example: string }[] = [];
         // Created in reverse, so the first entry of the set is the newest goal and fact (as on mockup 28).
         for (const entry of [...STARTER_PACK].reverse()) {
-          const goal = owned(actor, await goals.create(actor, createGoalInputSchema.parse(entry.goal), { origin: "starter" }));
-          if (goal.origin !== "starter") throw new Error("Example goal without its origin.");
+          const input = createNumericGoalInputSchema.parse(entry.goal);
+          const goal = owned(actor, await goals.create(actor, input, { origin: "starter" }));
+          if (goal.origin !== "starter" || goal.kind !== "numeric") throw new Error("Example goal without its origin or numbers.");
           await events.append({ goal_id: goal.id, domain_key: goal.domain_key, target_type: "goal", target_id: goal.id, schema_version: 1,
             event_type: "goal.created", payload: { before: null, after: goalAuditSnapshot(goal) } });
           created.push({ goal, example: entry.example });

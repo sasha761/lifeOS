@@ -19,7 +19,7 @@ let harness: AuthHarness;
 let routes: ReturnType<typeof createOnboardingRoutes>;
 let goalsRoutes: ReturnType<typeof createGoalsRoutes>;
 let starter: ReturnType<typeof createStarterPackRoutes>;
-const users = ["owner", "other", "replay", "invalid", "rollback", "again", "namespace", "http", "choice", "final", "neighbour", "rhythm", "example", "late", "popup"] as const;
+const users = ["owner", "other", "replay", "invalid", "rollback", "again", "namespace", "http", "choice", "final", "neighbour", "rhythm", "example", "late", "popup", "legacy"] as const;
 const signed = new Map<string, TestUser>();
 const user = (label: (typeof users)[number]) => signed.get(label)!;
 
@@ -47,7 +47,7 @@ const choice = (option: string, values: Record<string, unknown> = {}) =>
   ({ option, subject: "", direction: "increase", unit: "custom", unit_label: "", baseline: "", target: "", due_at: null, ...values });
 /** Four spheres, one skipped, a template, a language, Health with «Свой вариант» and an unticked goal (test values). */
 const answers = (step = "summary") => ({
-  step, domains: ["languages", "finance", "skills", "health"], rhythm: "few_per_week", timezone: "Europe/Oslo", extra: [], unchecked: ["health.sleep"],
+  step, domains: ["languages", "finance", "skills", "health"], extra: [], unchecked: ["health.sleep"],
   spheres: {
     languages: { skipped: false, choices: [choice("norwegian", { baseline: "2", target: "3", due_at: "2027-05-31T21:59:59.999Z" })] },
     finance: { skipped: false, choices: [choice("emergency_fund", { unit: "USD", target: "4 500", baseline: "700" })] },
@@ -82,8 +82,8 @@ const goalsOf = (who: TestUser) => rows<{ id: string; domain_key: string; title:
   "SELECT id, domain_key, title, origin, unit, unit_label, baseline::text, target::text, due_at FROM goals WHERE user_id = $1 ORDER BY created_at, id", [who.userId]);
 const eventsOf = (who: TestUser) => rows<{ event_type: string; source: string; idempotency_key: string | null; goal_id: string }>(
   "SELECT event_type, source, idempotency_key, goal_id FROM activity_events WHERE user_id = $1 ORDER BY occurred_at, id", [who.userId]);
-const profileOf = (who: TestUser) => rows<{ focus_domains: string[] | null; checkin_rhythm: string | null; timezone: string }>(
-  `SELECT focus_domains, checkin_rhythm, timezone FROM "user" WHERE id = $1`, [who.userId]).then((result) => result[0]!);
+const profileOf = (who: TestUser) => rows<{ focus_domains: string[] | null; timezone: string }>(
+  `SELECT focus_domains, timezone FROM "user" WHERE id = $1`, [who.userId]).then((result) => result[0]!);
 const stateRow = (who: TestUser) => rows<{ status: string; choice: string | null; completed_at: Date | null; catalog_version: number }>(
   "SELECT status, choice, completed_at, catalog_version FROM onboarding_state WHERE user_id = $1", [who.userId]);
 
@@ -116,7 +116,8 @@ describe("«Создать N целей» (LFS-219)", () => {
     const events = await eventsOf(owner);
     expect(events.map((event) => [event.event_type, event.source])).toEqual(goals.map(() => ["goal.created", "web"]));
     expect(events.map((event) => event.idempotency_key)).toEqual([key, null, null, null]);
-    expect(await profileOf(owner)).toEqual({ focus_domains: ["languages", "finance", "skills", "health"], checkin_rhythm: "few_per_week", timezone: "Europe/Oslo" });
+    // Only «сферы в фокусе»: the setup leaves the zone of the profile as it was (LFS-222).
+    expect(await profileOf(owner)).toEqual({ focus_domains: ["languages", "finance", "skills", "health"], timezone: "UTC" });
     const [row] = await stateRow(owner);
     expect(row).toMatchObject({ status: "completed", choice: "wizard", catalog_version: 1 });
     expect(row!.completed_at).toBeInstanceOf(Date);
@@ -130,7 +131,7 @@ describe("«Создать N целей» (LFS-219)", () => {
     expect(dashboard.domains.flatMap((domain) => domain.goals).every(({ progress }) => progress.current === null && progress.progressPercent === null)).toBe(true);
     // The other account is untouched.
     expect(await goalsOf(user("other"))).toEqual([]);
-    expect(await profileOf(user("other"))).toEqual({ focus_domains: null, checkin_rhythm: null, timezone: "UTC" });
+    expect(await profileOf(user("other"))).toEqual({ focus_domains: null, timezone: "UTC" });
   });
 
   it("replays a retry with the same key without creating goals again; the same key with other data is a conflict", async () => {
@@ -151,10 +152,13 @@ describe("«Создать N целей» (LFS-219)", () => {
     broken.spheres.health.choices[2] = choice("own", { subject: "Проплыть 2 км", unit_label: "метров", baseline: "2000", target: "2000" });
     expect((await failure(await complete(who, { answers: broken, selected: SELECTED }), 400, "VALIDATION_ERROR")).field).toBe("health.own");
     expect((await failure(await complete(who, { answers: answers(), selected: ["skills.chess"] }), 400, "VALIDATION_ERROR")).field).toBe("skills.chess");
-    expect((await failure(await complete(who, { answers: { ...answers(), timezone: "Mars/Olympus" }, selected: SELECTED }), 400, "VALIDATION_ERROR")).field).toBe("timezone");
+    // The rhythm and the zone are no longer part of the answers (LFS-222).
+    for (const removed of [{ timezone: "Europe/Oslo" }, { rhythm: "weekly" }, { step: "rhythm" }]) {
+      expect((await failure(await complete(who, { answers: { ...answers(), ...removed }, selected: SELECTED }), 400, "VALIDATION_ERROR")).field).toBeUndefined();
+    }
     expect(await goalsOf(who)).toEqual([]);
     expect(await stateRow(who)).toEqual([]);
-    expect(await profileOf(who)).toMatchObject({ focus_domains: null, checkin_rhythm: null });
+    expect(await profileOf(who)).toMatchObject({ focus_domains: null });
   });
 
   it("rolls back every goal, fact, profile change, state and receipt when the transaction fails", async () => {
@@ -170,7 +174,7 @@ describe("«Создать N целей» (LFS-219)", () => {
     await failure(await broken.complete.POST(request("POST", "/onboarding/complete", { cookie: who.cookie, body: { answers: answers(), selected: SELECTED } })), 500, "INTERNAL_ERROR");
     expect(await goalsOf(who)).toEqual([]);
     expect(await eventsOf(who)).toEqual([]);
-    expect(await profileOf(who)).toMatchObject({ focus_domains: null, checkin_rhythm: null, timezone: "UTC" });
+    expect(await profileOf(who)).toMatchObject({ focus_domains: null, timezone: "UTC" });
     expect(await stateRow(who)).toEqual([expect.objectContaining({ status: "in_progress", completed_at: null })]);
     expect(await rows("SELECT * FROM onboarding_receipts WHERE user_id = $1", [who.userId])).toEqual([]);
     expect((await completed(await complete(who, { answers: answers(), selected: SELECTED }))).created_goals).toBe(4);
@@ -181,15 +185,33 @@ describe("«Создать N целей» (LFS-219)", () => {
     const manual = await goalsRoutes.collection.POST(request("POST", "/goals", { cookie: who.cookie,
       body: { domain_key: "work", title: "Своя цель", unit: "count", baseline: "0", target: "3", direction: "increase" } }));
     expect(manual.status).toBe(200);
+    // The zone chosen in Settings stays through every setup (LFS-222).
+    await rows(`UPDATE "user" SET timezone = 'Europe/Oslo' WHERE id = $1`, [who.userId]);
     expect(await completed(await complete(who, { answers: answers(), selected: ["finance.emergency_fund"] }))).toMatchObject({ created_goals: 1 });
-    const draftAfter = await stateOf(await draft(who, { answers: { ...answers("finance"), rhythm: null, timezone: null } }));
+    const draftAfter = await stateOf(await draft(who, { answers: answers("finance") }));
     expect(draftAfter.status).toBe("completed");
     expect(draftAfter.completed_at).not.toBeNull();
-    expect(await completed(await complete(who, { answers: { ...answers(), rhythm: null, timezone: null }, selected: ["finance.emergency_fund", "health.training"] }))).toMatchObject({ created_goals: 2 });
+    expect(await completed(await complete(who, { answers: answers(), selected: ["finance.emergency_fund", "health.training"] }))).toMatchObject({ created_goals: 2 });
     expect((await goalsOf(who)).map((goal) => [goal.title, goal.origin])).toEqual([
       ["Своя цель", "manual"], ["Подушка безопасности", "onboarding"], ["Подушка безопасности", "onboarding"], ["Тренировки 3 раза в неделю", "onboarding"]]);
-    // A skipped rhythm and an unchanged zone keep what the profile already had.
-    expect(await profileOf(who)).toMatchObject({ checkin_rhythm: "few_per_week", timezone: "Europe/Oslo" });
+    expect(await profileOf(who)).toEqual({ focus_domains: ["languages", "finance", "skills", "health"], timezone: "Europe/Oslo" });
+  });
+
+  it("opens a draft saved with the rhythm step on the summary, without the rhythm and the zone (LFS-222)", async () => {
+    const who = user("legacy");
+    // Stored by the code of LFS-219–221: the draft was left on the rhythm step with a zone confirmed there.
+    const stored = { ...answers("rhythm"), rhythm: "weekly", timezone: "Asia/Tokyo" };
+    await rows(`INSERT INTO onboarding_state (user_id, status, choice, answers, catalog_version) VALUES ($1, 'in_progress', 'wizard', $2::jsonb, 1)`,
+      [who.userId, JSON.stringify(stored)]);
+    const opened = await stateOf(await state(who));
+    expect(opened).toMatchObject({ status: "in_progress", choice: "wizard" });
+    expect(opened.answers).toMatchObject({ step: "summary", domains: ["languages", "finance", "skills", "health"], unchecked: ["health.sleep"] });
+    expect(opened.answers).not.toHaveProperty("rhythm");
+    expect(opened.answers).not.toHaveProperty("timezone");
+    // The draft as read is a valid draft again, and the setup completes without touching the zone of the profile.
+    expect((await stateOf(await draft(who, { answers: opened.answers }))).answers?.step).toBe("summary");
+    expect(await completed(await complete(who, { answers: opened.answers, selected: SELECTED }))).toMatchObject({ created_goals: 4 });
+    expect(await profileOf(who)).toEqual({ focus_domains: ["languages", "finance", "skills", "health"], timezone: "UTC" });
   });
 
   it("keeps one key namespace with the goal and example commands", async () => {
@@ -253,7 +275,7 @@ describe("start choice of the popup and Settings (LFS-220)", () => {
     const before = await stateRow(bystander);
     const profile = await profileOf(bystander);
     await stateOf(await patch(who, BLANK));
-    await stateOf(await patch(who, { checkin_rhythm: "daily" }));
+    await failure(await patch(who, { checkin_rhythm: "daily" }), 400, "VALIDATION_ERROR");
     expect(await stateRow(bystander)).toEqual(before);
     expect(await profileOf(bystander)).toEqual(profile);
     expect(await stateRow(who)).toEqual([expect.objectContaining({ status: "dismissed", choice: "blank" })]);
@@ -261,19 +283,18 @@ describe("start choice of the popup and Settings (LFS-220)", () => {
     await failure(await patch(who, { ...BLANK, user_id: bystander.userId }), 400, "VALIDATION_ERROR");
   });
 
-  it("stores the rhythm from Settings and reports the profile values and goal counts", async () => {
+  it("refuses the removed rhythm and reports the spheres in focus and goal counts (LFS-222)", async () => {
     const who = user("rhythm");
-    expect(await stateOf(await state(who))).toMatchObject({ checkin_rhythm: null, focus_domains: [], goals: { total: 0, onboarding: 0, examples: 0 } });
-    expect(await stateOf(await patch(who, { checkin_rhythm: "weekly" }))).toMatchObject({ status: "not_started", checkin_rhythm: "weekly" });
-    expect(await stateRow(who)).toEqual([]);
-    await completed(await complete(who, { answers: answers(), selected: SELECTED }));
-    await stateOf(await patch(who, { checkin_rhythm: "daily" }));
-    expect(await profileOf(who)).toMatchObject({ checkin_rhythm: "daily", focus_domains: ["languages", "finance", "skills", "health"] });
-    expect(await stateOf(await state(who))).toMatchObject({ checkin_rhythm: "daily", focus_domains: ["languages", "finance", "skills", "health"],
-      goals: { total: 4, onboarding: 4, examples: 0 } });
-    for (const body of [{ checkin_rhythm: "hourly" }, { checkin_rhythm: null }, { status: "completed", choice: "example" }, {}]) {
+    const initial = await stateOf(await state(who));
+    expect(initial).toMatchObject({ focus_domains: [], goals: { total: 0, onboarding: 0, examples: 0 } });
+    expect(initial).not.toHaveProperty("checkin_rhythm");
+    for (const body of [{ checkin_rhythm: "weekly" }, { checkin_rhythm: null }, { status: "completed", choice: "example" }, {}]) {
       await failure(await patch(who, body), 400, "VALIDATION_ERROR");
     }
+    expect(await stateRow(who)).toEqual([]);
+    await completed(await complete(who, { answers: answers(), selected: SELECTED }));
+    expect(await profileOf(who)).toEqual({ focus_domains: ["languages", "finance", "skills", "health"], timezone: "UTC" });
+    expect(await stateOf(await state(who))).toMatchObject({ focus_domains: ["languages", "finance", "skills", "health"], goals: { total: 4, onboarding: 4, examples: 0 } });
   });
 
   it("completes the start with the example in the same transaction; a completed setup keeps its date", async () => {

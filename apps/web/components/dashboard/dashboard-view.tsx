@@ -12,7 +12,7 @@ import { formatLoggedValue } from "../../lib/goal-presentation.ts";
 import { closeStartDialog, startDialogClosed } from "../../lib/start-dialog-session.ts";
 import { useDismiss } from "../../lib/use-dismiss.ts";
 import { formatDate, formatDateTime } from "../../lib/user-preferences.ts";
-import { ExampleChip, GoalAmount, LoadState, useGoalData } from "../goals/shared.tsx";
+import { ExampleChip, GoalAmount, GoalStatusChip, LoadState, useGoalData } from "../goals/shared.tsx";
 import { ExamplesConfirm } from "../onboarding/examples-confirm.tsx";
 import { StartDialog } from "../onboarding/start-dialog.tsx";
 import type { ExampleGoalPreview } from "../onboarding/start-dialog.tsx";
@@ -46,9 +46,13 @@ function Summary({ dashboard }: { dashboard: Dashboard }) {
   </p>;
 }
 
-/** Newest active goal of the sphere: its bar and «X из Y · %», or why there is no percentage. */
+/**
+ * Newest active goal of the sphere: its bar and «X из Y · %», or why there is no percentage. A goal without measurements
+ * (LFS-225) shows its status instead; there is never a sphere percentage.
+ */
 function SphereGoal({ value, preferences, examples }: { value: GoalDetails; preferences: UserPreferences; examples: boolean }) {
   const { goal, progress } = value;
+  if (goal.kind === "unmeasured") return <p className="col-span-full flex justify-end sm:col-span-2" data-testid="dashboard-goal"><GoalStatusChip goal={goal} /></p>;
   return progress.progressPercent === null
     ? <p className="col-span-full text-xs leading-5 text-muted-foreground sm:col-span-2 sm:text-right" data-testid="dashboard-goal">{progress.explanation}</p>
     : <>
@@ -129,7 +133,7 @@ function TodayCard({ dashboard, labels, preferences, now }: { dashboard: Dashboa
 function ActivityRow({ item, labels, preferences }: { item: DashboardActivity; labels: DomainLabels; preferences: UserPreferences }) {
   return <li className="min-w-0 border-b py-2.5 first:pt-0 last:border-b-0 last:pb-0" data-testid="dashboard-activity">
     <p className="text-sm">
-      <span className="font-medium">{activityLabel(item.type)}</span>
+      <span className="font-medium">{activityLabel(item.type, item.phase)}</span>
       {item.measurement && <span className="font-semibold tabular-nums"> {formatLoggedValue(item.measurement.value, item.measurement, preferences.locale)}</span>}
       {item.example && <> <ExampleChip className="ml-1 align-[1px]" /></>}
     </p>

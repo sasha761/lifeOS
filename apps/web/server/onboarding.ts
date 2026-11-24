@@ -26,8 +26,8 @@ export function createOnboardingRoutes({ resolveAuth, resolveOnboarding, log }: 
         noQuery(request);
         return resolveOnboarding().saveDraft(actor, await json(request));
       }, log),
-      // LFS-220: a start choice of the popup or the rhythm from Settings. Repeating it gives the same state, so no
-      // Idempotency-Key; a completed setup refuses a start choice with 409.
+      // LFS-220: a start choice of the popup (the rhythm from Settings was removed by LFS-222). Repeating it gives the
+      // same state, so no Idempotency-Key; a completed setup refuses a start choice with 409.
       PATCH: apiRoute(onboardingStateSchema, async (request) => {
         const actor = await requireApiActor(resolveAuth(), request.headers);
         requireSameOrigin(request, resolveAuth().options.baseURL);

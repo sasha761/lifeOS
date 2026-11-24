@@ -52,7 +52,7 @@ React render или instrumentation. Доменная логика не долж
 | `packages/contracts` | Zod schemas и inferred DTO: health envelope, IDs, ошибки, цели, измерения, журнал, Dashboard, пример, начальная настройка, demo payload | Нет зависимости от apps, React, Next или env; можно использовать в browser |
 | `packages/config` | Strict tsconfig, ESLint config; отдельный Node export `./env` | Tooling exports не читают env; runtime parser вызывается явно |
 | `packages/db` | Drizzle schema (Better Auth, цели, измерения, события, квитанции, начальная настройка, техническая fixture), actor-scoped repositories (`src/repositories`) и unit of work (`src/*-unit-of-work.ts`), pg client factory; migrator — отдельный entry `@lifeos/db/migrations` | Персональные записи фильтруются по владельцу (`ownership.ts`); module import не открывает соединение |
-| `packages/domain` | Framework-independent правила и сервисы: закрытая регистрация, actor/ownership, реестр сфер, цели, измерения, прогресс, Dashboard, журнал, пример, начальная настройка; порты репозиториев | Нет Next/React/apps imports, Node API в исходниках (build без Node types), SQL и обхода repositories; зависит только от contracts |
+| `packages/domain` | Framework-independent правила и сервисы: политика регистрации (open/allowlist), actor/ownership, реестр сфер, цели, измерения, прогресс, Dashboard, журнал, пример, начальная настройка; порты репозиториев | Нет Next/React/apps imports, Node API в исходниках (build без Node types), SQL и обхода repositories; зависит только от contracts |
 
 Web и worker объявляют зависимости на DB/config/contracts в manifests.
 Web обращается к DB только через repositories и unit of work, которые собирает `server/core.ts`. Production worker
@@ -205,16 +205,21 @@ LFS-218: пример по выбору пользователя — `createStar
 LFS-219: мастер начальной настройки. Каталог вопросов v1 — данные в domain (`ONBOARDING_QUESTIONS`; для браузера
 отдельный вход `@lifeos/domain/onboarding` без сервисов). `createOnboardingService` (`get`, `saveDraft`, `complete`)
 и `createOnboardingUnitOfWork`: отмеченные цели (`origin = onboarding`), профиль, состояние и квитанция в одной
-транзакции. Таблицы `onboarding_state`, `onboarding_receipts`, колонки `user.focus_domains` и `user.checkin_rhythm`
-(миграция 0008). HTTP `GET`/`PUT /api/v1/onboarding`, `POST /api/v1/onboarding/complete`; страница `/onboarding`
+транзакции. Таблицы `onboarding_state`, `onboarding_receipts`, колонка `user.focus_domains` (миграция 0008; колонку
+`user.checkin_rhythm` из 0008 удалила 0009, LFS-222). HTTP `GET`/`PUT /api/v1/onboarding`, `POST /api/v1/onboarding/complete`; страница `/onboarding`
 в route group `(onboarding)`, защищена в `proxy.ts`. [ADR-012](../adr/012-onboarding.md).
 
 LFS-220: попап первого входа и раздел «Начальная настройка» в `/settings`, один компонент
 `components/onboarding/start-dialog.tsx`. Признак показа `onboarding.show_start` приходит в Dashboard DTO из того же
 снимка. `createOnboardingService.update` обрабатывает `PATCH /api/v1/onboarding`: выбор попапа одним условным upsert
-(из `completed` — 409) или ритм профиля. `createOnboardingOverviewRepository` читает для Настроек состояние, ритм, сферы
-в фокусе и счётчики целей одним снимком. Загрузка примера в своей транзакции завершает незавершённую настройку
-(`choice = example`). Миграций нет. [ADR-012, дополнение LFS-220](../adr/012-onboarding.md#дополнение-lfs-220--2026-11-21).
+(из `completed` — 409). `createOnboardingOverviewRepository` читает для Настроек состояние, сферы в фокусе и счётчики
+целей одним снимком. Загрузка примера в своей транзакции завершает незавершённую настройку (`choice = example`).
+[ADR-012, дополнение LFS-220](../adr/012-onboarding.md#дополнение-lfs-220--2026-11-21).
+
+LFS-222: ритм отметок удалён целиком: шаг мастера, строка в Настройках, `checkin_rhythm` в `PATCH` и DTO, колонка
+(миграция 0009). Мастер — «Сферы → вопросы → Итог», часовой пояс меняется только в Настройках, завершение мастера
+пишет в профиль только сферы в фокусе. Старые черновики читает `readStoredOnboardingAnswers`.
+[ADR-012, дополнение LFS-222](../adr/012-onboarding.md#дополнение-lfs-222--2026-11-22).
 
 ## Проверка и handoff
 

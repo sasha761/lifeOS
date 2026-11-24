@@ -115,7 +115,7 @@ ambiguous требует выбора смещения. Milliseconds сохра�
 
 `pnpm test:ui` собирает приложения и запускает Playwright на отдельной fresh
 schema TEST_DATABASE_URL с реальными Better Auth сессиями (shared fixture
-secret), closed signup и synthetic SMTP URL. Production rate limit не меняется.
+secret), открытой регистрацией (`AUTH_SIGNUP_MODE=open`, как по умолчанию) и synthetic SMTP URL. Production rate limit не меняется.
 Edge channel используется на Windows, Chromium на Linux (нужен установленный
 браузер, `PLAYWRIGHT_CHANNEL` может выбрать другой доступный channel).
 390×844 и 1280×900: empty/auth/ownership, create→24%, edit/delete/archive,

@@ -179,7 +179,8 @@ export function StartDialog({ mode, status, goals, exampleGoals, focus, hasDraft
         <Preview note={first ? "в конце покажем список целей, ничего не создаётся без вашего «ОК»" : undefined}>
           <Step mark="1">{!first && focus.length ? `Сферы в фокусе: ${focus.join(", ")}` : "Какие сферы важны сейчас"}</Step>
           <Step mark="2–7">По вопросу на каждую выбранную сферу</Step>
-          {first ? <Step mark="8">Ритм: как часто отмечать прогресс</Step> : <Step mark="итог">Список целей, создаются только отмеченные</Step>}
+          {/* Mockup 23 shows «8 · Ритм» for the first visit; the rhythm step was removed by LFS-222. */}
+          <Step mark="итог">Список целей, создаются только отмеченные</Step>
         </Preview>
         {first && <div className="flex flex-wrap gap-1.5">{["≈ 3 минуты", "любой вопрос можно пропустить", "свой вариант ответа"].map((label) =>
           <StatusChip key={label} tone="outline">{label}</StatusChip>)}</div>}

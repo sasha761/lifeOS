@@ -93,7 +93,11 @@ export function createGoalsRoutes(dependencies: GoalsRouteDependencies) {
         const options = commandContext(request, resolveAuth().options.baseURL);
         const parsed = patchGoalInputSchema.safeParse(await json(request));
         if (!parsed.success) throw new ApiError("VALIDATION_ERROR");
-        const goal = "status" in parsed.data ? await resolveGoals().archive(actor, id, options) : await resolveGoals().update(actor, id, parsed.data, options);
+        // Three separate commands (ADR-010, ADR-013): archive, a phase change, or an edit of metadata and definition.
+        const goals = resolveGoals();
+        const goal = "status" in parsed.data ? await goals.archive(actor, id, options)
+          : "phase" in parsed.data ? await goals.setPhase(actor, id, parsed.data, options)
+          : await goals.update(actor, id, parsed.data, options);
         return resolveReader().get(actor, goal.id);
       }),
     },

@@ -16,7 +16,7 @@ async function goals(page: Page) {
 /**
  * The first-visit popup on a fresh account per project (LFS-220): «✕» and Escape for the browser session, «Начать
  * настройку» → «Сохранить и выйти» → «Продолжить настройку», «Начать с чистого листа», then the same popup from Settings
- * with «Добавить пример» and the rhythm.
+ * with «Добавить пример»; Settings have no rhythm (LFS-222).
  */
 test("first visit: close, questions saved and continued, a blank start, then the popup from Settings (LFS-220)", async ({ page }, testInfo) => {
   const errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
@@ -25,6 +25,8 @@ test("first visit: close, questions saved and continued, a blank start, then the
   await expect(start).toBeVisible();
   for (const name of ["Начать настройку", "Заполнить примером", "Начать с чистого листа"]) await expect(start.getByRole("button", { name, exact: true })).toBeVisible();
   await expect(start).toContainText("Накопить 5 000 $");
+  // The questions end with the summary: the rhythm step is gone (LFS-222).
+  await expect(start).not.toContainText("Ритм");
   await noOverflow(page);
   await page.screenshot({ path: testInfo.outputPath("start-dialog.png") });
 
@@ -87,11 +89,10 @@ test("first visit: close, questions saved and continued, a blank start, then the
   await expect(reopened).toHaveCount(0);
   await expect(section.getByRole("button", { name: "Открыть начальную настройку", exact: true })).toBeFocused();
 
-  // «Ритм отметок» is stored on the profile.
-  await section.getByRole("combobox", { name: "Ритм отметок" }).selectOption({ label: "Раз в неделю" });
-  await section.getByRole("button", { name: "Сохранить", exact: true }).click();
-  await expect(section.getByText("Сохранено: Раз в неделю.", { exact: true })).toBeVisible();
-  expect((await onboardingState(page)).checkin_rhythm).toBe("weekly");
+  // «Ритм отметок» was removed with the rhythm (LFS-222): the section has the start, the spheres in focus and the examples.
+  await expect(section).not.toContainText("Ритм");
+  await expect(section.getByRole("combobox")).toHaveCount(0);
+  await expect(section.getByRole("heading", { level: 3 })).toHaveText(["Пример или вопросы по сферам", "Сферы в фокусе", "Примерные цели"]);
   await noOverflow(page);
   await page.screenshot({ path: testInfo.outputPath("settings-onboarding.png"), fullPage: true });
   expect(errors).toEqual([]);

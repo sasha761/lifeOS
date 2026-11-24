@@ -15,7 +15,7 @@ describe("explicit environment validation", () => {
     expect(readWebEnv({ ...web, NODE_ENV: "production", MAIL_TRANSPORT: "smtp", SMTP_URL, WORKER_QUEUE_SCHEMA: "invalid!", SECRET: "private" }))
       .toEqual({
         DATABASE_URL, NODE_ENV: "production", BETTER_AUTH_SECRET, BETTER_AUTH_URL: "http://127.0.0.1:3000",
-        AUTH_SIGNUP_ALLOWLIST: [], mail: { transport: "smtp", from: "no-reply@lifeos.local", url: SMTP_URL },
+        AUTH_SIGNUP_MODE: "open", AUTH_SIGNUP_ALLOWLIST: [], mail: { transport: "smtp", from: "no-reply@lifeos.local", url: SMTP_URL },
       });
     expect(readWorkerEnv({ DATABASE_URL })).toEqual({ DATABASE_URL, NODE_ENV: "development", WORKER_QUEUE_SCHEMA: "pgboss" });
     expect(readWorkerEnv({ DATABASE_URL, NODE_ENV: "test", WORKER_QUEUE_SCHEMA: "isolated_queue" }).WORKER_QUEUE_SCHEMA).toBe("isolated_queue");
@@ -52,7 +52,21 @@ describe("explicit environment validation", () => {
 });
 
 describe("web auth and mail environment", () => {
-  it("defaults to a closed registration and keeps allowlist entries without echoing them in errors", () => {
+  it("defaults to open registration, accepts allowlist mode and rejects other modes", () => {
+    expect(readWebEnv(web).AUTH_SIGNUP_MODE).toBe("open");
+    expect(readWebEnv({ ...web, AUTH_SIGNUP_MODE: "allowlist" }).AUTH_SIGNUP_MODE).toBe("allowlist");
+    for (const AUTH_SIGNUP_MODE of ["closed", "OPEN", " open", "do-not-log"]) {
+      try {
+        readWebEnv({ ...web, AUTH_SIGNUP_MODE });
+        throw new Error("Expected rejection");
+      } catch (error) {
+        expect(error).toMatchObject({ settings: ["AUTH_SIGNUP_MODE"] });
+        expect(String(error)).toContain("AUTH_SIGNUP_MODE must be open or allowlist.");
+        expect(String(error)).not.toContain("do-not-log");
+      }
+    }
+  });
+  it("keeps allowlist entries without echoing them in errors", () => {
     expect(readWebEnv(web)).toMatchObject({
       NODE_ENV: "development", AUTH_SIGNUP_ALLOWLIST: [],
       mail: { transport: "outbox", from: "no-reply@lifeos.local", directory: "../../.cache/dev-mail" },

@@ -22,8 +22,10 @@ test("onboarding wizard: answers, own wording, a skip, save and resume, four goa
   await next(page);
   await expect(page.getByText("Выберите хотя бы одну сферу.", { exact: true })).toBeVisible();
   for (const sphere of ["Финансы", "Проекты", "Навыки", "Здоровье"]) await page.getByRole("checkbox", { name: new RegExp(`^${sphere}`) }).check();
-  await expect(page.getByText("Будет 4 вопроса по сферам, вопрос про ритм и итог.")).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Шаги настройки" }).getByRole("listitem")).toHaveCount(7);
+  // Spheres, four questions and the summary: no rhythm step (LFS-222).
+  await expect(page.getByText("Будет 4 вопроса по сферам и итог.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Шаги настройки" }).getByRole("listitem")).toHaveCount(6);
+  await expect(page.getByRole("navigation", { name: "Шаги настройки" })).not.toContainText("Ритм");
   await noOverflow(page);
   await next(page);
 
@@ -81,13 +83,11 @@ test("onboarding wizard: answers, own wording, a skip, save and resume, four goa
   await noOverflow(page);
   await next(page);
 
-  // Rhythm.
-  await expect(stepHeading(page)).toHaveText("Как часто вы готовы отмечать прогресс?");
-  await page.getByRole("radio", { name: /^2–3 раза в неделю/ }).check();
-  await next(page);
-
-  // Summary (mockup 27): four goals, the skipped sphere, nothing created yet.
+  // Summary (mockup 27) right after the last sphere: four goals, the skipped sphere, nothing created yet. Its right panel
+  // has no «Ритм» card (LFS-222).
   await expect(stepHeading(page)).toHaveText(/^Проверьте цели/);
+  await expect(page.getByRole("complementary", { name: "Что будет дальше" })).toContainText("Откроется Кабинет, выбранные сферы будут первыми.");
+  await expect(page.getByRole("main")).not.toContainText("Ритм");
   const goals = page.getByRole("list", { name: "Предложенные цели" });
   for (const title of ["Подушка безопасности", "Запустить «Сайт-портфолио»", "Тренировки 3 раза в неделю", "Проплыть 2 км без остановки"]) {
     await expect(goals.getByRole("checkbox", { name: `Создать цель «${title}»` })).toBeChecked();

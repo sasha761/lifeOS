@@ -1,6 +1,6 @@
 import {
   decodeGoalsCursor, decodeMeasurementsCursor, encodeGoalsCursor, encodeMeasurementsCursor,
-  goalIdSchema, goalsListQuerySchema, measurementsListQuerySchema,
+  GOAL_PHASE_LABELS, goalIdSchema, goalsListQuerySchema, measurementsListQuerySchema,
 } from "@lifeos/contracts";
 import type {
   Goal, GoalDetails, GoalMeasurement, GoalsCursor, GoalsListQuery, GoalsPage, MeasurementsCursor, MeasurementsPage,
@@ -39,6 +39,12 @@ export function goalDetailsFromRecord(actor: Actor, record: GoalReadRecord): Goa
     if (latest.goal_id !== goal.id || latest.unit !== goal.unit) throw new NotFoundError();
   }
   if (!Number.isSafeInteger(measurementCount) || measurementCount < 0 || (latest === null) !== (measurementCount === 0)) throw new Error("Invalid measurement summary.");
+  // LFS-225 (ADR-013): no percentage and nothing numeric; the explanation is the phase the person set.
+  if (goal.kind === "unmeasured") {
+    if (latest !== null) throw new Error("A goal without measurements has a measurement.");
+    return { goal, progress: { methodology: null, source: "manual", unit: null, baseline: null, target: null, current: null, provenance: null,
+      status: "unmeasured", progressPercent: null, explanation: GOAL_PHASE_LABELS[goal.phase], updatedAt, measurementCount } };
+  }
   return { goal, progress: {
     methodology: { version: 1, mode: "manual", formula: goal.direction === "increase" ? "(current-baseline)/(target-baseline)" : "(baseline-current)/(baseline-target)",
       percentDecimals: 2, rounding: "half_up", clamped: true },

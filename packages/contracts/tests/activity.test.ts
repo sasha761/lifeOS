@@ -5,7 +5,7 @@ const time = "2026-11-15T10:00:00.000Z";
 const goalId = "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc";
 function entry(type: string, extra: Record<string, unknown> = {}) {
   return { id: "5fe63a56-7a7f-4905-bdc3-c9dff1d439dc", type, occurredAt: time, source: "web", domainKey: "finance",
-    goal: { id: goalId, title: "Savings", status: "active" }, measurement: null, changedFields: null, dueAt: null, definition: null, example: false, ...extra };
+    goal: { id: goalId, title: "Savings", status: "active" }, measurement: null, changedFields: null, startsAt: null, dueAt: null, definition: null, phase: null, example: false, ...extra };
 }
 const measurement = (previousValue: string | null) => ({ value: "12000", previousValue, unit: "NOK", unitLabel: null });
 const definition = { before: { unit: "NOK", baseline: "0", target: "5000", direction: "increase" }, after: { unit: "count", baseline: "2", target: "10", direction: "increase" } };

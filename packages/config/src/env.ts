@@ -23,7 +23,9 @@ export const httpOriginSchema = z.string().trim().refine((value) => {
   } catch { return false; }
 }).transform((value) => new URL(value).origin);
 const authSecretSchema = z.string().min(32).max(512).refine((value) => !/\s/.test(value) && !/replace-me|change-me/i.test(value));
-// Pilot restriction for new registrations; normalization and matching live in @lifeos/domain.
+// Who may create an account: open (default, LFS-221) or allowlist. The list is used only in allowlist mode;
+// normalization and matching live in @lifeos/domain.
+const signupModeSchema = z.enum(["open", "allowlist"]).default("open");
 const signupAllowlistSchema = z.string().default("")
   .transform((value) => value.split(",").map((entry) => entry.trim()).filter((entry) => entry.length > 0))
   .pipe(z.array(z.email()).max(100));
@@ -43,6 +45,7 @@ export const webEnvSchema = databaseEnvSchema.extend({
   NODE_ENV: nodeEnvironmentSchema,
   BETTER_AUTH_SECRET: authSecretSchema,
   BETTER_AUTH_URL: httpOriginSchema,
+  AUTH_SIGNUP_MODE: signupModeSchema,
   AUTH_SIGNUP_ALLOWLIST: signupAllowlistSchema,
   MAIL_TRANSPORT: z.enum(["outbox", "smtp"]),
   MAIL_FROM: z.string().trim().max(254).pipe(z.email()),
@@ -74,6 +77,7 @@ const diagnostics = {
   WORKER_QUEUE_SCHEMA: "WORKER_QUEUE_SCHEMA must be a dedicated lowercase queue schema (1-50 characters).",
   BETTER_AUTH_SECRET: "BETTER_AUTH_SECRET must be a random value of 32-512 characters without spaces or placeholders.",
   BETTER_AUTH_URL: "BETTER_AUTH_URL must be the http(s) origin of the Web app without path, query or credentials.",
+  AUTH_SIGNUP_MODE: "AUTH_SIGNUP_MODE must be open or allowlist.",
   AUTH_SIGNUP_ALLOWLIST: "AUTH_SIGNUP_ALLOWLIST must be a comma-separated list of up to 100 email addresses.",
   MAIL_TRANSPORT: "MAIL_TRANSPORT must be outbox (development/test only) or smtp.",
   MAIL_FROM: "MAIL_FROM must be an email address.",

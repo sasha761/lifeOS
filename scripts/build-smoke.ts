@@ -55,7 +55,7 @@ async function main(): Promise<void> {
   const web = launch(["scripts/run-next.ts", "start", "--hostname", "127.0.0.1", "--port", String(port)], join(root, "apps/web"), {
     ...environment, DATABASE_URL: "postgresql://smoke@127.0.0.1:1/lifeos_smoke",
     BETTER_AUTH_SECRET: randomBytes(32).toString("base64url"), BETTER_AUTH_URL: `http://127.0.0.1:${port}`,
-    AUTH_SIGNUP_ALLOWLIST: "", MAIL_TRANSPORT: "smtp", SMTP_URL: "smtp://127.0.0.1:1", MAIL_FROM: "smoke@lifeos.invalid",
+    AUTH_SIGNUP_MODE: "allowlist", AUTH_SIGNUP_ALLOWLIST: "", MAIL_TRANSPORT: "smtp", SMTP_URL: "smtp://127.0.0.1:1", MAIL_FROM: "smoke@lifeos.invalid",
   });
   try {
     const base = `http://127.0.0.1:${port}`;

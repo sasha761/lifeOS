@@ -1,18 +1,17 @@
 import { z } from "zod";
 import { DOMAIN_KEYS, domainKeySchema } from "./domains.ts";
 import type { DomainKey } from "./domains.ts";
-import { createGoalInputSchema, GOAL_UNIT_LABEL_MAX_LENGTH, goalDirectionSchema, goalInstantSchema, goalUnitSchema } from "./goals.ts";
+import { createNumericGoalInputSchema, GOAL_UNIT_LABEL_MAX_LENGTH, goalDirectionSchema, goalInstantSchema, goalUnitSchema } from "./goals.ts";
 
 /**
- * Onboarding wizard (LFS-219, ADR-012): spheres → one question per chosen sphere in registry order → rhythm → summary.
+ * Onboarding wizard (LFS-219, ADR-012): spheres → one question per chosen sphere in registry order → summary. The
+ * rhythm step was removed by LFS-222.
  * Version of the question catalog; answers saved with another version are not offered as a draft.
  */
 export const ONBOARDING_CATALOG_VERSION = 1;
 /** `dismissed` and the start `choice` are stored from LFS-219 on, so that the first-visit popup (LFS-220) needs no migration. */
 export const ONBOARDING_STATUSES = Object.freeze(["not_started", "in_progress", "completed", "dismissed"] as const);
 export const ONBOARDING_START_CHOICES = Object.freeze(["example", "wizard", "blank"] as const);
-/** How often the person is ready to record progress (profile `checkin_rhythm`); reminders come with Telegram (Stage 3). */
-export const CHECKIN_RHYTHMS = Object.freeze(["daily", "few_per_week", "weekly", "self"] as const);
 /** Answer options of catalog v1 per sphere; `own`/`other` is the person's own wording. */
 export const ONBOARDING_OPTIONS = Object.freeze({
   languages: ["english", "norwegian", "german", "spanish", "other"],
@@ -38,13 +37,10 @@ export const ONBOARDING_GOALS_MAX = Object.values(ONBOARDING_CHOICE_LIMITS).redu
 export const ONBOARDING_DRAFT_NUMBER_MAX_LENGTH = 40;
 /** Language levels A1…C2 are stored as 1…6 in the unit «уровень (A1=1 … C2=6)». */
 export const LANGUAGE_LEVELS = Object.freeze(["A1", "A2", "B1", "B2", "C1", "C2"] as const);
-const TIME_ZONE_DRAFT_MAX_LENGTH = 64;
 
 export const onboardingStatusSchema = z.enum(ONBOARDING_STATUSES);
 export const onboardingStartChoiceSchema = z.enum(ONBOARDING_START_CHOICES);
-export const checkinRhythmSchema = z.enum(CHECKIN_RHYTHMS);
 export type OnboardingStatus = z.infer<typeof onboardingStatusSchema>;
-export type CheckinRhythm = z.infer<typeof checkinRhythmSchema>;
 /**
  * «Сферы в фокусе» (`user.focus_domains`, LFS-219): registry keys without repeats, in registry order. Older fixtures
  * without the field read as none.
@@ -52,8 +48,8 @@ export type CheckinRhythm = z.infer<typeof checkinRhythmSchema>;
 export const focusDomainsSchema = z.array(domainKeySchema).max(DOMAIN_KEYS.length)
   .refine((keys) => keys.every((key, index) => index === 0 || DOMAIN_KEYS.indexOf(keys[index - 1]!) < DOMAIN_KEYS.indexOf(key)));
 const countSchema = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
-/** Screen to resume on: the spheres, a chosen sphere's question, the rhythm or the summary. */
-export const onboardingStepSchema = z.union([z.enum(["domains", "rhythm", "summary"]), domainKeySchema]);
+/** Screen to resume on: the spheres, a chosen sphere's question or the summary. */
+export const onboardingStepSchema = z.union([z.enum(["domains", "summary"]), domainKeySchema]);
 export type OnboardingStep = z.infer<typeof onboardingStepSchema>;
 /** Proposed goal: `<sphere>.<option>` for an answer, `extra.<n>` for a goal added on the summary. */
 export const onboardingGoalKeySchema = z.string().min(3).max(64).regex(/^[a-z]+\.[a-z0-9_]+$/);
@@ -86,16 +82,15 @@ export type OnboardingSphereAnswer = z.infer<typeof onboardingSphereAnswerSchema
 
 /**
  * The whole draft (`onboarding_state.answers`). Answers of a sphere that was deselected are kept, so going back and
- * choosing it again loses nothing; only chosen spheres produce goals. `timezone` is the zone confirmed on the rhythm
- * step (null: the profile zone stays); `unchecked` are proposed goals unticked on the summary.
+ * choosing it again loses nothing; only chosen spheres produce goals. `unchecked` are proposed goals unticked on the
+ * summary. Dates are read in the profile time zone. A draft stored before LFS-222 also had `rhythm` and `timezone`:
+ * the server drops them when it reads the stored draft (`readStoredOnboardingAnswers`).
  */
 export const onboardingAnswersSchema = z.strictObject({
   step: onboardingStepSchema,
   domains: z.array(domainKeySchema).max(DOMAIN_KEYS.length),
   spheres: z.partialRecord(domainKeySchema, onboardingSphereAnswerSchema),
-  rhythm: checkinRhythmSchema.nullable(),
-  timezone: z.string().min(1).max(TIME_ZONE_DRAFT_MAX_LENGTH).nullable(),
-  extra: z.array(createGoalInputSchema).max(ONBOARDING_EXTRA_GOALS_MAX),
+  extra: z.array(createNumericGoalInputSchema).max(ONBOARDING_EXTRA_GOALS_MAX),
   unchecked: z.array(onboardingGoalKeySchema).max(ONBOARDING_GOALS_MAX),
 }).superRefine((answers, context) => {
   // Registry order without repeats: the order of questions and of «сферы в фокусе» on the dashboard.
@@ -133,7 +128,7 @@ export type CompleteOnboardingInput = z.infer<typeof completeOnboardingInputSche
 
 /**
  * GET/PUT/PATCH /api/v1/onboarding. Without a row the status is `not_started`; a draft of another catalog version reads
- * as none. Since LFS-220 it also carries what the setup keeps in the profile (rhythm, «сферы в фокусе») and three goal
+ * as none. Since LFS-220 it also carries what the setup keeps in the profile («сферы в фокусе») and three goal
  * counts of the owner for Settings and the popup: all goals, goals of the wizard (`origin = onboarding`) and goals
  * still labelled «Пример» (`origin = starter`), active and archived.
  */
@@ -144,7 +139,6 @@ export const onboardingStateSchema = z.strictObject({
   answers: onboardingAnswersSchema.nullable(),
   completed_at: goalInstantSchema.nullable(),
   updated_at: goalInstantSchema.nullable(),
-  checkin_rhythm: checkinRhythmSchema.nullable(),
   focus_domains: focusDomainsSchema,
   goals: z.strictObject({ total: countSchema, onboarding: countSchema, examples: countSchema })
     .refine((goals) => goals.onboarding + goals.examples <= goals.total),
@@ -159,13 +153,12 @@ export type OnboardingState = z.infer<typeof onboardingStateSchema>;
  */
 export const ONBOARDING_START_TRANSITIONS = Object.freeze({ wizard: "in_progress", blank: "dismissed" } as const);
 /**
- * PATCH /api/v1/onboarding (LFS-220): exactly one change — a start choice of the popup (the pair of status and choice) or
- * the rhythm from Settings («Ритм отметок»). Repeating the current choice changes nothing, so no Idempotency-Key is needed.
+ * PATCH /api/v1/onboarding (LFS-220): a start choice of the popup, the pair of status and choice. Repeating the current
+ * choice changes nothing, so no Idempotency-Key is needed. The rhythm from Settings was removed by LFS-222.
  */
 export const updateOnboardingInputSchema = z.union([
   z.strictObject({ status: z.literal(ONBOARDING_START_TRANSITIONS.wizard), choice: z.literal("wizard") }),
   z.strictObject({ status: z.literal(ONBOARDING_START_TRANSITIONS.blank), choice: z.literal("blank") }),
-  z.strictObject({ checkin_rhythm: checkinRhythmSchema }),
 ]);
 export type UpdateOnboardingInput = z.infer<typeof updateOnboardingInputSchema>;
 export type OnboardingStartChoice = keyof typeof ONBOARDING_START_TRANSITIONS;

@@ -108,12 +108,14 @@ HTTP Idempotency-Key protocol или user-scoped replay ответов. Его �
 | Config | Обязательные | Необязательные |
 |---|---|---|
 | database | `DATABASE_URL` | — |
-| web | `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `MAIL_TRANSPORT`, `MAIL_FROM`; `MAIL_OUTBOX_DIR` при outbox, `SMTP_URL` при smtp | `NODE_ENV`: development/test/production, default development; `AUTH_SIGNUP_ALLOWLIST`: default пусто (регистрация закрыта) |
+| web | `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `MAIL_TRANSPORT`, `MAIL_FROM`; `MAIL_OUTBOX_DIR` при outbox, `SMTP_URL` при smtp | `NODE_ENV`: development/test/production, default development; `AUTH_SIGNUP_MODE`: open/allowlist, default open; `AUTH_SIGNUP_ALLOWLIST`: default пусто (в режиме allowlist — регистрация закрыта) |
 | worker | `DATABASE_URL` | `NODE_ENV`, `WORKER_QUEUE_SCHEMA`: default pgboss |
 
 Auth/mail (LFS-201): `BETTER_AUTH_SECRET` — 32–512 символов без пробелов и
 placeholder-значений; `BETTER_AUTH_URL` — http(s) origin без path/query/
-credentials; `AUTH_SIGNUP_ALLOWLIST` — до 100 email через запятую;
+credentials; `AUTH_SIGNUP_MODE` — `open` (регистрируется любой email) или
+`allowlist` (LFS-221); `AUTH_SIGNUP_ALLOWLIST` — до 100 email через запятую,
+читается только в режиме `allowlist`;
 `MAIL_TRANSPORT=outbox` запрещён при `NODE_ENV=production`; `SMTP_URL` —
 `smtp://` или `smtps://`. Web читает результат как `mail: { transport, from,
 directory | url }`. Значения, включая SMTP credentials, в ошибки не попадают.
@@ -146,7 +148,7 @@ Better Auth 1.7.18 обслуживает `/api/auth/*` своим JSON-форм
 
 | Endpoint | Назначение | Основные ответы |
 |---|---|---|
-| `POST /api/auth/sign-up/email` | Регистрация `{ name, email, password }` | 200 + cookie; 403 `SIGNUP_NOT_ALLOWED` вне allowlist; 422 `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL`; 400 длина пароля |
+| `POST /api/auth/sign-up/email` | Регистрация `{ name, email, password }` | 200 + cookie; 403 `SIGNUP_NOT_ALLOWED` только в режиме `allowlist` для email вне списка; 422 `USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL`; 400 длина пароля |
 | `POST /api/auth/sign-in/email` | Вход `{ email, password }` | 200 + cookie; 401 `INVALID_EMAIL_OR_PASSWORD` |
 | `POST /api/auth/sign-out` | Удаляет серверную сессию | 200 |
 | `POST /api/auth/request-password-reset` | `{ email, redirectTo: "/auth/reset-password" }` | 200 одинаково для известных и неизвестных email; 503 `EMAIL_DELIVERY_FAILED`, если письмо не отправлено |
@@ -245,6 +247,15 @@ Decimal: 0 ≤ value < 10^22, максимум 8 дробных знаков, б
 равенство отклоняется. `Goal` возвращает user_id, серверные id/status и ISO UTC
 timestamps; current доступен отдельной measurement projection, progress — LFS-207.
 
+**LFS-225 ([ADR-013](../adr/013-goal-kinds-phases.md)).** `createGoalInputSchema` — объединение двух видов:
+числовая цель (как выше, `kind: "numeric"` по умолчанию) и `{ kind: "unmeasured", domain_key, title, description?,
+starts_at?, due_at? }` без единицы и чисел (лишнее поле — VALIDATION_ERROR). У любой цели optional `starts_at`;
+если заданы обе даты, `starts_at ≤ due_at`, иначе VALIDATION_ERROR (и при правке одной даты против сохранённой
+другой). `Goal` добавляет `kind`, `phase` (`planned | in_progress | paused | achieved`), `phase_changed_at`,
+`starts_at`; у цели без измерений `unit`, `unit_label`, `baseline`, `target`, `direction` — `null`. Определение
+у цели без измерений не правится — CONFLICT. Мастер, пример и «Новая цель» пользуются
+`createNumericGoalInputSchema`.
+
 Публичные endpoints целей в LFS-205 не создаются. `GoalsService` проверяет
 unknown input, Actor/ownership; ошибки VALIDATION_ERROR, NOT_FOUND,
 CONFLICT совместимы с HTTP mapper. Политики — [ADR-007](../adr/007-goals.md).
@@ -325,12 +336,12 @@ headers. Неподдерживаемый метод обрабатываетс�
 | `GET /api/v1/goals` | optional query limit/cursor/domain_key/status; `GoalsPage { items: GoalDetails[], nextCursor }` |
 | `POST /api/v1/goals` | CreateGoalInput; `GoalDetails` |
 | `GET /api/v1/goals/:goalId` | `GoalDetails { goal: Goal, progress: GoalProgress }` |
-| `PATCH /api/v1/goals/:goalId` | UpdateGoalInput (metadata и/или определение целиком, LFS-217) **либо** `{status:"archived"}`; `GoalDetails` |
+| `PATCH /api/v1/goals/:goalId` | UpdateGoalInput (metadata, в том числе `starts_at`, и/или определение целиком, LFS-217) **либо** `{status:"archived"}` **либо** `{phase}` (LFS-225: смена статуса, тот же статус — без изменений, архивная цель — 409); `GoalDetails` |
 | `DELETE /api/v1/goals/:goalId` (LFS-216) | без body; `GoalDeletion { id, user_id, deleted:true }` |
 | `POST /api/v1/starter-pack` (LFS-218) | без body; `StarterPackApplied { version:1, created_goals, created_measurements }`; пример уже в аккаунте — 409 |
 | `DELETE /api/v1/starter-pack` (LFS-218) | без body; `StarterPackRemoved { deleted_goals }` |
 | `GET /api/v1/goals/:goalId/measurements` | optional query limit/cursor; `MeasurementsPage { items: GoalMeasurement[], nextCursor, measurementCount }` |
-| `POST /api/v1/goals/:goalId/measurements` | CreateGoalMeasurementInput; `GoalMeasurement` |
+| `POST /api/v1/goals/:goalId/measurements` | CreateGoalMeasurementInput; `GoalMeasurement`; цель без измерений (LFS-225) и архивная — 409 |
 | `PATCH /api/v1/goal-measurements/:measurementId` | UpdateGoalMeasurementInput; `GoalMeasurement` |
 | `DELETE /api/v1/goal-measurements/:measurementId` | без body; `GoalMeasurementDeletion { id, goal_id, user_id, deleted:true }` |
 
@@ -373,9 +384,9 @@ metadata) остаётся для успешного повтора с тем ж
 
 | Поле | Смысл |
 |---|---|
-| `methodology` | version=1, mode=manual, formula increase/decrease, percentDecimals=2, rounding=half_up, clamped=true |
-| `unit`, `baseline`, `target`, `current` | исходные точные значения; current=null без фактов измерений |
-| `progressPercent`, `status`, `explanation` | число 0..100 / measured / null либо null / insufficient_data / «Недостаточно данных» |
+| `methodology` | version=1, mode=manual, formula increase/decrease, percentDecimals=2, rounding=half_up, clamped=true; null у цели без измерений |
+| `unit`, `baseline`, `target`, `current` | исходные точные значения; current=null без фактов измерений; у цели без измерений все null |
+| `progressPercent`, `status`, `explanation` | число 0..100 / measured / null либо null / insufficient_data / «Недостаточно данных»; у цели без измерений (LFS-225) null / unmeasured / слово статуса («В процессе», «Достигнута»…) |
 | `source` | manual — способ задания цели; само по себе не подтверждает current |
 | `provenance` | null без замера; иначе kind=self_report и source=manual (своё значение) или kind=example и source=example (LFS-218), measurementId, measuredAt, recordedAt, updatedAt |
 | `measurementCount` | все существующие замеры этой цели, не длина страницы и не количество событий |
@@ -435,7 +446,7 @@ no-store в общем envelope. Владелец берётся только и
 |---|---|
 | `domains` | ровно 6 сфер в порядке `DOMAIN_KEYS`: `{ key, activeCount, archivedCount, goals }`. `goals` — до 5 (`DASHBOARD_GOALS_PER_DOMAIN`) новейших **активных** целей сферы в формате `GoalDetails`, тот же DTO и расчёт, что `GET /api/v1/goals/:goalId`. Счётчики точные, даже если целей больше лимита. Процента сферы, Life Score или «уровня» нет |
 | `today.dueGoals` | до 8 (`DASHBOARD_DUE_GOALS_LIMIT`) активных целей со сроком, ближайшие первыми (включая просроченные), `GoalDetails` |
-| `activity` | до 10 (`DASHBOARD_ACTIVITY_LIMIT`) новейших событий `activity_events` владельца: `{ id, type, occurredAt, source, domainKey, goal: { id, title, status }, measurement }`. `measurement` — `{ value, unit, unitLabel }` только у `goal_measurement.*` (для удаления — значение до удаления), иначе null. Title — текущий из goals: audit не хранит названия (ADR-008); заметки и before/after цели не выдаются |
+| `activity` | до 10 (`DASHBOARD_ACTIVITY_LIMIT`) новейших событий `activity_events` владельца: `{ id, type, occurredAt, source, domainKey, goal: { id, title, status }, measurement }`. `measurement` — `{ value, unit, unitLabel }` только у `goal_measurement.*` (для удаления — значение до удаления), иначе null. Title — текущий из goals: audit не хранит названия (ADR-008); заметки и before/after цели не выдаются, кроме `phase` — `{ before, after }` у смены статуса (LFS-225), иначе null |
 | `examples` | LFS-218: `{ goals, measurements }` — цели с `origin = starter` (активные и архивные) и измерения с `source = example`; для баннера «Это пример». Два счётчика в том же snapshot, без запроса на цель |
 | `focus_domains` | LFS-219: сферы в фокусе из мастера, в порядке реестра; `[]`, если мастер не пройден. Порядок `domains` не меняется |
 
@@ -473,7 +484,9 @@ VALIDATION_ERROR. Курсора пока нет: панель и страниц
 | `id`, `type`, `occurredAt`, `source`, `domainKey`, `goal` | как в `activity` Dashboard; `goal.title` — текущее название (audit не хранит названия, ADR-008) |
 | `measurement` | `{ value, previousValue, unit, unitLabel }` у `goal_measurement.*`, иначе null; `previousValue` — значение до исправления, только у `goal_measurement.updated`. `unit` и `unitLabel` — null у измерения, записанного до последней смены единицы цели (LFS-217): журнал не хранит единицу измерения, поэтому значение показывается числом |
 | `changedFields` | у `goal.updated` — какие поля изменены (`GOAL_CHANGED_FIELDS`), иначе null. Сами название, описание и своя единица в журнале не хранятся |
+| `startsAt` | у `goal.updated` с изменённой датой начала (LFS-225) — `{ before, after }` (UTC instant или null), иначе null |
 | `dueAt` | у `goal.updated` с изменённым сроком — `{ before, after }` (UTC instant или null), иначе null |
+| `phase` | у смены статуса (`changed_fields: ["phase"]`, LFS-225) — `{ before, after }`, иначе null |
 | `definition` | у `goal.updated` с изменёнными `unit`/`baseline`/`target`/`direction` — `{ before, after }` с этими четырьмя полями (LFS-217), иначе null |
 
 Чтение — один owner-scoped SQL-запрос с join на `goals` по составному ключу
@@ -510,13 +523,12 @@ Origin публичного URL (403), обязательный `Idempotency-Key
 
 | Метод | Тело и ответ |
 |---|---|
-| `GET /api/v1/onboarding` | без query; `OnboardingState { status, choice, catalog_version, answers, completed_at, updated_at, checkin_rhythm, focus_domains, goals }`. Без строки — `not_started`, `answers: null`; черновик другой версии каталога — `answers: null` |
+| `GET /api/v1/onboarding` | без query; `OnboardingState { status, choice, catalog_version, answers, completed_at, updated_at, focus_domains, goals }`. Без строки — `not_started`, `answers: null`; черновик другой версии каталога — `answers: null` |
 | `PUT /api/v1/onboarding` | `{ answers }` — черновик целиком («Сохранить и выйти»), JSON, Origin публичного URL, без query. `Idempotency-Key` не нужен: черновик заменяется целиком. Статус → `in_progress`; `completed` остаётся `completed`; `choice = wizard`. Цели не создаются. Ответ `OnboardingState` |
-| `PATCH /api/v1/onboarding` | LFS-220. Ровно одно из: `{ status: "in_progress", choice: "wizard" }` («Начать настройку»), `{ status: "dismissed", choice: "blank" }` («Начать с чистого листа»), `{ checkin_rhythm }` («Ритм отметок» в Настройках). JSON, Origin, без query, `Idempotency-Key` не нужен: повтор даёт то же состояние. Ответ `OnboardingState` |
+| `PATCH /api/v1/onboarding` | LFS-220. Ровно одно из: `{ status: "in_progress", choice: "wizard" }` («Начать настройку»), `{ status: "dismissed", choice: "blank" }` («Начать с чистого листа»). `{ checkin_rhythm }` удалён в LFS-222 и даёт 400. JSON, Origin, без query, `Idempotency-Key` не нужен: повтор даёт то же состояние. Ответ `OnboardingState` |
 | `POST /api/v1/onboarding/complete` | `{ answers, selected }` («Создать N целей»): JSON, Origin, `Idempotency-Key`. Ответ `OnboardingCompleted { catalog_version: 1, created_goals }` |
 
-Поля `OnboardingState` с LFS-220:
-- `checkin_rhythm` — `CHECKIN_RHYTHMS` | null, из профиля;
+Поля `OnboardingState` с LFS-220 (поле `checkin_rhythm` удалено в LFS-222):
 - `focus_domains` — сферы в фокусе в порядке реестра, `[]` если не выбраны;
 - `goals: { total, onboarding, examples }` — все цели владельца, цели мастера (`origin = onboarding`) и цели с меткой
   «Пример» (`origin = starter`), активные и в архиве.
@@ -530,17 +542,19 @@ Origin публичного URL (403), обязательный `Idempotency-Key
 
 Черновик ответов и его версия каталога при переходе сохраняются. Проверка и запись — один условный upsert, поэтому
 параллельное завершение мастера не будет перезаписано. Переход в `completed` через `PATCH` невозможен (400): настройку
-завершают только «Создать N целей» и загрузка примера. Ритм меняется в любом статусе, строка состояния не создаётся.
-Другие пары, лишние поля (в том числе `user_id`) и пустое тело — 400.
+завершают только «Создать N целей» и загрузка примера. Другие пары, `checkin_rhythm`, лишние поля (в том числе
+`user_id`) и пустое тело — 400.
 
-`OnboardingAnswers` (strict):
-- `step` — `domains` | ключ выбранной сферы | `rhythm` | `summary`;
+`OnboardingAnswers` (strict, с LFS-222 без ритма и пояса):
+- `step` — `domains` | ключ выбранной сферы | `summary`;
 - `domains` — ключи реестра без повторов в его порядке («сферы в фокусе»);
 - `spheres` — `{ <sphere>: { skipped, choices[] } }`;
-- `rhythm` — `CHECKIN_RHYTHMS` | null;
-- `timezone` — подтверждённый пояс или null;
 - `extra` — до 6 целей «+ Добавить цель в другой сфере» в формате `CreateGoalInput`;
 - `unchecked` — ключи снятых галочек.
+
+Даты сроков в ответах — моменты UTC; мастер показывает их в часовом поясе профиля, который меняют только в Настройках.
+`PUT` и `complete` с `rhythm`, `timezone` или `step: "rhythm"` — 400. Черновик, сохранённый до LFS-222, при чтении
+(`GET`) отдаётся без `rhythm` и `timezone`, а шаг `rhythm` превращается в `summary`.
 
 Выбор (`OnboardingChoice`) — `{ option, subject, direction, unit, unit_label, baseline, target, due_at }`. Числа —
 строки как ввели, до 40 символов: «3 000» и «21,1» допустимы в черновике и нормализуются при сборке. Варианты и лимиты —
@@ -549,13 +563,13 @@ Origin публичного URL (403), обязательный `Idempotency-Key
 
 `complete` заново строит цели из ответов и создаёт только отмеченные в `selected`:
 - одной транзакцией создаются цели с `origin = onboarding` и `goal.created` с `source = web` (ключ у первого факта);
-- в профиль пишутся `focus_domains` и `checkin_rhythm` (null сохраняет прежнее значение) и подтверждённый пояс;
+- в профиль пишутся только `focus_domains`; часовой пояс профиля не меняется (LFS-222);
 - состояние становится `completed`, создаётся квитанция `onboarding_receipts`;
 - измерений нет.
 
 Ошибки:
-- цель, которая не проходит контракт создания, неизвестный ключ в `selected` или неизвестный пояс — 400
-  `VALIDATION_ERROR` с `errors[0].field` (`health.own`, `skills.chess`, `timezone`); ничего не создаётся;
+- цель, которая не проходит контракт создания, или неизвестный ключ в `selected` — 400 `VALIDATION_ERROR` с
+  `errors[0].field` (`health.own`, `skills.chess`); ничего не создаётся;
 - повтор с тем же ключом возвращает тот же ответ, тот же ключ с другими данными — 409; ключ занят другой командой
   целей или примера — 409.
 

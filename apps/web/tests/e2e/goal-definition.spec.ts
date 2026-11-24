@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { add, create, goalAction, login, noOverflow } from "./support.ts";
+import { add, create, goalAction, login, noOverflow, openHistory } from "./support.ts";
 
 test("start and target change until the first measurement; the deadline is optional (LFS-217)", async ({ page }, testInfo) => {
   const errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
@@ -19,7 +19,7 @@ test("start and target change until the first measurement; the deadline is optio
   await dialog.getByRole("button", { name: "Сохранить изменения цели" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   // Grouping and date separators depend on the fixture locale, so any separator is accepted.
-  const history = page.getByTestId("goal-history");
+  const history = await openHistory(page);
   await expect(history).toContainText(/Старт изменён: 0 → 1.000, цель изменена: 5.000 → 6.000, срок изменён: без срока → 01[./]03[./]2027/);
   // A saved deadline is removed with «Убрать срок»: the field empties and keeps focus, the goal is saved without a deadline.
   await goalAction(page, "Изменить цель");

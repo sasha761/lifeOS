@@ -6,7 +6,7 @@ import { formatGoalValue, goalUnitOptionLabel, remainingToTarget } from "../lib/
 
 const preferences = { timezone: "Europe/Oslo", locale: "ru" };
 const base = { id: "5fe63a56-7a7f-4905-bdc3-c9dff1d439dc", occurredAt: "2026-11-14T10:00:00.000Z", source: "web", domainKey: "finance",
-  goal: { id: "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc", title: "Накопить 50 000 NOK", status: "active" }, measurement: null, changedFields: null, dueAt: null, definition: null, example: false } as const;
+  goal: { id: "4fe63a56-7a7f-4905-bdc3-c9dff1d439dc", title: "Накопить 50 000 NOK", status: "active" }, measurement: null, changedFields: null, startsAt: null, dueAt: null, definition: null, phase: null, example: false } as const;
 const entry = (value: Partial<ActivityEntry>): ActivityEntry => ({ ...base, type: "goal.created", ...value } as ActivityEntry);
 /** Russian grouping uses a no-break space; compare with plain spaces. */
 const describeActivity = (...args: Parameters<typeof describe_>) => describe_(...args).replace(/[  ]/g, " ");

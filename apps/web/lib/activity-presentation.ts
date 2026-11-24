@@ -1,3 +1,4 @@
+import { GOAL_PHASE_LABELS } from "@lifeos/contracts";
 import type { ActivityEntry, UserPreferences } from "@lifeos/contracts";
 import { formatGoalNumber, formatLoggedValue, GOAL_UNIT_LABELS } from "./goal-presentation.ts";
 import { formatDate } from "./user-preferences.ts";
@@ -9,7 +10,7 @@ const unitName = (unit: keyof typeof GOAL_UNIT_LABELS) => unit === "custom" ? "�
 function editParts(entry: ActivityEntry, preferences: Pick<UserPreferences, "timezone" | "locale">): string[] {
   const fields = new Set(entry.changedFields ?? []);
   const number = (value: string) => formatGoalNumber(value, preferences.locale);
-  const day = (instant: string | null) => instant === null ? "без срока" : formatDate(new Date(instant), preferences);
+  const day = (instant: string | null, empty = "без срока") => instant === null ? empty : formatDate(new Date(instant), preferences);
   const { before, after } = entry.definition ?? {};
   const parts: string[] = [];
   if (fields.has("title")) parts.push("название изменено");
@@ -19,7 +20,10 @@ function editParts(entry: ActivityEntry, preferences: Pick<UserPreferences, "tim
   if (fields.has("baseline") && before && after) parts.push(`старт изменён: ${number(before.baseline)} → ${number(after.baseline)}`);
   if (fields.has("target") && before && after) parts.push(`цель изменена: ${number(before.target)} → ${number(after.target)}`);
   if (fields.has("direction") && before && after) parts.push(`направление изменено: ${DIRECTION_LABELS[before.direction]} → ${DIRECTION_LABELS[after.direction]}`);
+  if (entry.startsAt) parts.push(`дата начала изменена: ${day(entry.startsAt.before, "без даты")} → ${day(entry.startsAt.after, "без даты")}`);
   if (entry.dueAt) parts.push(`срок изменён: ${day(entry.dueAt.before)} → ${day(entry.dueAt.after)}`);
+  // LFS-225: a phase is set by the person; the event holds both phases.
+  if (entry.phase) parts.push(`статус изменён: ${GOAL_PHASE_LABELS[entry.phase.before]} → ${GOAL_PHASE_LABELS[entry.phase.after]}`);
   // LFS-218: an example became the person's own goal.
   if (fields.has("origin")) parts.push("метка «Пример» снята");
   return parts;

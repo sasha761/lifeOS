@@ -43,6 +43,18 @@ export function resolveGoalTime(local: string, timeZone: string, offset: string 
 export function instantToLocalDate(instant: string, timeZone: string): string {
   return instantToLocalInput(instant, timeZone).slice(0, 10);
 }
+/**
+ * A date-only start (LFS-225) is the first millisecond of that day in the account's zone. Where a clock change skips
+ * midnight, the first full hour that exists; an ambiguous midnight takes its earlier instant.
+ */
+export function startOfLocalDay(date: string, timeZone: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Укажите дату начала.");
+  for (const time of ["00:00:00.000", "01:00:00.000"]) {
+    const [first] = zonedInstantChoices(`${date}T${time}`, timeZone).sort((a, b) => a.instant.localeCompare(b.instant));
+    if (first) return first.instant;
+  }
+  throw new Error("Укажите существующую дату в выбранном часовом поясе.");
+}
 /** A date-only deadline (LFS-213) is stored as the last millisecond of that day in the account's zone. */
 export function endOfLocalDay(date: string, timeZone: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Укажите дату срока.");

@@ -2,8 +2,8 @@ import { z } from "zod";
 import { ACTIVITY_EVENT_TYPES, activitySourceSchema, goalChangedFieldSchema } from "./activity-events.ts";
 import { domainKeySchema } from "./domains.ts";
 import {
-  GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, goalDecimalSchema, goalDirectionSchema, goalIdSchema, goalInstantSchema, goalStatusSchema,
-  goalUnitSchema,
+  GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, goalDecimalSchema, goalDirectionSchema, goalIdSchema, goalInstantSchema, goalPhaseSchema,
+  goalStatusSchema, goalUnitSchema,
 } from "./goals.ts";
 
 /** GET /api/v1/activity (LFS-213): the owner's audit journal, newest first, bounded; no cursor yet. */
@@ -26,8 +26,8 @@ const definitionSchema = z.strictObject({ unit: goalUnitSchema, baseline: goalDe
 
 /**
  * One audit fact for people: type, UTC time, source, the current goal title (the log stores none, ADR-008) and only
- * what the stored payload proves. `changedFields`/`dueAt`/`definition` describe goal edits; `previousValue` a corrected
- * measurement. A measurement recorded before the goal's unit last changed (LFS-217) has `unit: null`: its value is shown
+ * what the stored payload proves. `changedFields`/`startsAt`/`dueAt`/`definition`/`phase` describe goal edits and phase
+ * changes (LFS-225); `previousValue` a corrected measurement. A measurement recorded before the goal's unit last changed (LFS-217) has `unit: null`: its value is shown
  * as a plain number rather than in a unit it was never entered in.
  */
 export const activityEntrySchema = z.strictObject({
@@ -42,14 +42,18 @@ export const activityEntrySchema = z.strictObject({
     unit: goalUnitSchema.nullable(), unitLabel: z.string().min(1).max(GOAL_UNIT_LABEL_MAX_LENGTH).nullable(),
   }).refine((measurement) => measurement.unit !== null || measurement.unitLabel === null).nullable(),
   changedFields: z.array(goalChangedFieldSchema).min(1).max(goalChangedFieldSchema.options.length).nullable(),
+  startsAt: z.strictObject({ before: goalInstantSchema.nullable(), after: goalInstantSchema.nullable() }).nullable(),
   dueAt: z.strictObject({ before: goalInstantSchema.nullable(), after: goalInstantSchema.nullable() }).nullable(),
   definition: z.strictObject({ before: definitionSchema, after: definitionSchema }).nullable(),
+  phase: z.strictObject({ before: goalPhaseSchema, after: goalPhaseSchema }).nullable(),
   /** The fact belongs to the example (LFS-218): written by loading it, or about an example measurement. Shown as «Пример». */
   example: z.boolean(),
 }).refine((item) => item.type.startsWith("goal_measurement.") === (item.measurement !== null))
   .refine((item) => (item.type === "goal_measurement.updated") === (item.measurement?.previousValue != null))
   .refine((item) => (item.type === "goal.updated") === (item.changedFields !== null))
+  .refine((item) => (item.startsAt !== null) === (item.changedFields?.includes("starts_at") ?? false))
   .refine((item) => (item.dueAt !== null) === (item.changedFields?.includes("due_at") ?? false))
+  .refine((item) => (item.phase !== null) === (item.changedFields?.includes("phase") ?? false))
   .refine((item) => (item.definition !== null) === DEFINITION_VALUE_FIELDS.some((field) => item.changedFields?.includes(field) ?? false));
 export type ActivityEntry = z.infer<typeof activityEntrySchema>;
 

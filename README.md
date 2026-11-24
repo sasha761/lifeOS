@@ -161,9 +161,12 @@ lifeos_test. Это отдельные instances/roles/passwords/volumes. Миг
 
 `pnpm db:env` для нового `.env` генерирует и `BETTER_AUTH_SECRET`. Если `.env`
 создан раньше, добавьте ключи из [.env.example](.env.example): секрет 32+
-символов, `BETTER_AUTH_URL`, `MAIL_*`. Регистрация закрыта: впишите свой email в
-`AUTH_SIGNUP_ALLOWLIST` (через запятую, регистр не важен) и выполните
-`pnpm db:migrate`. Затем откройте `/auth/sign-up`.
+символов, `BETTER_AUTH_URL`, `MAIL_*`. Выполните `pnpm db:migrate` и откройте
+`/auth/sign-up`: по умолчанию (`AUTH_SIGNUP_MODE=open`) зарегистрироваться
+может любой email, подтверждения адреса нет. Чтобы закрыть регистрацию,
+задайте `AUTH_SIGNUP_MODE=allowlist` и перечислите разрешённые адреса в
+`AUTH_SIGNUP_ALLOWLIST` (через запятую, регистр не важен; пусто — никто).
+Вход уже зарегистрированных пользователей режим не ограничивает.
 
 Письма восстановления доступа в dev/test не отправляются наружу: с
 `MAIL_TRANSPORT=outbox` каждое письмо — JSON-файл в `.cache/dev-mail`
@@ -187,18 +190,18 @@ pnpm dev
   ручные измерения, исправление/удаление с подтверждением, metadata и архив.
   От 1024px список и панель выбранной цели рядом, как на макете 09 (LFS-213).
   «Новая цель» открывается диалогом поверх текущей страницы; прямой заход на `/goals/new` — отдельная страница (LFS-212).
-- `/settings` — профиль, выход, часовой пояс и язык/формат дат текущего пользователя (LFS-202, LFS-213); раздел «Начальная настройка»: тот же попап, ритм отметок, сферы в фокусе, примерные цели (LFS-220). Только после входа.
+- `/settings` — профиль, выход, часовой пояс и язык/формат дат текущего пользователя (LFS-202, LFS-213); раздел «Начальная настройка»: тот же попап, сферы в фокусе, примерные цели (LFS-220; ритм отметок удалён в LFS-222). Только после входа.
 - `/telegram` — компактная заглушка Mini App, без linking/SDK.
 - `/api/health` — JSON `{ data, meta, errors }`, текущий timestamp и IDs, no-store.
 - `/api/v1/me` — текущий пользователь; 401 без сессии.
 - `/api/v1/me/preferences` — `GET`/`PATCH` своих `timezone`/`locale`; 401 без сессии, 400 для невалидных значений и `userId` в body.
-- `/api/v1/goals` — `GET` списка с прогрессом, `POST` ручной цели; `/api/v1/goals/:goalId` — `GET`/`PATCH` metadata или archive, `DELETE` — удаление цели (LFS-216).
+- `/api/v1/goals` — `GET` списка с прогрессом, `POST` ручной цели (числовой или без измерений, LFS-225); `/api/v1/goals/:goalId` — `GET`/`PATCH` metadata, archive или статус цели `{ phase }` (LFS-225), `DELETE` — удаление цели (LFS-216).
 - `/api/v1/dashboard` — `GET` read model Dashboard владельца; [DTO](docs/api/contracts.md#dashboard-сфер-lfs-204).
 - `/api/v1/activity` — `GET` журнала действий владельца, фильтр `domain_key` или `goal_id`, `limit` до 50; [DTO](docs/api/contracts.md#журнал-действий-lfs-213).
 - `/api/v1/goals/:goalId/measurements` — `GET` истории с cursor/limit, `POST` измерения; `/api/v1/goal-measurements/:measurementId` — `PATCH`/`DELETE`. Все записи требуют `Idempotency-Key`; [DTO и примеры](docs/api/contracts.md#http-целей-и-прогресс-lfs-207).
 - `/api/v1/starter-pack` — `POST` загружает пример по выбору пользователя, `DELETE` — «Удалить все примеры» (LFS-218); [DTO](docs/api/contracts.md#пример-по-выбору-пользователя-lfs-218).
-- `/onboarding` — мастер начальной настройки: сферы, вопрос на каждую выбранную сферу, ритм и итог; цели создаются только кнопкой «Создать N целей», без измерений (LFS-219). Только после входа.
-- `/api/v1/onboarding` — `GET` состояния и `PUT` черновика (LFS-219), `PATCH` выбора в попапе первого входа и ритма из Настроек (LFS-220); `/api/v1/onboarding/complete` — `POST` создаёт отмеченные цели одной транзакцией (LFS-219); [DTO](docs/api/contracts.md#мастер-начальной-настройки-lfs-219).
+- `/onboarding` — мастер начальной настройки: сферы, вопрос на каждую выбранную сферу и итог; цели создаются только кнопкой «Создать N целей», без измерений (LFS-219, шаг «Ритм» удалён в LFS-222). Только после входа.
+- `/api/v1/onboarding` — `GET` состояния и `PUT` черновика (LFS-219), `PATCH` выбора в попапе первого входа (LFS-220); `/api/v1/onboarding/complete` — `POST` создаёт отмеченные цели одной транзакцией (LFS-219); [DTO](docs/api/contracts.md#мастер-начальной-настройки-lfs-219).
 
 Диалог «Новая цель» закрывается при переходе на созданную цель через `app/(web)/@modal/goals/[...catchAll]`.
 Catch-all в корень слота `@modal` не класть: Next подмешивает его ко всем адресам, и строгое сопоставление маршрутов
@@ -258,7 +261,7 @@ TEST_DATABASE_URL. Каждый этап возвращает реальный e
 | `pnpm test` | Unit suites шести workspace (web, config, contracts, db, domain, worker) |
 | `pnpm db:migrate:test` | Только dedicated TEST_DATABASE_URL, без удаления DB |
 | `pnpm test:db` | Migration/CLI/atomicity/dedupe/replay на PostgreSQL |
-| `pnpm test:web` | Better Auth + PostgreSQL: allowlist, сессии, logout, reset, 401 |
+| `pnpm test:web` | Better Auth + PostgreSQL: открытая регистрация и allowlist, сессии, logout, reset, 401 |
 | `pnpm test:worker` | Отдельные worker/CLI, retry и shutdown на PostgreSQL |
 | `pnpm test:integration` | DB, Web, затем worker suites |
 | `pnpm test:ui` | Сборка + Playwright UI целей в изолированной test schema, desktop/mobile |

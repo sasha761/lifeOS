@@ -19,7 +19,6 @@ export function createOnboardingUnitOfWork(database: LifeosDatabase): Onboarding
   return {
     state: createOnboardingStateRepository(database),
     overview: createOnboardingOverviewRepository(database),
-    profile: createOnboardingProfileRepository(database),
     async run(actor, command, operation) {
       if (!goalCommandOptionsSchema.safeParse({ idempotencyKey: command.idempotencyKey, source: command.source }).success) throw new Error("Invalid command context.");
       const hash = commandFingerprint(command);

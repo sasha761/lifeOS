@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { createGoalInputSchema, DOMAIN_KEYS, goalMeasurementSchema, goalSchema, goalValueMatchesUnit } from "@lifeos/contracts";
+import { createNumericGoalInputSchema, DOMAIN_KEYS, goalMeasurementSchema, goalSchema, goalValueMatchesUnit } from "@lifeos/contracts";
 import type { ActivityEventDraft, Goal, GoalMeasurement } from "@lifeos/contracts";
 import {
   actorFromVerifiedSession, ConflictError, createStarterPackService, InvalidInputError, STARTER_PACK, STARTER_PACK_NOTE,
@@ -15,7 +15,7 @@ describe("example set version 1 (LFS-218)", () => {
   it("passes the goal creation contract and the unit rules of a manual measurement, in all six spheres, without deadlines", () => {
     expect(STARTER_PACK).toHaveLength(7);
     for (const { goal, example } of STARTER_PACK) {
-      const parsed = createGoalInputSchema.parse(goal);
+      const parsed = createNumericGoalInputSchema.parse(goal);
       expect(parsed.due_at).toBeNull();
       expect(goalValueMatchesUnit(example, parsed.unit)).toBe(true);
     }

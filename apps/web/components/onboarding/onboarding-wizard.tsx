@@ -10,12 +10,12 @@ import { buildOnboardingGoals, emptyOnboardingAnswers, ONBOARDING_QUESTIONS, sel
 import type { OnboardingProposal } from "@lifeos/domain/onboarding";
 import { plural } from "../../lib/dashboard-presentation.ts";
 import { createGoalCommand, GoalRequestError } from "../../lib/goals-api-client.ts";
-import { currentOnboardingStep, GOAL_FORMS, isSphereStep, moveDeadlines, onboardingSteps } from "../../lib/onboarding-presentation.ts";
+import { currentOnboardingStep, GOAL_FORMS, isSphereStep, onboardingSteps } from "../../lib/onboarding-presentation.ts";
 import { FormAlert } from "../auth/form-parts.tsx";
 import type { SphereLabels } from "./preview-panel.tsx";
 import { QuestionPreview } from "./preview-panel.tsx";
 import { EMPTY_SPHERE, QuestionStep } from "./question-step.tsx";
-import { RhythmPreview, RhythmStep, SpheresStep } from "./steps.tsx";
+import { SpheresStep } from "./steps.tsx";
 import { EditChoiceDialog, ExtraGoalDialog, SummaryAside, SummaryStep } from "./summary-step.tsx";
 
 const HEADING_ID = "onboarding-step-title";
@@ -23,11 +23,12 @@ const ghost = "action-link-secondary action-compact bg-transparent text-muted-fo
 function signIn() { window.location.assign(`/auth/sign-in?next=${encodeURIComponent("/onboarding")}`); }
 
 /**
- * Onboarding wizard (LFS-219, mockups 24–27 and 29): spheres → one question per chosen sphere → rhythm → summary.
+ * Onboarding wizard (LFS-219, mockups 24–27 and 29): spheres → one question per chosen sphere → summary. The rhythm
+ * step was removed by LFS-222; dates are in the profile time zone, which changes only in Settings.
  * The answers live in this component until «Сохранить и выйти» (a server draft) or «Создать N целей» (one transaction).
  * After «Далее» and «Назад» the focus moves to the heading of the new step.
  */
-export function OnboardingWizard({ initial, preferences, labels, timeZones }: { initial: OnboardingState; preferences: UserPreferences; labels: SphereLabels; timeZones: string[] }) {
+export function OnboardingWizard({ initial, preferences, labels }: { initial: OnboardingState; preferences: UserPreferences; labels: SphereLabels }) {
   const router = useRouter();
   const [answers, setAnswers] = useState<OnboardingAnswers>(() => initial.answers ?? emptyOnboardingAnswers());
   const [missing, setMissing] = useState<OnboardingStep | null>(null);
@@ -50,8 +51,7 @@ export function OnboardingWizard({ initial, preferences, labels, timeZones }: { 
   const step = currentOnboardingStep(answers);
   const steps = onboardingSteps(answers);
   const index = steps.indexOf(step);
-  const timeZone = answers.timezone ?? preferences.timezone;
-  const zoned = useMemo(() => ({ ...preferences, timezone: timeZone }), [preferences, timeZone]);
+  const timeZone = preferences.timezone;
   const proposals = useMemo(() => buildOnboardingGoals(answers), [answers]);
   const selected = useMemo(() => selectedOnboardingGoals(answers, proposals), [answers, proposals]);
 
@@ -76,11 +76,6 @@ export function OnboardingWizard({ initial, preferences, labels, timeZones }: { 
       go(steps[1]!);
       return;
     }
-    if (step === "rhythm") {
-      if (answers.rhythm === null) { setMissing("rhythm"); return; }
-      setReturnToSummary(false); go("summary");
-      return;
-    }
     const sphere = answers.spheres[step] ?? EMPTY_SPHERE;
     if (sphere.choices.length === 0) { setMissing(step); return; }
     // A question answered after «Пропустить» counts again: its goals are checked as an answer.
@@ -99,8 +94,7 @@ export function OnboardingWizard({ initial, preferences, labels, timeZones }: { 
   }
   function skip() {
     if (isSphereStep(step)) setSphere(step, { ...(answers.spheres[step] ?? EMPTY_SPHERE), skipped: true });
-    if (step === "rhythm") setAnswers((current) => ({ ...current, rhythm: null }));
-    const target = step === "rhythm" ? "summary" : following();
+    const target = following();
     setReturnToSummary(false);
     go(target);
   }
@@ -148,14 +142,6 @@ export function OnboardingWizard({ initial, preferences, labels, timeZones }: { 
     }
   }
 
-  function changeTimeZone(zone: string) {
-    setAnswers((current) => {
-      const from = current.timezone ?? preferences.timezone;
-      try { return { ...moveDeadlines(current, from, zone), timezone: zone === preferences.timezone ? null : zone }; }
-      catch { return current; }
-    });
-  }
-
   const sphere = isSphereStep(step) ? answers.spheres[step] ?? EMPTY_SPHERE : null;
   const stepProposals = isSphereStep(step) && sphere && !sphere.skipped ? proposals.filter((proposal) => proposal.domainKey === step && proposal.source !== "extra") : [];
   const summaryCount = selected.length;
@@ -163,9 +149,8 @@ export function OnboardingWizard({ initial, preferences, labels, timeZones }: { 
     : returnToSummary ? "К итогу" : "Далее";
   const hint = step === "domains" ? "Ответы видите только вы. Они нужны, чтобы предложить цели."
     : step === "summary" ? `Выбрано ${summaryCount} ${plural(summaryCount, GOAL_FORMS)}`
-      : step === "rhythm" ? "Напоминания включатся вместе с Telegram."
-        : ONBOARDING_QUESTIONS[step].limit > 1 ? `Выбрано ${sphere?.choices.length ?? 0} из ${ONBOARDING_QUESTIONS[step].limit}`
-          : "Пропущенную сферу можно заполнить позже: + Цель в сфере.";
+      : ONBOARDING_QUESTIONS[step].limit > 1 ? `Выбрано ${sphere?.choices.length ?? 0} из ${ONBOARDING_QUESTIONS[step].limit}`
+        : "Пропущенную сферу можно заполнить позже: + Цель в сфере.";
   const editingChoice = editing && editing.option ? answers.spheres[editing.domainKey]?.choices.find((choice) => choice.option === editing.option) : undefined;
   const otherDomains = DOMAIN_KEYS.filter((key) => !answers.domains.includes(key)).map((key) => ({ key, label: labels[key] }));
 
@@ -191,15 +176,13 @@ export function OnboardingWizard({ initial, preferences, labels, timeZones }: { 
       {step !== "domains" && <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-7">
         <div className="grid min-w-0 gap-4">
           {isSphereStep(step) && sphere && <QuestionStep key={step} domainKey={step} label={labels[step]} sphere={sphere} proposals={stepProposals}
-            showIssues={checked.has(step)} missingChoice={missing === step} timeZone={timeZone} preferences={zoned}
+            showIssues={checked.has(step)} missingChoice={missing === step} timeZone={timeZone} preferences={preferences}
             active={active[step] ?? null} onActiveChange={(option) => setActive((current) => ({ ...current, [step]: option }))}
             onChange={(next) => { setMissing(null); setSphere(step, next); }} headingRef={heading} headingId={HEADING_ID} />}
-          {step === "rhythm" && <RhythmStep rhythm={answers.rhythm} timeZone={timeZone} profileTimeZone={preferences.timezone} timeZones={timeZones} missing={missing === "rhythm"}
-            onRhythm={(rhythm) => { setMissing(null); setAnswers((current) => ({ ...current, rhythm })); }} onTimeZone={changeTimeZone} headingRef={heading} headingId={HEADING_ID} />}
           {step === "summary" && <>
             {createError && <FormAlert tone="error">{createError.message}
               {createError.uncertain && <p className="mt-1">Ответы зафиксированы для повтора. Нажмите кнопку ещё раз: повтор не создаст цели второй раз.</p>}</FormAlert>}
-            <SummaryStep answers={answers} proposals={proposals} labels={labels} preferences={zoned} failedKey={failedKey} headingRef={heading} headingId={HEADING_ID}
+            <SummaryStep answers={answers} proposals={proposals} labels={labels} preferences={preferences} failedKey={failedKey} headingRef={heading} headingId={HEADING_ID}
               onToggle={(key, on) => setAnswers((current) => ({ ...current, unchecked: on ? current.unchecked.filter((value) => value !== key) : [...current.unchecked, key] }))}
               onEdit={setEditing} onAddExtra={() => setAddingExtra(true)}
               onRemoveExtra={(position) => setAnswers((current) => ({ ...current, extra: current.extra.filter((_, at) => at !== position),
@@ -209,23 +192,22 @@ export function OnboardingWizard({ initial, preferences, labels, timeZones }: { 
               onAnswerNow={(key) => { setReturnToSummary(true); go(key); }} />
           </>}
         </div>
-        {isSphereStep(step) && <QuestionPreview proposals={stepProposals} preferences={zoned} note={ONBOARDING_QUESTIONS[step].note}
+        {isSphereStep(step) && <QuestionPreview proposals={stepProposals} preferences={preferences} note={ONBOARDING_QUESTIONS[step].note}
           active={active[step] ?? sphere?.choices.at(-1)?.option ?? null}
           answered={[{ label: "Важные сферы", value: String(answers.domains.length) },
             ...steps.slice(1, index).filter(isSphereStep).map((key) => {
               const count = proposals.filter((proposal) => proposal.domainKey === key && proposal.source !== "extra").length;
               return { label: labels[key], value: answers.spheres[key]?.skipped || count === 0 ? "пропущено" : `${count} ${plural(count, GOAL_FORMS)}` };
             })]}
-          remaining={steps.slice(index + 1, -1).map((key) => key === "rhythm" ? "Ритм" : labels[key as DomainKey])} />}
-        {step === "rhythm" && <RhythmPreview proposals={selected} />}
-        {step === "summary" && <SummaryAside answers={answers} timeZone={timeZone} selected={summaryCount} />}
+          remaining={steps.slice(index + 1, -1).filter(isSphereStep).map((key) => labels[key])} />}
+        {step === "summary" && <SummaryAside answers={answers} selected={summaryCount} />}
       </div>}
     </main>
     {/* Sticky at the bottom of the column: on screen while the step scrolls, at the end of a full-page capture. */}
     <footer className="sticky bottom-0 z-10 isolate border-t bg-background before:absolute before:inset-0 before:-z-10 before:bg-card/45">
       <div className="mx-auto flex w-full max-w-[calc(1180px+2rem)] items-center gap-2.5 px-4 pt-3 pb-[22px] md:h-[72px] md:max-w-[calc(1180px+3rem)] md:px-6 md:py-0">
         <button type="button" onClick={back} disabled={index <= 0} className={cn(ghost, "hidden md:inline-flex")}><ArrowLeft aria-hidden="true" className="size-4" />Назад</button>
-        {(isSphereStep(step) || step === "rhythm") && <button type="button" onClick={skip} className={ghost}>
+        {isSphereStep(step) && <button type="button" onClick={skip} className={ghost}>
           <span className="md:hidden">Пропустить</span><span className="hidden md:inline">Пропустить вопрос</span></button>}
         <p className="ml-auto hidden text-xs leading-5 text-muted-foreground md:block" aria-live="polite">{hint}</p>
         <button type="button" onClick={next} disabled={step === "summary" && (summaryCount === 0 || creating)}
@@ -240,19 +222,19 @@ export function OnboardingWizard({ initial, preferences, labels, timeZones }: { 
         setSphere(editing.domainKey, { ...current, skipped: false, choices: current.choices.map((candidate) => candidate.option === choice.option ? choice : candidate) });
         setFailedKey(null); setEditing(null);
       }} />}
-    {addingExtra && <ExtraGoalDialog domains={otherDomains} preferences={zoned} close={() => setAddingExtra(false)}
+    {addingExtra && <ExtraGoalDialog domains={otherDomains} preferences={preferences} close={() => setAddingExtra(false)}
       add={(goal) => { setAnswers((current) => ({ ...current, extra: [...current.extra, goal] })); setAddingExtra(false); }} />}
   </div>;
 }
 
 /** Step scale built from the chosen spheres (mockups 24–27); bars only on a phone (mockup 29). */
 function Stepper({ steps, index, labels, answers }: { steps: OnboardingStep[]; index: number; labels: SphereLabels; answers: OnboardingAnswers }) {
-  const label = (step: OnboardingStep) => step === "domains" ? "Сферы" : step === "rhythm" ? "Ритм" : step === "summary" ? "Итог" : labels[step];
+  const label = (step: OnboardingStep) => step === "domains" ? "Сферы" : step === "summary" ? "Итог" : labels[step];
   const current = steps[index]!;
   return <nav aria-label="Шаги настройки" className="grid gap-1.5">
     <p className="hidden items-center gap-1.5 text-xs leading-5 md:flex">
       <span className="font-semibold">{index === 0 ? "Шаг 1" : `Шаг ${index + 1} из ${steps.length}`}</span>
-      <span className="text-text-3">· {index === 0 ? "дальше по одному вопросу на каждую выбранную сферу, ритм и итог" : label(current)}</span>
+      <span className="text-text-3">· {index === 0 ? "дальше по одному вопросу на каждую выбранную сферу и итог" : label(current)}</span>
     </p>
     <ol className="flex gap-1 md:gap-1.5">
       {steps.map((step, at) => {

@@ -1,6 +1,6 @@
 // Framework-independent domain rules and interfaces. No Next.js, React, apps/* or direct SQL here.
-export { createSignupPolicy, normalizeEmail } from "./auth/signup-policy.ts";
-export type { SignupPolicy } from "./auth/signup-policy.ts";
+export { createOpenSignupPolicy, createSignupPolicy, normalizeEmail } from "./auth/signup-policy.ts";
+export type { SignupMode, SignupPolicy } from "./auth/signup-policy.ts";
 export { ACTOR_USER_ID_MAX_LENGTH, actorFromVerifiedSession } from "./core/actor.ts";
 export type { Actor } from "./core/actor.ts";
 export { ConflictError, DOMAIN_ERROR_CODES, DomainError, InvalidInputError, isDomainError, NotFoundError } from "./core/errors.ts";
@@ -25,7 +25,7 @@ export type {
   StarterPackCommand, StarterPackOutcome, StarterPackRepository, StarterPackResult, StarterPackService, StarterPackTransaction,
   StarterPackUnitOfWork,
 } from "./core/starter-pack.ts";
-export { createOnboardingService, showsStartDialog } from "./core/onboarding.ts";
+export { createOnboardingService, readStoredOnboardingAnswers, showsStartDialog } from "./core/onboarding.ts";
 export type {
   OnboardingCommand, OnboardingOutcome, OnboardingOverviewRecord, OnboardingOverviewRepository, OnboardingProfileRepository, OnboardingResult,
   OnboardingService, OnboardingStateRecord, OnboardingStateRepository, OnboardingTransaction, OnboardingUnitOfWork,

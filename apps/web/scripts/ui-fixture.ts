@@ -60,7 +60,7 @@ export async function startUiFixture({ suite, ownerLocale = "en-GB", onStage = (
     const connection = new URL(readTestDatabaseUrl(process.env)); connection.searchParams.set("options", `-csearch_path=${harness.schemaName}`);
     const port = await freePort(); const base = `http://127.0.0.1:${port}`;
     const environment: NodeJS.ProcessEnv = { ...process.env, DATABASE_URL: connection.toString(), NODE_ENV: "production", NEXT_TELEMETRY_DISABLED: "1",
-      BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: base, AUTH_SIGNUP_ALLOWLIST: "",
+      BETTER_AUTH_SECRET: secret, BETTER_AUTH_URL: base, AUTH_SIGNUP_MODE: "open", AUTH_SIGNUP_ALLOWLIST: "",
       MAIL_TRANSPORT: "smtp", SMTP_URL: "smtp://127.0.0.1:1", MAIL_FROM: "fixture@lifeos.test",
       LFS208_E2E_BASE_URL: base, LFS208_E2E_OWNER_COOKIE: owner.cookie, LFS208_E2E_OTHER_COOKIE: other.cookie, LFS208_E2E_EMPTY_COOKIE: empty.cookie,
       LFS208_E2E_EXAMPLE_DESKTOP_COOKIE: exampleDesktop.cookie, LFS208_E2E_EXAMPLE_MOBILE_COOKIE: exampleMobile.cookie,

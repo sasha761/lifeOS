@@ -36,10 +36,17 @@ export async function add(page: Page, value: string, note = "Браузерно�
   await dialog.getByLabel("Заметка (необязательно)").fill(note);
   await dialog.getByRole("button", { name: "Добавить измерение", exact: true }).click();
 }
-/** Commands of the goal panel live in its «⋯» menu (mockup 09, LFS-213). */
-export async function goalAction(page: Page, name: "Изменить цель" | "В архив" | "Удалить цель") {
+/** Commands of the goal panel live in its «⋯» menu (mockup 09, LFS-213); the phase moves too (LFS-225). */
+type PhaseMove = "Начать" | "Продолжить" | "Вернуть в работу" | "Поставить на паузу" | "Отметить достигнутой" | "Перенести в запланированные";
+export async function goalAction(page: Page, name: "Изменить цель" | "В архив" | "Удалить цель" | PhaseMove) {
   await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
   await page.getByRole("button", { name, exact: true }).click();
+}
+/** «История изменений · N ›» opens the goal's own journal under the panel (mockup 32, LFS-224). */
+export async function openHistory(page: Page) {
+  const toggle = page.getByRole("button", { name: /^История изменений/ });
+  if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
+  return page.getByTestId("goal-history");
 }
 /** Row of a sphere in «Сферы жизни» showing the given goal as its newest active one (mockup 04, LFS-213). */
 export function sphereRow(page: Page, key: string, label: string, title: string) {

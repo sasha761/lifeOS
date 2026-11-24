@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ru"><head>
+<!-- Эталон вёрстки LifeOS (Design System v2), LFS-223. Данные на макете примерные, в код их не переносить. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"><meta charset="utf-8">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#16131D}
+a{color:#9D90F8;text-decoration:none}
+.app{position:relative;background:#16131D;color:#F2EDF8;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden;font-size:13px;line-height:1.45}
+.top{height:56px;padding:0 28px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.logo{width:26px;height:26px;border-radius:8px;background:#8B7CF6;color:#16131D;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.brand{font-size:14px;font-weight:700}
+.crumb{font-size:13px;color:#B4A8C8}
+.nav{margin-left:auto;display:flex;gap:8px;align-items:center}
+.pill{padding:6px 12px;border-radius:999px;border:1px solid #372F47;color:#B4A8C8;font-size:13px;font-weight:500;white-space:nowrap}
+.pill.on{border-color:#4A4060;background:#282236;color:#F2EDF8;font-weight:600}
+.ib{width:32px;height:32px;border-radius:999px;border:1px solid #372F47;color:#B4A8C8;display:inline-flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.ib.on{border-color:#4A4060;background:#282236;color:#F2EDF8}
+.wrap{width:1180px;margin:0 auto;padding:16px 0 32px;display:flex;flex-direction:column;gap:16px}
+.h1{margin:0;font-size:30px;line-height:36px;font-weight:700;letter-spacing:-0.02em}
+.h2{margin:0;font-size:16px;line-height:22px;font-weight:700}
+.h3{margin:0;font-size:14px;font-weight:700}
+.sub{font-size:14px;color:#B4A8C8}
+.sub b{color:#F2EDF8}
+.mut{color:#B4A8C8}.t3{color:#857A99}.fg{color:#F2EDF8}
+.sm{font-size:12px}.xs{font-size:11px}.b{font-weight:600}.bb{font-weight:700}
+.num{font-variant-numeric:tabular-nums}
+.big{font-size:30px;line-height:34px;font-weight:800;font-variant-numeric:tabular-nums}
+.card{background:#1F1A2A;border:1px solid #372F47;border-radius:16px;padding:18px 20px}
+.card.tight{padding:12px 14px;border-radius:12px}
+.s2{background:#282236}.s3{background:#322B42}
+.row{display:flex;align-items:center;gap:10px}
+.col{display:flex;flex-direction:column;gap:10px}
+.gap4{gap:4px}.gap6{gap:6px}.gap14{gap:14px}.gap18{gap:18px}
+.grow{flex:1 1 0;min-width:0}
+.ml{margin-left:auto}
+.wrapx{flex-wrap:wrap}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.seg{display:inline-flex;padding:3px;gap:2px;border-radius:999px;background:#16131D;border:1px solid #372F47;flex-shrink:0}
+.seg span{padding:4px 11px;border-radius:999px;color:#B4A8C8;font-size:12px;font-weight:500;white-space:nowrap}
+.seg .on{background:#322B42;color:#F2EDF8;font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;border:1px solid #4A4060;background:#282236;color:#F2EDF8;font-size:13px;font-weight:600;white-space:nowrap}
+.btn.p{background:#8B7CF6;border-color:#8B7CF6;color:#16131D}
+.btn.g{background:transparent;border-color:#372F47;color:#B4A8C8}
+.btn.d{background:transparent;border-color:rgba(229,96,94,.55);color:#F09896}
+.btn.s{padding:4px 10px;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:#322B42;color:#CFC5DD;white-space:nowrap}
+.c-v{background:rgba(139,124,246,.18);color:#C3B9FB}.c-g{background:rgba(79,191,131,.16);color:#8FDDB2}.c-b{background:rgba(91,141,239,.18);color:#A9C3F6}.c-a{background:rgba(232,176,74,.18);color:#F0CD8A}.c-o{background:rgba(238,138,69,.2);color:#F5B48A}.c-r{background:rgba(229,96,94,.18);color:#F09896}.c-c{background:rgba(86,194,230,.16);color:#9DDCF1}.c-x{background:transparent;border:1px solid #4A4060;color:#B4A8C8}
+.src{font-size:11px;color:#B4A8C8}
+.src:before{content:"◉ ";color:#857A99}
+.bar{height:6px;border-radius:999px;background:#322B42;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:#8B7CF6}
+.dom{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0}
+.dom.sm{width:22px;height:22px;border-radius:7px;font-size:11px}
+.d-lang{background:rgba(139,124,246,.2);color:#B5AAFA}.d-fin{background:rgba(79,191,131,.18);color:#8FDDB2}.d-work{background:rgba(91,141,239,.2);color:#A9C3F6}.d-proj{background:rgba(232,176,74,.2);color:#F0CD8A}.d-skill{background:rgba(86,194,230,.18);color:#9DDCF1}.d-health{background:rgba(229,96,94,.2);color:#F09896}
+.inp{min-height:38px;border-radius:10px;border:1px solid #372F47;background:#16131D;padding:9px 12px;display:flex;align-items:center;color:#F2EDF8;font-size:13px}
+.inp.ph{color:#857A99}
+.inp.focus{border-color:#9D90F8;box-shadow:0 0 0 3px rgba(157,144,248,.25)}
+.lbl{font-size:12px;font-weight:600;color:#B4A8C8}
+.kbd{padding:1px 6px;border-radius:6px;border:1px solid #4A4060;background:#282236;font-size:11px;color:#CFC5DD;font-family:ui-monospace,monospace}
+.hr{height:1px;background:#372F47;flex-shrink:0}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.chk{width:18px;height:18px;border-radius:50%;border:1.5px solid #4A4060;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#16131D}
+.chk.done{background:#4FBF83;border-color:#4FBF83}
+.chk.half{background:linear-gradient(90deg,#E8B04A 50%,transparent 50%);border-color:#E8B04A}
+.sel{border-color:#8B7CF6!important;background:#241E33!important}
+.dash{border:1.5px dashed #4A4060;border-radius:14px;background:transparent}
+.note{padding:10px 12px;border-radius:10px;background:#282236;border:1px solid #372F47;font-size:12px;color:#CFC5DD}
+.warn{padding:10px 12px;border-radius:10px;background:rgba(232,176,74,.10);border:1px solid rgba(232,176,74,.35);font-size:12px;color:#F0CD8A}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:11px;font-weight:600;color:#B4A8C8;padding:8px 10px;border-bottom:1px solid #372F47}
+.tbl td{padding:10px;border-bottom:1px solid #2C2539;vertical-align:middle}
+.bubble{padding:10px 14px;border-radius:14px;max-width:560px;font-size:13px;line-height:1.5}
+.me{align-self:flex-end;background:#322B42;border-bottom-right-radius:4px}
+.bot{align-self:flex-start;background:#1F1A2A;border:1px solid #372F47;border-bottom-left-radius:4px}
+.cap{font-size:11px;font-weight:600;color:#B4A8C8;letter-spacing:.02em}
+.ovl{position:absolute;inset:0;background:rgba(10,8,14,.66)}
+.modal{position:absolute;left:50%;transform:translateX(-50%);background:#1F1A2A;border:1px solid #372F47;border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,.45);padding:24px 26px;display:flex;flex-direction:column;gap:16px}
+.opt{display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:14px;border:1px solid #372F47;background:#1F1A2A;font-size:14px;font-weight:600;color:#F2EDF8}
+.opt .d{font-size:12px;font-weight:400;color:#B4A8C8}
+.radio{width:18px;height:18px;border-radius:50%;border:1.5px solid #4A4060;flex-shrink:0}
+.radio.on{border-color:#8B7CF6;background:#8B7CF6;box-shadow:inset 0 0 0 4px #241E33}
+.box{width:18px;height:18px;border-radius:6px;border:1.5px solid #4A4060;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#16131D}
+.box.on{background:#8B7CF6;border-color:#8B7CF6}
+.steps{display:flex;gap:6px}
+.st{flex:1 1 0;display:flex;flex-direction:column;gap:6px;font-size:11px;color:#857A99;white-space:nowrap}
+.st i{display:block;height:4px;border-radius:999px;background:#322B42}
+.st.done{color:#B4A8C8}.st.done i{background:#6F63C9}
+.st.cur{color:#F2EDF8;font-weight:600}.st.cur i{background:#8B7CF6}
+.wtop{height:56px;padding:0 28px;display:flex;align-items:center;gap:12px;flex-shrink:0;border-bottom:1px solid #2C2539}
+.wfoot{position:absolute;left:0;right:0;bottom:0;height:72px;border-top:1px solid #372F47;background:#1A1623;display:flex;align-items:center;gap:10px;padding:0 130px}
+.q{font-size:26px;line-height:32px;font-weight:700;letter-spacing:-0.01em;margin:0}
+.ta{min-height:64px;align-items:flex-start}
+.pv{border-radius:14px;border:1px solid #372F47;background:#16131D;padding:14px;display:flex;flex-direction:column;gap:8px}
+.kv{display:flex;font-size:12px;gap:8px}.kv span:first-child{color:#857A99;width:96px;flex-shrink:0}
+.banner{padding:12px 16px;border-radius:14px;background:rgba(139,124,246,.12);border:1px solid rgba(139,124,246,.4);display:flex;align-items:center;gap:12px}
+.gap10{gap:10px}
+/* LFS-223: элементы макетов 32–41. Только цвета палитры выше. */
+.gc{cursor:pointer}
+.gc.hov{border-color:#4A4060;background:#282236}
+.gc.foc{box-shadow:0 0 0 2px #16131D,0 0 0 4px #9D90F8}
+.del{width:32px;height:32px;border-radius:999px;border:1px solid transparent;color:#B4A8C8;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.del svg{width:15px;height:15px}
+.del.hot{color:#F09896;border-color:rgba(229,96,94,.55);background:rgba(229,96,94,.18)}
+.ic{width:28px;height:28px;border-radius:999px;border:1px solid #372F47;color:#B4A8C8;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.ic svg{width:13px;height:13px}
+.state{font-size:26px;line-height:32px;font-weight:800;letter-spacing:-0.01em}
+.dlg{background:#1F1A2A;border:1px solid #372F47;border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,.45);padding:22px 24px;display:flex;flex-direction:column;gap:14px}
+.q2{font-size:20px;line-height:26px;font-weight:700;margin:0}
+.ta2{min-height:76px;align-items:flex-start;line-height:1.55}
+.opt.c{padding:10px 14px;font-size:13px}
+.hint{font-size:11px;color:#857A99}
+.sheet-head{padding:22px 44px 0}
+.w1352{width:1352px;margin:0 auto}
+.kcol{background:#1B1725;border:1px solid #2F283D;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.kc{background:#1F1A2A;border:1px solid #372F47;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.kc.hov{border-color:#4A4060;background:#282236}
+.bar.thin{height:4px}
+</style>
+<style>body{margin:0;font-family:Inter,sans-serif}</style></head><body data-done="1"><div id="root">
+
+<div class="app" style="width: 1440px; height: 1330px;">
+<div class="sheet-head row" style="padding:22px 60px 0"><span class="logo">L</span><span class="h2">Новая цель: остальные шаги диалога</span><span class="chip c-v">1440</span><span class="ml sm mut">Тот же каталог, вопросы и уточнения, что в мастере. «Назад» не теряет ответов, Esc и «Отмена» закрывают.</span></div>
+<div class="row" style="width:1320px;margin:0 auto;padding-top:22px;gap:32px 40px;flex-wrap:wrap;align-items:flex-start">
+
+  <div class="col gap6" style="width:640px"><div class="row gap6"><span class="cap">ШАГ 1 · СФЕРА</span><span class="xs t3">открыто кнопкой «+ Цель» на /goals</span></div>
+  <section class="dlg">
+    <div class="row"><span class="h2">Новая цель</span><span class="ml ib">✕</span></div>
+    <div class="col gap6">
+      <div class="row"><span class="sm b">Шаг 1 из 4</span><span class="sm t3">· Сфера</span></div>
+      <div class="steps"><span class="st cur"><i></i>Сфера</span><span class="st"><i></i>Вопрос</span><span class="st"><i></i>Уточнения</span><span class="st"><i></i>Проверка</span></div>
+    </div>
+    <h2 class="q2">Для какой сферы цель?</h2>
+    <div class="g3" style="gap:10px">
+      <div class="opt" style="align-items:flex-start"><span class="dom sm d-lang">Я</span><div class="col gap4"><span>Языки</span><span class="d">уровень, слова, практика</span></div></div>
+      <div class="opt sel" style="align-items:flex-start"><span class="dom sm d-fin">Ф</span><div class="col gap4"><span>Финансы</span><span class="d">накопления, долги, расходы</span></div></div>
+      <div class="opt" style="align-items:flex-start"><span class="dom sm d-work">Р</span><div class="col gap4"><span>Работа</span><span class="d">поиск работы, обучение</span></div></div>
+      <div class="opt" style="align-items:flex-start"><span class="dom sm d-proj">П</span><div class="col gap4"><span>Проекты</span><span class="d">личные проекты</span></div></div>
+      <div class="opt" style="align-items:flex-start"><span class="dom sm d-skill">Н</span><div class="col gap4"><span>Навыки</span><span class="d">хобби и навыки</span></div></div>
+      <div class="opt" style="align-items:flex-start"><span class="dom sm d-health">З</span><div class="col gap4"><span>Здоровье</span><span class="d">тренировки, вес, сон</span></div></div>
+    </div>
+    <div class="row"><span class="sm t3">Сфера определяет вопрос на следующем шаге.</span><a href="#" class="ml btn g">Отмена</a><a href="#" class="btn p">Далее →</a></div>
+  </section></div>
+
+  <div class="col gap6" style="width:640px"><div class="row gap6"><span class="cap">ШАГ 3 · УТОЧНЕНИЯ</span><span class="xs t3">по блоку на каждый отмеченный вариант</span></div>
+  <section class="dlg">
+    <div class="row"><span class="h2">Новая цель</span><span class="ml ib">✕</span></div>
+    <div class="col gap6">
+      <div class="row"><span class="sm b">Шаг 3 из 4</span><span class="sm t3">· Уточнения</span></div>
+      <div class="steps"><span class="st done"><i></i>Сфера ✓</span><span class="st done"><i></i>Вопрос ✓</span><span class="st cur"><i></i>Уточнения</span><span class="st"><i></i>Проверка</span></div>
+    </div>
+    <div class="card col gap10 s2" style="padding:14px 16px">
+      <div class="row"><span class="box on">✓</span><span class="h3">Накопить на крупную покупку</span></div>
+      <div class="col gap6"><span class="lbl">На что копите <span class="t3" style="font-weight:400">· необязательно</span></span><div class="inp">отпуск в Италии</div></div>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr 1fr;gap:10px">
+        <div class="col gap6"><span class="lbl">Сколько нужно</span><div class="inp num">15 000</div></div>
+        <div class="col gap6"><span class="lbl">Валюта</span><div class="seg" style="align-self:flex-start;margin-top:2px"><span class="on">NOK</span><span>USD</span></div></div>
+        <div class="col gap6"><span class="lbl">Уже есть</span><div class="inp num">0</div></div>
+        <div class="col gap6"><span class="lbl">Срок</span><div class="inp num">01.06.2027</div></div>
+      </div>
+    </div>
+    <div class="card col gap10 s2 sel" style="padding:14px 16px">
+      <div class="row"><span class="box on">✓</span><span class="h3">Закрыть долг или кредит</span></div>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr 1fr;gap:10px">
+        <div class="col gap6"><span class="lbl">Сумма долга</span><div class="inp focus num">2 000</div></div>
+        <div class="col gap6"><span class="lbl">Валюта</span><div class="seg" style="align-self:flex-start;margin-top:2px"><span>NOK</span><span class="on">USD</span></div></div>
+        <div class="col gap6"><span class="lbl">Срок</span><div class="inp num">30.06.2027</div></div>
+      </div>
+      <span class="xs t3">Цель — 0: долг закрыт. Срок везде необязателен.</span>
+    </div>
+    <div class="row"><a href="#" class="btn g">← Назад</a><a href="#" class="ml btn g">Отмена</a><a href="#" class="btn p">Далее →</a></div>
+  </section></div>
+
+  <div class="col gap6" style="width:640px"><div class="row gap6"><span class="cap">ШАГ 4 · ПРОВЕРКА</span><span class="xs t3">в Финансах при нескольких вариантах — «Создать N целей»</span></div>
+  <section class="dlg">
+    <div class="row"><span class="h2">Новая цель</span><span class="ml ib">✕</span></div>
+    <div class="col gap6">
+      <div class="row"><span class="sm b">Шаг 4 из 4</span><span class="sm t3">· Проверка</span></div>
+      <div class="steps"><span class="st done"><i></i>Сфера ✓</span><span class="st done"><i></i>Вопрос ✓</span><span class="st done"><i></i>Уточнения ✓</span><span class="st cur"><i></i>Проверка</span></div>
+    </div>
+    <span class="cap">ЧТО ПОЛУЧИТСЯ · 2 ЦЕЛИ</span>
+    <div class="pv">
+      <div class="row"><span class="dom sm d-fin">Ф</span><span class="h3 grow">Накопить на отпуск в Италии</span><span class="chip c-v">новая цель</span></div>
+      <div class="kv"><span>Как считать</span><span>Пополнения увеличивают накопления</span></div>
+      <div class="kv"><span>Есть → нужно</span><span class="num">0 → 15 000 NOK</span></div>
+      <div class="kv"><span>Срок</span><span class="num">01.06.2027</span></div>
+    </div>
+    <div class="pv">
+      <div class="row"><span class="dom sm d-fin">Ф</span><span class="h3 grow">Закрыть долг</span><span class="chip c-v">новая цель</span></div>
+      <div class="kv"><span>Как считать</span><span>Платежи уменьшают долг</span></div>
+      <div class="kv"><span>Долг → цель</span><span class="num">2 000 → 0 $</span></div>
+      <div class="kv"><span>Срок</span><span class="num">30.06.2027</span></div>
+    </div>
+    <div class="note">Обе цели создаются вместе: если одна не сохранится, не будет ни одной. Процент появится после первого платежа или пополнения.</div>
+    <div class="row"><a href="#" class="btn g">← Назад</a><a href="#" class="ml btn g">Отмена</a><a href="#" class="btn p">Создать 2 цели</a></div>
+  </section></div>
+
+  <div class="col gap6" style="width:640px"><div class="row gap6"><span class="cap">СО СТРАНИЦЫ СФЕРЫ</span><span class="xs t3">«+ Цель в сфере»: сфера известна, шаг 1 пропущен</span></div>
+  <section class="dlg">
+    <div class="row"><span class="h2">Новая цель</span><span class="chip c-b">Работа</span><span class="ml ib">✕</span></div>
+    <div class="col gap6">
+      <div class="row"><span class="sm b">Шаг 1 из 3</span><span class="sm t3">· Вопрос</span></div>
+      <div class="steps"><span class="st cur"><i></i>Вопрос</span><span class="st"><i></i>Уточнения</span><span class="st"><i></i>Проверка</span></div>
+    </div>
+    <div class="col gap6">
+      <div class="row" style="gap:8px"><span class="dom sm d-work">Р</span><span class="cap" style="color:#A9C3F6">РАБОТА</span></div>
+      <h2 class="q2">Что главное в работе на ближайшие полгода?</h2>
+      <span class="sm mut">Выберите один вариант или напишите свой.</span>
+    </div>
+    <div class="g2" style="gap:10px">
+      <div class="opt sel"><span class="radio on"></span><div class="col gap4"><span>Найти новую работу</span><span class="d">отметите, когда найдёте</span></div></div>
+      <div class="opt"><span class="radio"></span><div class="col gap4"><span>Пройти курс или сертификат</span><span class="d">чему научиться, даты</span></div></div>
+      <div class="opt"><span class="radio"></span><div class="col gap4"><span>Прочитать книги по профессии</span><span class="d">список книг и срок</span></div></div>
+      <div class="opt"><span class="radio"></span><div class="col gap4"><span>Практика технологии</span><span class="d">какая технология и срок</span></div></div>
+      <div class="opt" style="border-style:dashed"><span class="radio"></span><div class="col gap4"><span>✎ Свой вариант</span><span class="d">напишите цель своими словами</span></div></div>
+    </div>
+    <div class="row"><a href="#" class="ml btn g">Отмена</a><a href="#" class="btn p">Далее →</a></div>
+  </section></div>
+
+</div>
+</div>
+</div></body></html>

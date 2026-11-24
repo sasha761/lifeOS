@@ -8,7 +8,7 @@ import type { DomainKey, GoalDetails, UserPreferences } from "@lifeos/contracts"
 import { describeActivity } from "../../lib/activity-presentation.ts";
 import { domainPresentation } from "../../lib/domain-presentation.ts";
 import { formatDate, formatDateTime, formatShortDateTime } from "../../lib/user-preferences.ts";
-import { ExampleChip, GoalAmount, LoadState, useGoalData } from "../goals/shared.tsx";
+import { ExampleChip, GoalAmount, GoalStatusChip, LoadState, useGoalData } from "../goals/shared.tsx";
 import { ProgressBar } from "../ui/progress-bar.tsx";
 import { SectionCard } from "../ui/section-card.tsx";
 import { SourceLabel } from "../ui/source-label.tsx";
@@ -17,7 +17,10 @@ import { StatusChip } from "../ui/status-chip.tsx";
 const SPHERE_GOALS = 2;
 const SPHERE_ACTIVITY = 5;
 
-/** Goal card of mockup 10: title and deadline, bar, «X из Y · %» and the source; links to the goal. */
+/**
+ * Goal card of mockup 10: title and deadline, bar, «X из Y · %» and the source; links to the goal. A goal without
+ * measurements (LFS-225) shows its status and since when instead of a percentage.
+ */
 function SphereGoalCard({ value, preferences, wide }: { value: GoalDetails; preferences: UserPreferences; wide: boolean }) {
   const { goal, progress } = value;
   return <SectionCard role="article" titleId={`sphere-goal-${goal.id}`} headingLevel={3} data-testid="domain-goal" className={wide ? "lg:col-span-2" : undefined}
@@ -25,7 +28,11 @@ function SphereGoalCard({ value, preferences, wide }: { value: GoalDetails; pref
     action={(goal.due_at || goal.origin === "starter") && <span className="flex items-center gap-2">{goal.origin === "starter" && <ExampleChip />}
       {goal.due_at && <span className="text-xs font-normal text-muted-foreground tabular-nums">до <time dateTime={goal.due_at}>{formatDate(new Date(goal.due_at), preferences)}</time></span>}</span>}
     contentClassName="grid gap-2">
-    {progress.progressPercent === null
+    {goal.kind === "unmeasured"
+      ? <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-muted-foreground tabular-nums"><GoalStatusChip goal={goal} />
+        {goal.phase === "achieved" ? <>отмечена <time dateTime={goal.phase_changed_at}>{formatDate(new Date(goal.phase_changed_at), preferences)}</time></>
+          : goal.starts_at ? <>с <time dateTime={goal.starts_at}>{formatDate(new Date(goal.starts_at), preferences)}</time></> : "без измерений"}</p>
+      : progress.progressPercent === null
       ? <p className="text-xs leading-5 text-muted-foreground">{progress.explanation}. Добавьте измерение на странице цели.</p>
       : <>
         <ProgressBar value={progress.progressPercent} tone={domainPresentation[goal.domain_key].tone} label={`Прогресс: ${goal.title}`} />
