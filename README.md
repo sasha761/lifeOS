@@ -195,10 +195,10 @@ pnpm dev
 - `/api/health` — JSON `{ data, meta, errors }`, текущий timestamp и IDs, no-store.
 - `/api/v1/me` — текущий пользователь; 401 без сессии.
 - `/api/v1/me/preferences` — `GET`/`PATCH` своих `timezone`/`locale`; 401 без сессии, 400 для невалидных значений и `userId` в body.
-- `/api/v1/goals` — `GET` списка с прогрессом, `POST` ручной цели (числовой или без измерений, LFS-225); `/api/v1/goals/:goalId` — `GET`/`PATCH` metadata, archive или статус цели `{ phase }` (LFS-225), `DELETE` — удаление цели (LFS-216).
+- `/api/v1/goals` — `GET` списка с прогрессом, `POST` ручной цели (числовой или без измерений, LFS-225); `/api/v1/goals/:goalId` — `GET`/`PATCH` metadata, `measurement_mode` до первого измерения (LFS-226), archive или статус цели `{ phase }` (LFS-225), `DELETE` — удаление цели (LFS-216).
 - `/api/v1/dashboard` — `GET` read model Dashboard владельца; [DTO](docs/api/contracts.md#dashboard-сфер-lfs-204).
 - `/api/v1/activity` — `GET` журнала действий владельца, фильтр `domain_key` или `goal_id`, `limit` до 50; [DTO](docs/api/contracts.md#журнал-действий-lfs-213).
-- `/api/v1/goals/:goalId/measurements` — `GET` истории с cursor/limit, `POST` измерения; `/api/v1/goal-measurements/:measurementId` — `PATCH`/`DELETE`. Все записи требуют `Idempotency-Key`; [DTO и примеры](docs/api/contracts.md#http-целей-и-прогресс-lfs-207).
+- `/api/v1/goals/:goalId/measurements` — `GET` истории с cursor/limit, `POST` текущего значения или суммы взноса по режиму цели; `/api/v1/goal-measurements/:measurementId` — `PATCH`/`DELETE`. Все записи требуют `Idempotency-Key`; [DTO и примеры](docs/api/contracts.md#http-целей-и-прогресс-lfs-207).
 - `/api/v1/starter-pack` — `POST` загружает пример по выбору пользователя, `DELETE` — «Удалить все примеры» (LFS-218); [DTO](docs/api/contracts.md#пример-по-выбору-пользователя-lfs-218).
 - `/onboarding` — мастер начальной настройки: сферы, вопрос на каждую выбранную сферу и итог; цели создаются только кнопкой «Создать N целей», без измерений (LFS-219, шаг «Ритм» удалён в LFS-222). Только после входа.
 - `/api/v1/onboarding` — `GET` состояния и `PUT` черновика (LFS-219), `PATCH` выбора в попапе первого входа (LFS-220); `/api/v1/onboarding/complete` — `POST` создаёт отмеченные цели одной транзакцией (LFS-219); [DTO](docs/api/contracts.md#мастер-начальной-настройки-lfs-219).

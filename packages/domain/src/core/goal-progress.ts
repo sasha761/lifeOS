@@ -1,6 +1,18 @@
-import { goalDecimalToScaledInteger, goalProgressInputSchema } from "@lifeos/contracts";
-import type { ProgressComputation } from "@lifeos/contracts";
+import { goalDecimalToScaledInteger, goalProgressInputSchema, scaledIntegerToGoalDecimal } from "@lifeos/contracts";
+import type { NumericGoal, ProgressComputation } from "@lifeos/contracts";
 import { InvalidInputError } from "./errors.ts";
+
+export function contributionKind(goal: Pick<NumericGoal, "measurement_mode" | "direction">): "payment" | "deposit" | undefined {
+  if (goal.measurement_mode !== "contributions") return undefined;
+  return goal.direction === "decrease" ? "payment" : "deposit";
+}
+
+export function calculateContributionCurrent(goal: Pick<NumericGoal, "baseline" | "direction">, total: string): string {
+  const baseline = goalDecimalToScaledInteger(goal.baseline);
+  const contributions = goalDecimalToScaledInteger(total);
+  const current = goal.direction === "increase" ? baseline + contributions : baseline - contributions;
+  return scaledIntegerToGoalDecimal(current > 0n ? current : 0n);
+}
 
 /** Exact scaled integers for amounts; only the bounded, two-decimal display percent becomes Number. */
 export function calculateGoalProgress(input: unknown): ProgressComputation {

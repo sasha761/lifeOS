@@ -13,6 +13,7 @@ function memory() {
   const rows = new Map<string, Goal>();
   const measured = new Set<string>();
   const repository: GoalsRepository = {
+    hasMeasurementHistory: vi.fn(async () => false),
     hasOwnMeasurements: vi.fn<GoalsRepository["hasOwnMeasurements"]>(async (actor, id) => rows.get(id)?.user_id === actor.userId && measured.has(id)),
     claimExample: vi.fn<GoalsRepository["claimExample"]>(async (actor, id) => {
       const row = rows.get(id);

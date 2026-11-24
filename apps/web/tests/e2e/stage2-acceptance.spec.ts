@@ -45,8 +45,8 @@ test("guest signs in with the form, the dashboard follows create/edit/delete of 
   await page.goto(path);
   const row = page.getByTestId("measurement-row").first();
   await row.getByRole("button", { name: "Изменить", exact: true }).click();
-  await page.getByRole("dialog").getByLabel("Значение (NOK)", { exact: true }).fill("15000");
-  await page.getByRole("button", { name: "Подтвердить изменения измерения" }).click();
+  await page.getByRole("dialog").getByLabel("Текущее значение, NOK", { exact: true }).fill("15000");
+  await page.getByRole("button", { name: "Сохранить" }).click();
   await expect(page.getByTestId("goal-percent")).toHaveText("30%");
   await page.goto("/dashboard");
   await expect(item.getByTestId("dashboard-goal-percent")).toHaveText("30%");
@@ -97,14 +97,14 @@ test("debt, a backdated measurement and an over-target value show the API's numb
   const debtPath = await create(page, `Долг 100 000 NOK · ${testInfo.project.name}`, "100000", "0", { decrease: true });
   await add(page, "80000", "Текущий остаток");
   await expect(percent).toHaveText("20%");
-  await expect(values).toContainText(/80[\s,.]?000 NOK из 0 NOK/);
+  await expect(values).toContainText(/сейчас 80[\s,.]?000 NOK · цель 0 NOK/);
   // Entered later but measured two days earlier: it joins the history without becoming the current value.
   await add(page, "90000", "Остаток позавчера", osloNoon(2));
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(0)).toContainText("Текущий остаток");
   await expect(rows.nth(1)).toContainText("Остаток позавчера");
   await expect(percent).toHaveText("20%");
-  await expect(values).toContainText(/80[\s,.]?000 NOK из 0 NOK/);
+  await expect(values).toContainText(/сейчас 80[\s,.]?000 NOK · цель 0 NOK/);
   expect(await apiProgress(page, debtPath)).toMatchObject({ current: "80000", progressPercent: 20, measurementCount: 2, status: "measured" });
 
   const overTitle = `Сверх цели 50 000 NOK · ${testInfo.project.name}`;

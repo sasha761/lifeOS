@@ -3,7 +3,7 @@ import type { SQL } from "drizzle-orm";
 import { check as pgCheck, index, numeric, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import {
   DOMAIN_KEYS, GOAL_DECIMAL_INTEGER_DIGITS, GOAL_DECIMAL_SCALE, GOAL_DESCRIPTION_MAX_LENGTH,
-  GOAL_DIRECTIONS, GOAL_KINDS, GOAL_ORIGINS, GOAL_PHASES, GOAL_STATUSES, GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, GOAL_UNITS,
+  GOAL_DIRECTIONS, GOAL_KINDS, GOAL_MEASUREMENT_MODES, GOAL_ORIGINS, GOAL_PHASES, GOAL_STATUSES, GOAL_TITLE_MAX_LENGTH, GOAL_UNIT_LABEL_MAX_LENGTH, GOAL_UNITS,
 } from "@lifeos/contracts";
 import { user } from "./auth.ts";
 
@@ -19,6 +19,7 @@ export const goals = pgTable("goals", {
   description: text("description"),
   // LFS-225 (ADR-013): `numeric` has the four definition values below, `unmeasured` none of them (goals_kind_definition_check).
   kind: text("kind", { enum: GOAL_KINDS }).default("numeric").notNull(),
+  measurementMode: text("measurement_mode", { enum: GOAL_MEASUREMENT_MODES }).default("current_value").notNull(),
   unit: text("unit", { enum: GOAL_UNITS }),
   unitLabel: text("unit_label"),
   // Unconstrained numeric + CHECK rejects excess fractional precision instead of rounding on assignment.
@@ -47,6 +48,7 @@ export const goals = pgTable("goals", {
   check("goals_kind_check", sql`${table.kind} IN (${choices(GOAL_KINDS)})`),
   // The checks below of unit, values and direction pass on NULL; this one decides which kind may have NULL there.
   check("goals_kind_definition_check", sql`(${table.kind} = 'numeric' AND ${table.unit} IS NOT NULL AND ${table.baseline} IS NOT NULL AND ${table.target} IS NOT NULL AND ${table.direction} IS NOT NULL) OR (${table.kind} = 'unmeasured' AND ${table.unit} IS NULL AND ${table.unitLabel} IS NULL AND ${table.baseline} IS NULL AND ${table.target} IS NULL AND ${table.direction} IS NULL)`),
+  check("goals_measurement_mode_check", sql`${table.measurementMode} = 'current_value' OR (${table.kind} = 'numeric' AND ${table.measurementMode} = 'contributions')`),
   check("goals_unit_check", sql`${table.unit} IN (${choices(GOAL_UNITS)})`),
   check("goals_unit_label_check", sql`CASE WHEN ${table.unit} = 'custom' THEN ${table.unitLabel} IS NOT NULL AND char_length(${table.unitLabel}) BETWEEN 1 AND ${GOAL_UNIT_LABEL_MAX_LENGTH} AND btrim(${table.unitLabel}) <> '' ELSE ${table.unitLabel} IS NULL END`),
   check("goals_values_check", sql`${table.baseline} >= 0 AND ${table.target} >= 0 AND ${table.baseline} < power(10::numeric, ${GOAL_DECIMAL_INTEGER_DIGITS}) AND ${table.target} < power(10::numeric, ${GOAL_DECIMAL_INTEGER_DIGITS}) AND ${table.baseline} = trunc(${table.baseline}, ${GOAL_DECIMAL_SCALE}) AND ${table.target} = trunc(${table.target}, ${GOAL_DECIMAL_SCALE})`),

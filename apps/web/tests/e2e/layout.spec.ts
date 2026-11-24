@@ -85,9 +85,9 @@ test("a sphere page shows the owner's goals and the sphere journal, a guest only
   await login(page);
   const title = `Сфера здоровья · ${testInfo.project.name}`;
   await create(page, title, "0", "10", { domain: "Здоровье" });
-  await page.getByRole("button", { name: "Добавить измерение", exact: true }).click();
-  await page.getByRole("dialog").getByLabel(/^Значение/).fill("4");
-  await page.getByRole("dialog").getByRole("button", { name: "Добавить измерение", exact: true }).click();
+  await page.getByRole("button", { name: "Новое значение", exact: true }).click();
+  await page.getByRole("dialog").getByLabel("Текущее значение, NOK", { exact: true }).fill("4");
+  await page.getByRole("dialog").getByRole("button", { name: "Сохранить", exact: true }).click();
   await expect(page.getByTestId("goal-percent")).toHaveText("40%");
 
   await page.goto("/domains/health");

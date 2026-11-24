@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { domainKeySchema } from "./domains.ts";
-import { goalMeasurementSourceSchema } from "./goal-measurements.ts";
-import { goalDecimalSchema, goalDirectionSchema, goalIdSchema, goalInstantSchema, goalKindSchema, goalPhaseSchema, goalStatusSchema, goalUnitSchema } from "./goals.ts";
+import { contributionKindSchema, goalMeasurementSourceSchema } from "./goal-measurements.ts";
+import { goalDecimalSchema, goalDirectionSchema, goalIdSchema, goalInstantSchema, goalKindSchema, goalMeasurementModeSchema, goalPhaseSchema, goalStatusSchema, goalUnitSchema } from "./goals.ts";
 import { idempotencyKeySchema } from "./idempotency.ts";
 
 export const ACTIVITY_EVENT_TYPES = Object.freeze([
@@ -26,17 +26,18 @@ export type ActivityWriterContext = z.infer<typeof activityWriterContextSchema>;
 export const goalAuditSnapshotSchema = z.strictObject({
   unit: goalUnitSchema.nullable(), baseline: goalDecimalSchema.nullable(), target: goalDecimalSchema.nullable(),
   direction: goalDirectionSchema.nullable(), status: goalStatusSchema, due_at: goalInstantSchema.nullable(),
+  measurement_mode: goalMeasurementModeSchema.optional(),
   kind: goalKindSchema.optional(), phase: goalPhaseSchema.optional(), starts_at: goalInstantSchema.nullable().optional(),
 });
-export const GOAL_AUDIT_FIELDS = Object.freeze(["unit", "baseline", "target", "direction", "status", "due_at", "kind", "phase", "starts_at"] as const);
-export const MEASUREMENT_AUDIT_FIELDS = Object.freeze(["value", "measured_at", "source"] as const);
-const measurementSnapshotSchema = z.strictObject({ value: goalDecimalSchema, measured_at: goalInstantSchema, source: goalMeasurementSourceSchema });
+export const GOAL_AUDIT_FIELDS = Object.freeze(["unit", "baseline", "target", "direction", "status", "due_at", "kind", "phase", "starts_at", "measurement_mode"] as const);
+export const MEASUREMENT_AUDIT_FIELDS = Object.freeze(["value", "measured_at", "source", "contribution_kind"] as const);
+const measurementSnapshotSchema = z.strictObject({ value: goalDecimalSchema, measured_at: goalInstantSchema, source: goalMeasurementSourceSchema, contribution_kind: contributionKindSchema.optional() });
 /**
  * goal.updated: which fields changed. Text fields are named only; definition values are in the before/after snapshots.
  * `origin` (LFS-218) marks an example becoming the person's own goal; the snapshots hold no origin. `starts_at` and
  * `phase` (LFS-225) have their values in the snapshots; a phase change is a command of its own.
  */
-export const GOAL_CHANGED_FIELDS = Object.freeze(["title", "description", "due_at", "unit", "unit_label", "baseline", "target", "direction", "origin", "starts_at", "phase"] as const);
+export const GOAL_CHANGED_FIELDS = Object.freeze(["title", "description", "due_at", "unit", "unit_label", "baseline", "target", "direction", "origin", "starts_at", "phase", "measurement_mode"] as const);
 export const goalChangedFieldSchema = z.enum(GOAL_CHANGED_FIELDS);
 const changedFieldsSchema = z.array(goalChangedFieldSchema).min(1).max(GOAL_CHANGED_FIELDS.length).refine((fields) => new Set(fields).size === fields.length);
 const base = { goal_id: goalIdSchema, domain_key: domainKeySchema, target_id: goalIdSchema, schema_version: z.literal(1) };

@@ -1,5 +1,20 @@
-import { GOAL_PHASE_LABELS } from "@lifeos/contracts";
-import type { GoalPhase, NumericGoal, UserPreferences } from "@lifeos/contracts";
+import { GOAL_PHASE_LABELS, goalDecimalToScaledInteger, scaledIntegerToGoalDecimal } from "@lifeos/contracts";
+import { contributionKind } from "@lifeos/domain";
+import type { GoalPhase, GoalProgress, NumericGoal, UserPreferences } from "@lifeos/contracts";
+
+export const MEASUREMENT_MODE_LABELS = { current_value: "Текущее значение", contributions: "Взносы" } as const;
+
+const PAYMENT = { add: "Внести платёж", edit: "Исправить платёж", amount: "Сумма платежа", date: "Дата и время платежа", group: "Платежи", entry: "Платёж", before: "После платежа" };
+const DEPOSIT = { add: "Пополнить", edit: "Исправить пополнение", amount: "Сумма пополнения", date: "Дата и время пополнения", group: "Пополнения", entry: "Пополнение", before: "После пополнения" };
+export const CONTRIBUTION_LABELS = { payment: PAYMENT, deposit: DEPOSIT } as const;
+
+export function measurementLabels(goal: NumericGoal) {
+  const kind = contributionKind(goal);
+  if (kind) return CONTRIBUTION_LABELS[kind];
+  const unit = goalUnitLabel(goal);
+  return { add: "Новое значение", edit: "Исправить измерение", amount: unit === "кг" ? "Вес сейчас" : "Текущее значение",
+    date: "Дата и время измерения", group: "Измерения", entry: "Измерение", before: "После сохранения" };
+}
 
 /** Unit after a number: «5 000 $», «12 000 NOK» (LFS-218 adds USD). */
 export const GOAL_UNIT_LABELS = { NOK: "NOK", USD: "$", count: "шт.", minutes: "мин", percent: "%", custom: "Своя единица" } as const;
@@ -35,18 +50,29 @@ export function formatGoalPercent(value: number, preferences: UserPreferences): 
   try { return new Intl.NumberFormat(preferences.locale, { maximumFractionDigits: 2 }).format(value) + "%"; }
   catch { return String(value) + "%"; }
 }
-const SCALE = 10n ** 8n;
-function scaled(value: string): bigint {
-  const [integer = "0", fraction = ""] = value.split(".");
-  return BigInt(integer) * SCALE + BigInt((fraction + "00000000").slice(0, 8));
+export function formatProgressAmount(goal: NumericGoal, progress: Pick<GoalProgress, "current" | "contributionTotal">, locale: string, full = false): string {
+  const { current, contributionTotal } = progress;
+  if (current === null) return "";
+  const amount = (value: string) => formatGoalValue(value, goal, locale);
+  const number = (value: string) => formatGoalNumber(value, locale);
+  const kind = contributionKind(goal);
+  if (kind === "payment" && contributionTotal !== undefined) {
+    const planned = scaledIntegerToGoalDecimal(goalDecimalToScaledInteger(goal.baseline) - goalDecimalToScaledInteger(goal.target));
+    const paid = `выплачено ${number(contributionTotal)} из ${amount(planned)}`;
+    return full ? `${paid} · осталось ${amount(remainingToTarget(goal, current))}` : paid;
+  }
+  if (kind === "deposit") return `накоплено ${number(current)} из ${amount(goal.target)}`;
+  return goal.direction === "decrease"
+    ? `сейчас ${amount(current)} · цель ${amount(goal.target)}`
+    : `${full ? amount(current) : number(current)} из ${amount(goal.target)}`;
 }
+
+const scaled = goalDecimalToScaledInteger;
 /**
  * «Осталось» (mockup 09): how far the current value still is from the target, in the goal's unit, computed on exact
  * decimal strings (8 fractional digits, BigInt) and never below zero once the target is reached.
  */
 export function remainingToTarget(goal: Pick<NumericGoal, "direction" | "target">, current: string): string {
   const difference = goal.direction === "increase" ? scaled(goal.target) - scaled(current) : scaled(current) - scaled(goal.target);
-  const value = difference > 0n ? difference : 0n;
-  const fraction = (value % SCALE).toString().padStart(8, "0").replace(/0+$/, "");
-  return `${value / SCALE}${fraction ? `.${fraction}` : ""}`;
+  return scaledIntegerToGoalDecimal(difference > 0n ? difference : 0n);
 }

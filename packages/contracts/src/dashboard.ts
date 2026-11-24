@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { contributionKindSchema } from "./goal-measurements.ts";
 import { ACTIVITY_EVENT_TYPES, activitySourceSchema } from "./activity-events.ts";
 import { DOMAIN_KEYS, domainKeySchema } from "./domains.ts";
 import {
@@ -41,6 +42,7 @@ export const dashboardActivitySchema = z.strictObject({
   measurement: z.strictObject({
     /** null for a measurement recorded before the goal's unit last changed (LFS-217): shown as a plain number. */
     value: goalDecimalSchema, unit: goalUnitSchema.nullable(), unitLabel: z.string().min(1).max(GOAL_UNIT_LABEL_MAX_LENGTH).nullable(),
+    contributionKind: contributionKindSchema.optional(),
   }).refine((measurement) => measurement.unit !== null || measurement.unitLabel === null).nullable(),
   /** As in the journal (LFS-218): a fact of the example, labelled «Пример». */
   example: z.boolean(),

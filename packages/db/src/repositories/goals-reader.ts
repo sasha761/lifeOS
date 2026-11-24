@@ -7,6 +7,7 @@ import { ownedBy } from "../ownership.ts";
 import { goals } from "../schema/goals.ts";
 import { goalMeasurements } from "../schema/goal-measurements.ts";
 import { activityEvents } from "../schema/activity-events.ts";
+import { ownMeasurementCreated } from "./activity-events.ts";
 import { toGoal } from "./goals.ts";
 import { toGoalMeasurement } from "./goal-measurements.ts";
 
@@ -20,18 +21,26 @@ function count(value: string): number {
 export async function summarizeGoals(transaction: LifeosTransaction, actor: Actor, rows: Goal[]): Promise<GoalReadRecord[]> {
   if (!rows.length) return [];
   const ids = rows.map((row) => row.id);
-  const counts = await transaction.select({ goalId: goalMeasurements.goalId, total: sql<string>`count(*)::text` })
+  const counts = await transaction.select({ goalId: goalMeasurements.goalId, total: sql<string>`count(*)::text`,
+    contributionTotal: sql<string>`trim_scale(sum(${goalMeasurements.value}))::text` })
     .from(goalMeasurements).where(ownedBy(goalMeasurements.userId, actor, inArray(goalMeasurements.goalId, ids))).groupBy(goalMeasurements.goalId);
   const latest = await transaction.selectDistinctOn([goalMeasurements.goalId]).from(goalMeasurements)
     .where(ownedBy(goalMeasurements.userId, actor, inArray(goalMeasurements.goalId, ids)))
     .orderBy(goalMeasurements.goalId, desc(goalMeasurements.measuredAt), desc(goalMeasurements.createdAt), desc(goalMeasurements.id));
-  const changes = await transaction.select({ goalId: activityEvents.goalId, updatedAt: sql<string>`max(${activityEvents.occurredAt})::text` })
+  const changes = await transaction.select({ goalId: activityEvents.goalId, updatedAt: sql<string>`max(${activityEvents.occurredAt})::text`,
+    measurementModeLocked: sql<boolean>`bool_or(${ownMeasurementCreated})` })
     .from(activityEvents).where(ownedBy(activityEvents.userId, actor, inArray(activityEvents.goalId, ids))).groupBy(activityEvents.goalId);
-  const countByGoal = new Map(counts.map((row) => [row.goalId, count(row.total)]));
+  const totalsByGoal = new Map(counts.map((row) => [row.goalId, row]));
   const latestByGoal = new Map(latest.map((row) => [row.goalId, toGoalMeasurement(row)]));
-  const changeByGoal = new Map(changes.map((row) => [row.goalId, new Date(row.updatedAt).toISOString()]));
-  return rows.map((goal) => ({ goal, latest: latestByGoal.get(goal.id) ?? null, measurementCount: countByGoal.get(goal.id) ?? 0,
-    updatedAt: [goal.updated_at, changeByGoal.get(goal.id) ?? goal.updated_at].sort().at(-1)! }));
+  const changeByGoal = new Map(changes.map((row) => [row.goalId, row]));
+  return rows.map((goal) => {
+    const totals = totalsByGoal.get(goal.id);
+    const change = changeByGoal.get(goal.id);
+    const lastEventAt = change ? new Date(change.updatedAt).toISOString() : goal.updated_at;
+    return { goal, latest: latestByGoal.get(goal.id) ?? null, measurementCount: count(totals?.total ?? "0"),
+      contributionTotal: totals?.contributionTotal, measurementModeLocked: change?.measurementModeLocked,
+      updatedAt: lastEventAt > goal.updated_at ? lastEventAt : goal.updated_at };
+  });
 }
 export function createGoalsReadRepository(database: LifeosDatabase): GoalsReadRepository {
   return {

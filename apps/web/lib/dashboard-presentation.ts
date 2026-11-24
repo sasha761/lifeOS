@@ -1,6 +1,8 @@
 import { GOAL_PHASE_LABELS } from "@lifeos/contracts";
 import type { Dashboard, DashboardActivity } from "@lifeos/contracts";
 
+import { contributionActivityLabel } from "./activity-presentation.ts";
+
 const ACTIVITY_LABELS = {
   "goal.created": "Создана цель",
   "goal.updated": "Изменена цель",
@@ -14,8 +16,9 @@ const SOURCE_LABELS = {
 } as const satisfies Record<DashboardActivity["source"], string>;
 
 /** A phase change (LFS-225) is named by the new phase: «Статус: Достигнута»; other facts by their type. */
-export function activityLabel(type: DashboardActivity["type"], phase: DashboardActivity["phase"] = null): string {
-  return phase ? `Статус: ${GOAL_PHASE_LABELS[phase.after]}` : ACTIVITY_LABELS[type];
+export function activityLabel(type: DashboardActivity["type"], phase: DashboardActivity["phase"] = null, kind?: NonNullable<DashboardActivity["measurement"]>["contributionKind"]): string {
+  if (phase) return `Статус: ${GOAL_PHASE_LABELS[phase.after]}`;
+  return contributionActivityLabel(type, kind) ?? ACTIVITY_LABELS[type];
 }
 export function sourceLabel(source: DashboardActivity["source"]): string { return SOURCE_LABELS[source]; }
 

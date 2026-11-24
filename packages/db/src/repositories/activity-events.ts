@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { activityEventDraftSchema, activityEventMetadataSchema, goalIdSchema } from "@lifeos/contracts";
 import type { ActivityEvent } from "@lifeos/contracts";
@@ -6,6 +6,10 @@ import type { ActivityEventsRepository } from "@lifeos/domain";
 import type { LifeosDatabase } from "../client.ts";
 import { ownedBy } from "../ownership.ts";
 import { activityEvents } from "../schema/activity-events.ts";
+
+/** A person's first saved measurement fixes the goal mode even when that entry is later deleted. */
+export const ownMeasurementCreated = and(eq(activityEvents.eventType, "goal_measurement.created"),
+  sql`${activityEvents.payload} -> 'after' ->> 'source' = 'manual'`)!;
 
 // Inside raw SQL an alias renders as its name only, so the FROM clause below names the table and the alias itself.
 const unitChanges = alias(activityEvents, "unit_changes");

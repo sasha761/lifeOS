@@ -32,7 +32,7 @@ export type {
 } from "./core/onboarding.ts";
 // The catalog and the goal builder are also the separate browser-safe entry point `@lifeos/domain/onboarding`.
 export * from "./core/onboarding-catalog.ts";
-export { calculateGoalProgress } from "./core/goal-progress.ts";
+export { calculateContributionCurrent, calculateGoalProgress, contributionKind } from "./core/goal-progress.ts";
 export { createGoalsReader, goalDetailsFromRecord } from "./core/goals-reader.ts";
 export type { GoalReadRecord, GoalsReadQuery, MeasurementsReadQuery, GoalsReadRepository, GoalsReader } from "./core/goals-reader.ts";
 export { createActivityReader, isVisibleActivity, toActivityEntry } from "./core/activity.ts";

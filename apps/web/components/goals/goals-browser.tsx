@@ -10,7 +10,7 @@ import type { DomainKey, GoalDetails, GoalsPage, UserPreferences } from "@lifeos
 import { dashboardTotals, plural } from "../../lib/dashboard-presentation.ts";
 import { getGoalsData, GoalRequestError } from "../../lib/goals-api-client.ts";
 import { domainPresentation } from "../../lib/domain-presentation.ts";
-import { formatGoalNumber, formatGoalPercent, formatGoalValue } from "../../lib/goal-presentation.ts";
+import { formatGoalPercent, formatProgressAmount } from "../../lib/goal-presentation.ts";
 import { formatDate } from "../../lib/user-preferences.ts";
 import { FormAlert } from "../auth/form-parts.tsx";
 import { Card } from "../ui/card.tsx";
@@ -67,7 +67,7 @@ export function GoalRow({ value, label, preferences, href, selected, onDelete }:
         : <>{progress.progressPercent !== null && <div className="flex items-center gap-2">
           <ProgressBar value={progress.progressPercent} tone={tone} label={`Прогресс: ${goal.title}`} className="flex-1" />
           <span className="text-xs leading-4 font-bold tabular-nums">{formatGoalPercent(progress.progressPercent, preferences)}</span></div>}
-          <span className="text-[11px] leading-4 text-muted-foreground wrap-anywhere tabular-nums">{formatGoalNumber(progress.current, preferences.locale)} из {formatGoalValue(goal.target, goal, preferences.locale)}</span></>}
+          <span className="text-[11px] leading-4 text-muted-foreground wrap-anywhere tabular-nums">{formatProgressAmount(goal, progress, preferences.locale)}</span></>}
     </div>
     <button type="button" onClick={onDelete} aria-label={`Удалить цель «${goal.title}»`} title="Удалить цель"
       className="relative z-10 col-start-3 row-start-1 inline-flex size-10 items-center justify-center self-start rounded-full border border-transparent text-muted-foreground transition-[color,background-color,border-color,opacity] duration-[120ms] hover:border-destructive/55 hover:bg-destructive/15 hover:text-destructive md:col-start-4 md:self-center lg:pointer-fine:size-8 lg:pointer-fine:opacity-0 lg:pointer-fine:group-hover/row:opacity-100 lg:pointer-fine:group-focus-within/row:opacity-100">

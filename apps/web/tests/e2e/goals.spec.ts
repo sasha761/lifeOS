@@ -12,6 +12,25 @@ test("guest guards and the empty state", async ({ page }) => {
   await noOverflow(page);
 });
 
+test("payments show the amount paid and the remaining debt, with a value dialog for state goals", async ({ page }, testInfo) => {
+  await login(page);
+  await create(page, `Долг по кредиту · ${testInfo.project.name}`, "2000", "0", { decrease: true, contributions: true });
+  await page.getByRole("button", { name: "Внести платёж", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Внести платёж" });
+  await dialog.getByLabel("Сумма платежа, NOK", { exact: true }).fill("800");
+  await expect(dialog.getByText(/40%/)).toBeVisible();
+  await dialog.getByRole("button", { name: "Внести платёж", exact: true }).click();
+  await expect(page.getByTestId("goal-percent")).toHaveText("40%");
+  await expect(page.getByTestId("goal-values")).toContainText(/выплачено 800 из 2[\s,.]000 NOK/);
+  await expect(page.getByTestId("goal-remaining")).toHaveText(/1[\s,.]200 NOK/);
+  await expect(page.getByTestId("measurement-row")).toContainText("Платёж 800 NOK");
+  await noOverflow(page);
+
+  await create(page, `Состояние · ${testInfo.project.name}`);
+  await page.getByRole("button", { name: "Новое значение", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Новое значение" }).getByLabel("Текущее значение, NOK")).toBeFocused();
+});
+
 test("create, measure 24%, edit, cancel/delete, metadata and archive keep history", async ({ page }, testInfo) => {
   const errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
   await login(page);
@@ -20,8 +39,8 @@ test("create, measure 24%, edit, cancel/delete, metadata and archive keep histor
   await add(page, "12000"); await expect(page.getByTestId("goal-percent")).toHaveText("24%");
   const first = page.getByTestId("measurement-row").first();
   await first.getByRole("button", { name: "Изменить", exact: true }).click();
-  await page.getByRole("dialog").getByLabel("Значение (NOK)", { exact: true }).fill("15000");
-  await page.getByRole("button", { name: "Подтвердить изменения измерения" }).click();
+  await page.getByRole("dialog").getByLabel("Текущее значение, NOK", { exact: true }).fill("15000");
+  await page.getByRole("button", { name: "Сохранить" }).click();
   await expect(page.getByTestId("goal-percent")).toHaveText("30%");
   await first.getByRole("button", { name: "Удалить", exact: true }).click();
   await page.getByRole("button", { name: "Отмена", exact: true }).click();
@@ -40,7 +59,7 @@ test("create, measure 24%, edit, cancel/delete, metadata and archive keep histor
   await page.getByRole("button", { name: "Подтвердить архивирование" }).click();
   await expect(page.getByRole("region", { name: `${title} · исправлена` }).getByText("В архиве", { exact: true })).toBeVisible();
   await expect(page.getByTestId("measurement-row")).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Добавить измерение", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Новое значение", exact: true })).toHaveCount(0);
   await noOverflow(page);
   // «Все цели» is the narrow-screen way back (covered in layout.spec.ts); the list is beside the panel from 1024px.
   await page.goto("/goals");
@@ -105,7 +124,7 @@ test("exact decimals, field validation and ambiguous network retry with the same
   });
   await add(page, "9007199254740993.02");
   await expect(page.getByRole("dialog").getByRole("alert")).toContainText("Сервер мог сохранить изменения");
-  await expect(page.getByRole("dialog").getByLabel("Значение (NOK)", { exact: true })).toBeDisabled();
+  await expect(page.getByRole("dialog").getByLabel("Текущее значение, NOK", { exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "Повторить сохранение", exact: true }).click();
   await expect(page.getByTestId("goal-percent")).toHaveText("25%");
   await expect(page.getByTestId("measurement-row")).toHaveCount(1);
@@ -136,13 +155,15 @@ test("creation remains locked until navigation finishes", async ({ page }, testI
 test("keyboard modal traps Tab and restores focus after Escape", async ({ page }, testInfo) => {
   await login(page);
   await create(page, `Клавиатура · ${testInfo.project.name}`);
-  const open = page.getByRole("button", { name: "Добавить измерение", exact: true });
+  const open = page.getByRole("button", { name: "Новое значение", exact: true });
   await open.focus(); await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel("Текущее значение, NOK", { exact: true })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
   await expect(dialog.getByRole("button", { name: "Закрыть", exact: true })).toBeFocused();
   await page.keyboard.press("Shift+Tab");
-  await expect(dialog.getByRole("button", { name: "Добавить измерение", exact: true })).toBeFocused();
+  await expect(dialog.getByRole("button", { name: "Сохранить", exact: true })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(dialog.getByRole("button", { name: "Закрыть", exact: true })).toBeFocused();
   await page.screenshot({ path: testInfo.outputPath("keyboard-dialog.png") });

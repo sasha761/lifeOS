@@ -7,6 +7,7 @@ export type FormResult<T> = { data: T; errors: null } | { data: null; errors: Go
 const text = (values: FormData, name: string) => String(values.get(name) ?? "");
 const nullable = (value: string) => value.trim() || null;
 const decimal = (value: string) => value.trim().replace(",", ".");
+export const measurementDecimal = (value: string) => decimal(value).replace(/(?<=\d)[ \u00a0\u202f](?=\d{3}(?:[ \u00a0\u202f]|\.|$))/g, "");
 const messages: Record<string, string> = { title: "Введите название (до 200 символов).", description: "Описание — до 4000 символов.", domain_key: "Выберите сферу.",
   unit: "Выберите единицу.", unit_label: "Укажите название единицы (до 40 символов).", baseline: "Укажите неотрицательное точное число в выбранной единице.",
   target: "Цель должна отличаться от начального значения и соответствовать направлению и единице.", value: "Укажите неотрицательное точное число в единице цели.",
@@ -41,7 +42,8 @@ export function goalFormInput(values: FormData, timeZone: string, editing = fals
     try { dates[name] = dayValue(values, name, timeZone); }
     catch (error) { return { data: null, errors: { [name]: (error as Error).message } } as const; }
   }
-  const metadata = { title: text(values, "title"), description: nullable(text(values, "description")), ...dates };
+  const metadata = { title: text(values, "title"), description: nullable(text(values, "description")), ...dates,
+    ...(values.has("measurement_mode") ? { measurement_mode: text(values, "measurement_mode") } : {}) };
   const definition = () => ({ baseline: decimal(text(values, "baseline")), target: decimal(text(values, "target")), unit: text(values, "unit"),
     unit_label: text(values, "unit") === "custom" ? nullable(text(values, "unit_label")) : null, direction: text(values, "direction") });
   // An edit carries the definition only when the form shows it, i.e. while the goal has no measurements (LFS-217).
@@ -53,6 +55,6 @@ export function measurementFormInput(values: FormData, timeZone: string, editing
   try { measured_at = dateValue(values, "measured_at", timeZone); }
   catch (error) { return { data: null, errors: { measured_at: (error as Error).message } } as const; }
   if (!measured_at) return { data: null, errors: { measured_at: "Укажите дату и время измерения." } } as const;
-  const data = { value: decimal(text(values, "value")), measured_at, note: nullable(text(values, "note")) };
+  const data = { value: measurementDecimal(text(values, "value")), measured_at, note: nullable(text(values, "note")) };
   return editing ? validate(updateGoalMeasurementInputSchema, data) : validate(createGoalMeasurementInputSchema, { ...data, source: "manual" });
 }

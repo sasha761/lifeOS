@@ -26,13 +26,14 @@ const examplesSchema = `lfs216_upgrade_${run}`;
 const onboardingSchema = `lfs218_upgrade_${run}`;
 const rhythmSchema = `lfs221_upgrade_${run}`;
 const phasesSchema = `lfs222_upgrade_${run}`;
-const isolatedSchemas = [cleanSchema, upgradeSchema, preferencesSchema, goalsSchema, auditSchema, measurementsSchema, examplesSchema, onboardingSchema, rhythmSchema, phasesSchema];
+const modeSchema = `lfs225_upgrade_${run}`;
+const isolatedSchemas = [cleanSchema, upgradeSchema, preferencesSchema, goalsSchema, auditSchema, measurementsSchema, examplesSchema, onboardingSchema, rhythmSchema, phasesSchema, modeSchema];
 for (const name of isolatedSchemas) {
-  if (!/^lfs(?:104_migration|201_upgrade|202_upgrade|205_upgrade|210_upgrade|206_upgrade|216_upgrade|218_upgrade|221_upgrade|222_upgrade)_[a-f0-9]{32}$/.test(name)) throw new Error("Invalid isolated test schema name.");
+  if (!/^lfs(?:104_migration|201_upgrade|202_upgrade|205_upgrade|210_upgrade|206_upgrade|216_upgrade|218_upgrade|221_upgrade|222_upgrade|225_upgrade)_[a-f0-9]{32}$/.test(name)) throw new Error("Invalid isolated test schema name.");
 }
 const quote = (name: string) => `"${name}"`;
 /** A goal row as an older history stored it: everything but the origin (LFS-218), kind, phase and start (LFS-225) added later. */
-const LATER_GOAL_COLUMNS = new Set(["origin", "kind", "phase", "phase_changed_at", "starts_at"]);
+const LATER_GOAL_COLUMNS = new Set(["origin", "kind", "phase", "phase_changed_at", "starts_at", "measurement_mode"]);
 const withoutLaterColumns = (row: Record<string, unknown>) => Object.fromEntries(Object.entries(row).filter(([key]) => !LATER_GOAL_COLUMNS.has(key)));
 let administration: DatabaseClient | undefined;
 const clients = new Map<string, DatabaseClient>();
@@ -74,7 +75,7 @@ beforeAll(async () => {
   if (tags[0] !== "0000_smiling_reavers" || tags[1] !== "0001_better_auth" || tags[2] !== "0002_user_preferences") {
     throw new Error("Unexpected migration history.");
   }
-  for (const [name, count] of [["stage1", 1], ["lfs201", 2], ["lfs202", 3], ["lfs205", 4], ["lfs210", 5], ["lfs216", 7], ["lfs218", 8], ["lfs221", 9], ["lfs222", 10]] as const) {
+  for (const [name, count] of [["stage1", 1], ["lfs201", 2], ["lfs202", 3], ["lfs205", 4], ["lfs210", 5], ["lfs216", 7], ["lfs218", 8], ["lfs221", 9], ["lfs222", 10], ["lfs225", 11]] as const) {
     const folder = await mkdtemp(join(tmpdir(), `lfs202-${name}-`));
     historyFolders.set(name, folder);
     const entries = journal.entries.slice(0, count);
@@ -84,7 +85,7 @@ beforeAll(async () => {
   }
 });
 
-function historyFolder(name: "stage1" | "lfs201" | "lfs202" | "lfs205" | "lfs210" | "lfs216" | "lfs218" | "lfs221" | "lfs222"): string {
+function historyFolder(name: "stage1" | "lfs201" | "lfs202" | "lfs205" | "lfs210" | "lfs216" | "lfs218" | "lfs221" | "lfs222" | "lfs225"): string {
   const folder = historyFolders.get(name);
   if (!folder) throw new Error("Migration history was not prepared.");
   return folder;
@@ -493,6 +494,28 @@ it("upgrades LFS-222: goals become numeric and in progress since creation, event
   expect(result.accepted).toEqual({ phaseReceipt: true, phaseEvent: true });
   expect(result.measurement).toBe(true);
   expect(result.clean.map((row) => row.column_name)).toEqual(["kind", "phase", "phase_changed_at", "starts_at"]);
+});
+
+it("upgrades LFS-225: existing measurements keep their meaning (LFS-226)", async () => {
+  const connection = isolatedClient(modeSchema);
+  await databaseOperation(async () => {
+    await migrate(connection.db, { migrationsFolder: historyFolder("lfs225"), migrationsSchema: modeSchema });
+    const userId = `existing_${randomUUID()}`;
+    await connection.pool.query(`INSERT INTO "user" (id, name, email) VALUES ($1, 'Existing', $2)`, [userId, `${userId}@example.test`]);
+    const [debt] = (await connection.pool.query<{ id: string }>(`INSERT INTO goals (user_id, domain_key, title, unit, baseline, target, direction)
+      VALUES ($1, 'finance', 'Existing debt', 'USD', 2000, 0, 'decrease') RETURNING id`, [userId])).rows;
+    await connection.pool.query(`INSERT INTO goals (user_id, domain_key, title, kind) VALUES ($1, 'work', 'Existing task', 'unmeasured')`, [userId]);
+    await connection.pool.query(`INSERT INTO goal_measurements (user_id, goal_id, unit, value, measured_at) VALUES
+      ($1, $2, 'USD', 1750, '2026-11-01T08:00:00Z'), ($1, $2, 'USD', 800, '2026-11-02T08:00:00Z')`, [userId, debt!.id]);
+    await applyMigrations(connection.db, { migrationsSchema: modeSchema });
+    await applyMigrations(connection.db, { migrationsSchema: modeSchema });
+    const modes = await connection.pool.query(`SELECT kind, measurement_mode FROM goals WHERE user_id = $1 ORDER BY kind`, [userId]);
+    expect(modes.rows).toEqual([{ kind: "numeric", measurement_mode: "current_value" }, { kind: "unmeasured", measurement_mode: "current_value" }]);
+    const measurements = await connection.pool.query(`SELECT value::text FROM goal_measurements WHERE goal_id = $1 ORDER BY measured_at`, [debt!.id]);
+    expect(measurements.rows).toEqual([{ value: "1750" }, { value: "800" }]);
+    await expect(connection.pool.query(`UPDATE goals SET measurement_mode = 'contributions' WHERE user_id = $1 AND kind = 'unmeasured'`, [userId]))
+      .rejects.toMatchObject({ constraint: "goals_measurement_mode_check" });
+  });
 });
 
 it("upgrades LFS-221: the rhythm column and its CHECK are dropped, the profile and the wizard state stay (LFS-222)", async () => {

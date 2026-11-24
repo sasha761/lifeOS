@@ -25,6 +25,7 @@ export type GoalsRepository = {
   updateActive(actor: Actor, id: string, input: UpdateGoalInput): Promise<Goal | null>;
   /** Whether the owned goal has a measurement of the person's own (not an example); called under the goal row lock. */
   hasOwnMeasurements(actor: Actor, id: string): Promise<boolean>;
+  hasMeasurementHistory(actor: Actor, id: string): Promise<boolean>;
   /** An example goal becomes the person's own (`starter` → `manual`, LFS-218); null if it was not an example. */
   claimExample(actor: Actor, id: string): Promise<Goal | null>;
   /** Atomic phase change of an active goal with the time of the change (LFS-225); null if missing, foreign or archived. */
@@ -84,6 +85,7 @@ function ownedGoal(actor: Actor, value: Goal | null): Goal {
  */
 function createFingerprint(input: CreateGoalInput): Record<string, unknown> {
   const { kind, starts_at: startsAt, ...rest } = input;
+  if ("measurement_mode" in rest && rest.measurement_mode === "current_value") delete rest.measurement_mode;
   return { ...rest, ...(kind === "numeric" ? {} : { kind }), ...(startsAt === null ? {} : { starts_at: startsAt }) };
 }
 
@@ -133,24 +135,26 @@ export function createGoalsService(unit: GoalsUnitOfWork): GoalsService {
         const current = ownedGoal(actor, await goals.find(actor, key));
         if (current.status === "archived") throw new ConflictError();
         // The kind never changes (LFS-225): a goal without measurements takes no definition.
-        if (current.kind === "unmeasured" && GOAL_DEFINITION_FIELDS.some((field) => parsed.data[field] !== undefined)) throw new ConflictError();
+        if (current.kind === "unmeasured" && (parsed.data.measurement_mode !== undefined || GOAL_DEFINITION_FIELDS.some((field) => parsed.data[field] !== undefined))) throw new ConflictError();
         // One date may be edited alone; together with the stored other one the start is still not later than the deadline.
         const startsAt = parsed.data.starts_at === undefined ? current.starts_at : parsed.data.starts_at;
         const dueAt = parsed.data.due_at === undefined ? current.due_at : parsed.data.due_at;
         if (startsAt && dueAt && startsAt > dueAt) throw new InvalidInputError();
-        const edited = [...GOAL_METADATA_FIELDS, ...GOAL_DEFINITION_FIELDS]
+        const edited = [...GOAL_METADATA_FIELDS, ...GOAL_DEFINITION_FIELDS, "measurement_mode" as const]
           .filter((field) => parsed.data[field] !== undefined && parsed.data[field] !== current[field]);
         if (edited.length === 0) return current;
         // Any real edit makes an example the person's own goal (LFS-218); updateActive writes the origin.
         const changed_fields = current.origin === "starter" ? [...edited, "origin" as const] : edited;
+        const modeChanged = edited.includes("measurement_mode");
         const redefines = edited.some((field) => (GOAL_DEFINITION_FIELDS as readonly string[]).includes(field));
         // An unchanged definition is not a redefinition: it is dropped, so metadata edits of a measured goal still work.
-        const input = redefines ? parsed.data
-          : Object.fromEntries(GOAL_METADATA_FIELDS.filter((field) => parsed.data[field] !== undefined).map((field) => [field, parsed.data[field]])) as UpdateGoalInput;
-        if (redefines) {
+        const { measurement_mode, ...fields } = parsed.data;
+        const metadata = Object.fromEntries(GOAL_METADATA_FIELDS.filter((field) => fields[field] !== undefined).map((field) => [field, fields[field]])) as UpdateGoalInput;
+        const input = { ...(redefines ? fields : metadata), ...(modeChanged ? { measurement_mode } : {}) };
+        if (redefines || modeChanged) {
           // Only the person's own measurements fix the definition. Example measurements would be reinterpreted by it,
           // so they are removed with an audit fact before the goal changes (the unit FK requires that order).
-          if (await goals.hasOwnMeasurements(actor, key)) throw new ConflictError();
+          if (await goals.hasOwnMeasurements(actor, key) || (modeChanged && await goals.hasMeasurementHistory(actor, key))) throw new ConflictError();
           for (const removed of await measurements.removeExamples(actor, key)) await events.append(measurementDeletedEvent(current, removed));
         }
         const updated = await goals.updateActive(actor, key, input);

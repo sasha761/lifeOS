@@ -156,10 +156,14 @@ SQL read queries, без projection/очереди. Detail и list содерж�
 manual self-report provenance, count и последнее время изменения. History
 и goal list имеют bounded cursor pagination. [ADR-010](../adr/010-goals-api-progress.md).
 
+LFS-226 добавляет режим взносов. Список, панель цели и Dashboard используют одну сводку измерений: count и точную
+сумму PostgreSQL, последнее измерение для provenance и время изменения по журналу. Домен по режиму возвращает
+последнее значение или вычисляет текущее по сумме взносов. [ADR-013](../adr/013-goal-kinds-phases.md#дополнение-lfs-226--2026-11-25).
+
 LFS-208: RSC pages `/goals`, `/goals/new`, `/goals/[id]` проверяют сессию и
 передают только user preferences/public domain choices в Client Components.
-Все goal reads/writes идут через API LFS-207. Client formatting не вычисляет
-progress; exact decimal и account-timezone представление отделены от domain.
+Все goal reads/writes идут через API LFS-207. Сохранённый прогресс вычисляется на стороне домена. Диалог LFS-226
+использует ту же чистую функцию для предварительного расчёта на клиенте.
 Mutation state удерживает один key/body при неопределённом ответе, не создаёт
 browser persistence личных payload. Новый backend/runtime/DDL не вводится.
 

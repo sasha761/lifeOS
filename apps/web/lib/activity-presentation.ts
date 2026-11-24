@@ -1,7 +1,18 @@
 import { GOAL_PHASE_LABELS } from "@lifeos/contracts";
 import type { ActivityEntry, UserPreferences } from "@lifeos/contracts";
-import { formatGoalNumber, formatLoggedValue, GOAL_UNIT_LABELS } from "./goal-presentation.ts";
+import { CONTRIBUTION_LABELS, formatGoalNumber, formatLoggedValue, GOAL_UNIT_LABELS } from "./goal-presentation.ts";
 import { formatDate } from "./user-preferences.ts";
+
+const CONTRIBUTION_ACTIVITY = {
+  payment: { "goal_measurement.created": CONTRIBUTION_LABELS.payment.entry, "goal_measurement.updated": "Исправлен платёж", "goal_measurement.deleted": "Удалён платёж" },
+  deposit: { "goal_measurement.created": CONTRIBUTION_LABELS.deposit.entry, "goal_measurement.updated": "Исправлено пополнение", "goal_measurement.deleted": "Удалено пополнение" },
+} as const;
+
+export function contributionActivityLabel(type: ActivityEntry["type"], kind?: NonNullable<ActivityEntry["measurement"]>["contributionKind"]): string | undefined {
+  if (kind && (type === "goal_measurement.created" || type === "goal_measurement.updated" || type === "goal_measurement.deleted")) {
+    return CONTRIBUTION_ACTIVITY[kind][type];
+  }
+}
 
 const DIRECTION_LABELS = { increase: "увеличить", decrease: "уменьшить" } as const;
 const unitName = (unit: keyof typeof GOAL_UNIT_LABELS) => unit === "custom" ? "своя единица" : GOAL_UNIT_LABELS[unit];
@@ -19,6 +30,7 @@ function editParts(entry: ActivityEntry, preferences: Pick<UserPreferences, "tim
   if (fields.has("unit_label")) parts.push("название единицы изменено");
   if (fields.has("baseline") && before && after) parts.push(`старт изменён: ${number(before.baseline)} → ${number(after.baseline)}`);
   if (fields.has("target") && before && after) parts.push(`цель изменена: ${number(before.target)} → ${number(after.target)}`);
+  if (fields.has("measurement_mode")) parts.push("режим измерений изменён");
   if (fields.has("direction") && before && after) parts.push(`направление изменено: ${DIRECTION_LABELS[before.direction]} → ${DIRECTION_LABELS[after.direction]}`);
   if (entry.startsAt) parts.push(`дата начала изменена: ${day(entry.startsAt.before, "без даты")} → ${day(entry.startsAt.after, "без даты")}`);
   if (entry.dueAt) parts.push(`срок изменён: ${day(entry.dueAt.before)} → ${day(entry.dueAt.after)}`);
@@ -38,18 +50,19 @@ function editParts(entry: ActivityEntry, preferences: Pick<UserPreferences, "tim
 export function describeActivity(entry: ActivityEntry, preferences: Pick<UserPreferences, "timezone" | "locale">, { withTitle = false } = {}): string {
   const goal = withTitle ? ` «${entry.goal.title}»` : "";
   const amount = (value: string) => formatLoggedValue(value, entry.measurement!, preferences.locale);
+  const contribution = contributionActivityLabel(entry.type, entry.measurement?.contributionKind);
   switch (entry.type) {
     case "goal.created": return `Создана цель${goal}`;
     case "goal.archived": return `Цель${goal} перенесена в архив`;
     case "goal.updated":
       return `${withTitle ? `Цель${goal}: ` : ""}${editParts(entry, preferences).join(", ") || "цель изменена"}`.replace(/^./, (letter) => letter.toUpperCase());
-    case "goal_measurement.created": return `Добавлено измерение${goal}: ${amount(entry.measurement!.value)}`;
-    case "goal_measurement.deleted": return `Удалено измерение${goal}: ${amount(entry.measurement!.value)}`;
+    case "goal_measurement.created": return contribution ? `${contribution} ${amount(entry.measurement!.value)}${goal}` : `Добавлено измерение${goal}: ${amount(entry.measurement!.value)}`;
+    case "goal_measurement.deleted": return `${contribution ?? "Удалено измерение"}${goal}: ${amount(entry.measurement!.value)}`;
     case "goal_measurement.updated": {
       const { value, previousValue } = entry.measurement!;
       return previousValue !== null && previousValue !== value
-        ? `Исправлено измерение${goal}: ${formatGoalNumber(previousValue, preferences.locale)} → ${amount(value)}`
-        : `Исправлено измерение${goal}: ${amount(value)}`;
+        ? `${contribution ?? "Исправлено измерение"}${goal}: ${formatGoalNumber(previousValue, preferences.locale)} → ${amount(value)}`
+        : `${contribution ?? "Исправлено измерение"}${goal}: ${amount(value)}`;
     }
   }
 }

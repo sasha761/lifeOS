@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { goalDecimalSchema, goalIdSchema, goalInstantSchema, goalUnitSchema, goalValueMatchesUnit } from "./goals.ts";
+import { goalAggregateDecimalSchema, goalDecimalSchema, goalIdSchema, goalInstantSchema, goalUnitSchema, goalValueMatchesUnit } from "./goals.ts";
 
 export const MEASUREMENT_NOTE_MAX_LENGTH = 1000;
 export const MEASUREMENT_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
@@ -9,6 +9,7 @@ export const MEASUREMENT_FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
  */
 export const GOAL_MEASUREMENT_SOURCES = Object.freeze(["manual", "example"] as const);
 export const goalMeasurementSourceSchema = z.enum(GOAL_MEASUREMENT_SOURCES);
+export const contributionKindSchema = z.enum(["payment", "deposit"]);
 const noteSchema = z.string().trim().min(1).max(MEASUREMENT_NOTE_MAX_LENGTH).nullable();
 export const createGoalMeasurementInputSchema = z.strictObject({
   value: goalDecimalSchema,
@@ -32,7 +33,8 @@ export const goalMeasurementDeletionSchema = z.strictObject({
 });
 export type GoalMeasurementDeletion = z.infer<typeof goalMeasurementDeletionSchema>;
 export const goalMeasurementCurrentSchema = z.strictObject({
-  goal_id: goalIdSchema, current: goalDecimalSchema.nullable(), measurement: goalMeasurementSchema.nullable(),
+  goal_id: goalIdSchema, current: goalAggregateDecimalSchema.nullable(), measurement: goalMeasurementSchema.nullable(),
+  measurement_mode: z.literal("contributions").optional(),
 }).refine((result) => result.measurement === null ? result.current === null
-  : result.measurement.goal_id === result.goal_id && result.current === result.measurement.value);
+  : result.measurement.goal_id === result.goal_id && (result.measurement_mode === "contributions" ? result.current !== null : result.current === result.measurement.value));
 export type GoalMeasurementCurrent = z.infer<typeof goalMeasurementCurrentSchema>;

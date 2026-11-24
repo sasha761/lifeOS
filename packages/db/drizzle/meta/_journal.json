@@ -78,6 +78,13 @@
       "when": 1795463930171,
       "tag": "0010_goal_phases",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795562228518,
+      "tag": "0011_goal_measurement_mode",
+      "breakpoints": true
     }
   ]
 }

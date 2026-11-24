@@ -15,11 +15,12 @@ export async function signInWithForm(page: Page) {
   await page.getByLabel("Пароль", { exact: true }).fill(process.env.LFS209_E2E_OWNER_PASSWORD!);
   await page.getByRole("button", { name: "Войти", exact: true }).click();
 }
-export async function create(page: Page, title: string, baseline = "0", target = "50000", { domain = "Финансы", decrease = false } = {}) {
+export async function create(page: Page, title: string, baseline = "0", target = "50000", { domain = "Финансы", decrease = false, contributions = false } = {}) {
   await page.goto("/goals/new");
   await page.getByRole("radio", { name: domain, exact: true }).check();
   await page.getByLabel("Название", { exact: true }).fill(title);
   if (decrease) await page.getByRole("radio", { name: "Уменьшить до значения", exact: true }).check();
+  if (contributions) await page.getByRole("radio", { name: "Взносы", exact: true }).check();
   await page.getByLabel("Старт", { exact: true }).fill(baseline);
   await page.getByLabel("Цель", { exact: true }).fill(target);
   await page.getByRole("button", { name: "Создать цель", exact: true }).click();
@@ -29,12 +30,12 @@ export async function create(page: Page, title: string, baseline = "0", target =
 }
 /** `measuredAt` is a `datetime-local` value in the owner's time zone; without it the dialog keeps «now». */
 export async function add(page: Page, value: string, note = "Браузерное измерение", measuredAt?: string) {
-  await page.getByRole("button", { name: "Добавить измерение", exact: true }).click();
+  await page.getByRole("button", { name: "Новое значение", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Значение (NOK)", { exact: true }).fill(value);
+  await dialog.getByLabel("Текущее значение, NOK", { exact: true }).fill(value);
   if (measuredAt) await dialog.getByLabel("Дата и время измерения", { exact: true }).fill(measuredAt);
   await dialog.getByLabel("Заметка (необязательно)").fill(note);
-  await dialog.getByRole("button", { name: "Добавить измерение", exact: true }).click();
+  await dialog.getByRole("button", { name: "Сохранить", exact: true }).click();
 }
 /** Commands of the goal panel live in its «⋯» menu (mockup 09, LFS-213); the phase moves too (LFS-225). */
 type PhaseMove = "Начать" | "Продолжить" | "Вернуть в работу" | "Поставить на паузу" | "Отметить достигнутой" | "Перенести в запланированные";

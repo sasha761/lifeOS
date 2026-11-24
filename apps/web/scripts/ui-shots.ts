@@ -28,7 +28,9 @@ async function seed(fixture: UiFixture) {
   const measure = (id: string, value: string, daysAgo: number) =>
     apiWrite(base, cookies.owner, `/api/v1/goals/${id}/measurements`, { value, measured_at: new Date(Date.now() - daysAgo * day).toISOString(), source: "manual" });
   const due = (days: number) => new Date(Date.now() + days * day).toISOString();
-  const savings = await create({ domain_key: "finance", title: "Резерв на полгода расходов", unit: "NOK", baseline: "0", target: "60000", direction: "increase", due_at: due(120) });
+  const debt = await create({ domain_key: "finance", title: "Погасить кредит", unit: "USD", baseline: "2400", target: "0", direction: "decrease", measurement_mode: "contributions", due_at: due(170) });
+  await measure(debt.goal.id, "475.5", 7); await measure(debt.goal.id, "630", 22);
+  const savings = await create({ measurement_mode: "contributions", domain_key: "finance", title: "Резерв на полгода расходов", unit: "NOK", baseline: "0", target: "60000", direction: "increase", due_at: due(120) });
   await measure(savings.goal.id, "9000", 30); await measure(savings.goal.id, "18000", 2);
   const words = await create({ domain_key: "languages", title: "Норвежский: 400 новых слов", unit: "count", baseline: "0", target: "400", direction: "increase", due_at: due(25) });
   await measure(words.goal.id, "160", 1);
@@ -46,7 +48,7 @@ async function seed(fixture: UiFixture) {
   await phase(course.goal.id, "achieved");
   const job = await create({ kind: "unmeasured", domain_key: "work", title: "Сменить работу", description: "Тестовое описание цели без измерений.",
     starts_at: new Date(Date.now() - 20 * day).toISOString(), due_at: due(130) });
-  return { goalId: savings.goal.id, archivedId: archived.goal.id, unmeasuredId: applications.goal.id, jobId: job.goal.id, courseId: course.goal.id };
+  return { goalId: savings.goal.id, debtId: debt.goal.id, weightId: weight.goal.id, archivedId: archived.goal.id, unmeasuredId: applications.goal.id, jobId: job.goal.id, courseId: course.goal.id };
 }
 
 /**
@@ -116,7 +118,7 @@ async function main() {
     // Russian number and date formats, as on the mockups.
     fixture = await startUiFixture({ suite: "lfs212_shots", ownerLocale: "ru", onStage: (value) => { stage = value; } });
     stage = "test data through the API";
-    const { goalId, archivedId, unmeasuredId, jobId, courseId } = await seed(fixture);
+    const { goalId, debtId, weightId, archivedId, unmeasuredId, jobId, courseId } = await seed(fixture);
     stage = "example through the API";
     const example = await fetch(`${fixture.base}/api/v1/starter-pack`, { method: "POST", headers: { cookie: fixture.cookies.exampleDesktop, "idempotency-key": randomUUID() } });
     assert(example.ok, `POST /api/v1/starter-pack → ${example.status}`);
@@ -130,6 +132,19 @@ async function main() {
       // LFS-224: the goals list and the lighter panel of mockup 32 (390 px — mockup 44, the list phone).
       { name: "goals", path: "/goals", mockup: "32-goals-list.png" },
       { name: "goal", path: `/goals/${goalId}`, mockup: "32-goals-list.png" },
+      { name: "goal-payment-panel", path: `/goals/${debtId}`, mockup: "32-goals-list.png" },
+      ...[
+        { name: "goal-payment-dialog", id: debtId, action: "Внести платёж", field: "Сумма платежа, $", amount: "215,78" },
+        { name: "goal-deposit-dialog", id: goalId, action: "Пополнить", field: "Сумма пополнения, NOK", amount: "1250" },
+        { name: "goal-value-dialog", id: weightId, action: "Новое значение", field: "Вес сейчас, кг", amount: "82,5" },
+        { name: "goal-payment-edit", id: debtId, action: "Изменить", field: "Сумма платежа, $", amount: "500" },
+      ].map(({ name, id, action, field, amount }): Shot => ({
+        name, path: `/goals/${id}`, mockup: "37-measure-dialogs.png", open: async (page) => {
+          const trigger = action === "Изменить" ? page.getByTestId("measurement-row").first() : page;
+          await trigger.getByRole("button", { name: action, exact: true }).click();
+          await page.getByRole("dialog").getByLabel(field, { exact: true }).fill(amount);
+        },
+      })),
       { name: "goal-menu", path: `/goals/${goalId}`, mockup: "32-goals-list.png", open: async (page) => {
         await page.getByRole("button", { name: "Действия с целью", exact: true }).click();
       } },

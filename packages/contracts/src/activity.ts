@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { contributionKindSchema } from "./goal-measurements.ts";
 import { ACTIVITY_EVENT_TYPES, activitySourceSchema, goalChangedFieldSchema } from "./activity-events.ts";
 import { domainKeySchema } from "./domains.ts";
 import {
@@ -40,6 +41,7 @@ export const activityEntrySchema = z.strictObject({
   measurement: z.strictObject({
     value: goalDecimalSchema, previousValue: goalDecimalSchema.nullable(),
     unit: goalUnitSchema.nullable(), unitLabel: z.string().min(1).max(GOAL_UNIT_LABEL_MAX_LENGTH).nullable(),
+    contributionKind: contributionKindSchema.optional(),
   }).refine((measurement) => measurement.unit !== null || measurement.unitLabel === null).nullable(),
   changedFields: z.array(goalChangedFieldSchema).min(1).max(goalChangedFieldSchema.options.length).nullable(),
   startsAt: z.strictObject({ before: goalInstantSchema.nullable(), after: goalInstantSchema.nullable() }).nullable(),

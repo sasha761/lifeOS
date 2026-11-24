@@ -38,10 +38,6 @@ export function createGoalMeasurementsRepository(database: Pick<LifeosDatabase, 
       const [row] = await database.delete(goalMeasurements).where(ownedBy(goalMeasurements.userId, actor, eq(goalMeasurements.id, id))).returning();
       return row ? toGoalMeasurement(row) : null;
     },
-    async latest(actor, goalId) {
-      const [row] = await database.select().from(goalMeasurements).where(ownedBy(goalMeasurements.userId, actor, eq(goalMeasurements.goalId, goalId))).orderBy(...order).limit(1);
-      return row ? toGoalMeasurement(row) : null;
-    },
     async removeExamples(actor, goalId) {
       const rows = await database.delete(goalMeasurements)
         .where(ownedBy(goalMeasurements.userId, actor, eq(goalMeasurements.goalId, goalId), eq(goalMeasurements.source, "example"))).returning();

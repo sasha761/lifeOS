@@ -21,6 +21,7 @@
 | `0008_onboarding` | LFS-219 | `onboarding_state`, `onboarding_receipts`; `user.focus_domains`, `user.checkin_rhythm` | [Начальная настройка](#начальная-настройка--lfs-219) |
 | `0009_drop_checkin_rhythm` | LFS-222 | удаляет `user.checkin_rhythm` и `user_checkin_rhythm_check` вместе с данными | [Начальная настройка](#начальная-настройка--lfs-219) |
 | `0010_goal_phases` | LFS-225 | `goals.kind`, `phase`, `phase_changed_at`, `starts_at`; определение цели nullable; новые CHECK событий и квитанций | [Вид цели, статус и дата начала](#вид-цели-статус-и-дата-начала--lfs-225) |
+| `0011_goal_measurement_mode` | LFS-226 | `goals.measurement_mode` и CHECK ключей снимков событий | [Режим измерений](#режим-измерений--lfs-226) |
 
 Очередь pg-boss создаёт свои объекты сама — [Queue schema](#queue-schema). Новая миграция добавляет строку
 в эту таблицу и свой раздел.
@@ -260,6 +261,7 @@ FK `user_id → user.id CASCADE`; FK на цель отсутствует, чт�
 | `kind` | `numeric` (по умолчанию) или `unmeasured` (LFS-225); не меняется |
 | `unit`, `unit_label` | NOK/USD/count/minutes/percent/custom; label обязателен только для custom (1..40); у `unmeasured` оба NULL |
 | `baseline`, `target` | точный numeric без typmod; 0 ≤ value < 10^22, до 8 дробных знаков; DTO decimal string; у `unmeasured` NULL |
+| `measurement_mode` | `current_value` по умолчанию, `contributions` только у `numeric` (LFS-226) |
 | `direction` | increase: target > baseline; decrease: target < baseline; равенство запрещено; у `unmeasured` NULL |
 | `calculation_mode`, `metric_key` | только manual / null в Stage 2; computed отклоняется |
 | `status` | active по умолчанию; archived сохраняет данные и запрещает правку |
@@ -275,8 +277,7 @@ title/description/starts_at/due_at, архивирование и смена с�
 чужой ресурс не раскрывается. Индексы `(user_id, domain_key, status)` и
 `(user_id, status, due_at, id)` не требуют выборок по другим пользователям.
 
-Таблица не содержит current/progress: current читается из measurements
-(LFS-206), расчёт progress и HTTP — LFS-207; UI целей пока не реализован.
+Current и прогресс вычисляются при чтении по измерениям владельца.
 
 ## Вид цели, статус и дата начала · LFS-225
 
@@ -295,6 +296,17 @@ title/description/starts_at/due_at, архивирование и смена с�
   `goal_command_receipts` — операцию `phase` (ресурс `goal`).
 
 Существующие цели становятся `numeric` / `in_progress`; события и квитанции не переписываются.
+
+## Режим измерений · LFS-226
+
+Миграция `0011_goal_measurement_mode.sql` добавляет `measurement_mode text NOT NULL DEFAULT 'current_value'`.
+CHECK допускает `contributions` только у числовой цели. Для цели без измерений API возвращает `null`.
+Существующие измерения, события и квитанции сохраняются. У событий цели и измерения расширен список
+ключей снимков: `measurement_mode` и `contribution_kind` соответственно.
+
+Под блокировкой цели домен проверяет наличие собственного измерения или события его создания, поэтому удаление записи
+не снимает блокировку режима. В сводке для списка, панели, Dashboard и чтения current агрегаты count и sum берутся
+одним запросом PostgreSQL `numeric`, сумма передаётся строкой. Правила расчёта — [ADR-013](../adr/013-goal-kinds-phases.md#дополнение-lfs-226--2026-11-25).
 
 ## Activity events и command receipts · LFS-210
 
@@ -334,7 +346,7 @@ event и receipt коммитятся/откатываются вместе; use
 | `source`, `note` | manual; note null или 1..1000 непустых символов, contract trim |
 | `created_at`, `updated_at` | серверный clock_timestamp, finite |
 
-Current/history используют measured_at DESC, created_at DESC, id DESC;
+History и выбор последней записи используют measured_at DESC, created_at DESC, id DESC;
 индекс с префиксом user_id/goal_id поддерживает этот порядок. History до 100.
 Updated_at не меняет tie-breaker; baseline не подставляется вместо null.
 Backdated insert разрешён. У archived parent все свежие write-команды

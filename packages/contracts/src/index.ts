@@ -21,6 +21,7 @@ export {
   GOAL_DEFINITION_FIELDS, GOAL_METADATA_FIELDS, GOAL_CURRENCY_UNITS, GOAL_ORIGINS, goalOriginSchema,
   GOAL_KINDS, GOAL_PHASES, GOAL_PHASE_LABELS, goalKindSchema, goalPhaseSchema, setGoalPhaseInputSchema,
   createNumericGoalInputSchema, createUnmeasuredGoalInputSchema,
+  GOAL_MEASUREMENT_MODES, goalMeasurementModeSchema, goalAggregateDecimalSchema, scaledIntegerToGoalDecimal,
 } from "./goals.ts";
 export type { CreateGoalInput, CreateNumericGoalInput, Goal, GoalKind, GoalPhase, NumericGoal, SetGoalPhaseInput, UpdateGoalInput } from "./goals.ts";
 export {
@@ -32,7 +33,7 @@ export type { ActivityEvent, ActivityEventDraft, ActivityWriterContext, GoalComm
 export {
   createGoalMeasurementInputSchema, goalMeasurementCurrentSchema, goalMeasurementDeletionSchema, goalMeasurementSchema,
   MEASUREMENT_FUTURE_TOLERANCE_MS, MEASUREMENT_NOTE_MAX_LENGTH, updateGoalMeasurementInputSchema,
-  GOAL_MEASUREMENT_SOURCES, goalMeasurementSourceSchema,
+  GOAL_MEASUREMENT_SOURCES, goalMeasurementSourceSchema, contributionKindSchema,
 } from "./goal-measurements.ts";
 export type { CreateGoalMeasurementInput, GoalMeasurement, GoalMeasurementCurrent, GoalMeasurementDeletion, UpdateGoalMeasurementInput } from "./goal-measurements.ts";
 

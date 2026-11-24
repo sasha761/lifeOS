@@ -6,11 +6,11 @@ import type {
   Goal, GoalDetails, GoalMeasurement, GoalsCursor, GoalsListQuery, GoalsPage, MeasurementsCursor, MeasurementsPage,
 } from "@lifeos/contracts";
 import type { Actor } from "./actor.ts";
-import { calculateGoalProgress } from "./goal-progress.ts";
+import { calculateContributionCurrent, calculateGoalProgress } from "./goal-progress.ts";
 import { InvalidInputError, NotFoundError } from "./errors.ts";
 import { requireFound, requireOwned } from "./ownership.ts";
 
-export type GoalReadRecord = { goal: Goal; latest: GoalMeasurement | null; measurementCount: number; updatedAt: string };
+export type GoalReadRecord = { goal: Goal; latest: GoalMeasurement | null; measurementCount: number; updatedAt: string; contributionTotal?: string; measurementModeLocked?: boolean };
 export type GoalsReadQuery = Pick<GoalsListQuery, "limit" | "domain_key" | "status"> & { after?: GoalsCursor };
 export type MeasurementsReadQuery = { limit: number; after?: MeasurementsCursor };
 /** Each method returns a consistent read snapshot; page methods fetch limit+1 for continuation. */
@@ -45,15 +45,20 @@ export function goalDetailsFromRecord(actor: Actor, record: GoalReadRecord): Goa
     return { goal, progress: { methodology: null, source: "manual", unit: null, baseline: null, target: null, current: null, provenance: null,
       status: "unmeasured", progressPercent: null, explanation: GOAL_PHASE_LABELS[goal.phase], updatedAt, measurementCount } };
   }
+  const contributionTotal = goal.measurement_mode === "contributions" && latest ? record.contributionTotal : undefined;
+  if (goal.measurement_mode === "contributions" && latest && contributionTotal === undefined) throw new Error("Missing contribution total.");
+  const current = contributionTotal === undefined ? latest?.value ?? null : calculateContributionCurrent(goal, contributionTotal);
   return { goal, progress: {
     methodology: { version: 1, mode: "manual", formula: goal.direction === "increase" ? "(current-baseline)/(target-baseline)" : "(baseline-current)/(baseline-target)",
       percentDecimals: 2, rounding: "half_up", clamped: true },
-    source: "manual", unit: goal.unit, baseline: goal.baseline, target: goal.target, current: latest?.value ?? null,
+    source: "manual", unit: goal.unit, baseline: goal.baseline, target: goal.target, current,
     // An example value (LFS-218) is labelled as such; it is never presented as the person's self-report.
     provenance: latest ? { ...(latest.source === "example" ? { kind: "example", source: "example" } as const : { kind: "self_report", source: "manual" } as const),
       measurementId: latest.id, measuredAt: latest.measured_at, recordedAt: latest.created_at, updatedAt: latest.updated_at } : null,
-    ...calculateGoalProgress({ baseline: goal.baseline, target: goal.target, direction: goal.direction, current: latest?.value ?? null }),
+    ...calculateGoalProgress({ baseline: goal.baseline, target: goal.target, direction: goal.direction, current }),
     updatedAt, measurementCount,
+    ...(contributionTotal === undefined ? {} : { contributionTotal }),
+    ...(record.measurementModeLocked || latest?.source === "manual" ? { measurementModeLocked: true as const } : {}),
   } };
 }
 export function createGoalsReader(repository: GoalsReadRepository): GoalsReader {

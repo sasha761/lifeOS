@@ -31,7 +31,7 @@ test("LFS-225 goal without measurements: list chip, panel, mark achieved and ret
   await expect(panel.getByTestId("goal-phase")).toContainText("Процента нет. Когда цель будет достигнута, отметьте её сами.");
   await expect(panel.getByText("Сайт и первые пользователи.")).toBeVisible();
   await expect(panel.getByRole("heading", { name: "Измерения" })).toHaveCount(0);
-  await expect(panel.getByRole("button", { name: "Добавить измерение" })).toHaveCount(0);
+  await expect(panel.getByRole("button", { name: "Новое значение" })).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("goal-in-progress.png"), fullPage: true });
 
   // The main button marks it achieved and becomes «Вернуть в работу»; focus stays on it.
@@ -75,7 +75,7 @@ test("LFS-225 goal without measurements: list chip, panel, mark achieved and ret
   await page.getByRole("button", { name: "Поставить на паузу", exact: true }).click();
   const numericPanel = page.getByRole("region", { name: numeric });
   await expect(numericPanel.getByText("На паузе", { exact: true })).toBeVisible();
-  await expect(numericPanel.getByRole("button", { name: "Добавить измерение" })).toBeVisible();
+  await expect(numericPanel.getByRole("button", { name: "Новое значение" })).toBeVisible();
   await page.goto("/goals?domain_key=finance");
   const numericRow = list.getByTestId("goal-row").filter({ has: page.getByRole("link", { name: numeric, exact: true }) });
   await expect(numericRow.getByText("На паузе", { exact: true })).toBeVisible();

@@ -15,14 +15,15 @@ function fixture() {
   const measurements: GoalMeasurementsRepository = {
     create: vi.fn(async () => measurement), find: vi.fn(async () => measurement),
     update: vi.fn(async (_actor, _id, changes) => ({ ...measurement, ...changes })), remove: vi.fn(async () => measurement),
-    latest: vi.fn(async () => measurement), list: vi.fn(async () => [measurement]), removeExamples: vi.fn(async () => []),
+    list: vi.fn(async () => [measurement]), removeExamples: vi.fn(async () => []),
   };
   const goals = { find: vi.fn(async () => goal), claimExample: vi.fn(async () => ({ ...goal, origin: "manual" as const })) };
   const events = { append: vi.fn<ActivityEventWriter["append"]>(async () => {}) };
-  const unit: GoalMeasurementsUnitOfWork = { goals, measurements,
+  const readCurrent = vi.fn<GoalMeasurementsUnitOfWork["readCurrent"]>(async () => ({ goal, latest: measurement, measurementCount: 1, updatedAt: goal.updated_at }));
+  const unit: GoalMeasurementsUnitOfWork = { goals, measurements, readCurrent,
     run: vi.fn<GoalMeasurementsUnitOfWork["run"]>(async (_actor, _command, operation) => ({ kind: "success", result: await operation({ goals, measurements, events }) })) };
   const service = createGoalMeasurementsService(unit, () => new Date("2026-11-15T10:00:00Z"));
-  return { goal, measurement, measurements, events, goals, unit, service };
+  return { goal, measurement, measurements, events, goals, unit, service, readCurrent };
 }
 describe("measurement business rules", () => {
   it("allows backdated values and values beyond the target, keeping note text out of audit", async () => {
@@ -44,8 +45,8 @@ describe("measurement business rules", () => {
     expect(measurements.update).not.toHaveBeenCalled();
   });
   it("returns no current without measurements even when baseline is nonzero", async () => {
-    const { service, goal, measurements } = fixture();
-    vi.mocked(measurements.latest).mockResolvedValue(null);
+    const { service, goal, readCurrent } = fixture();
+    readCurrent.mockResolvedValue({ goal, latest: null, measurementCount: 0, updatedAt: goal.updated_at });
     expect(await service.current(actor, goal.id)).toEqual({ goal_id: goal.id, current: null, measurement: null });
   });
   it("records note-only edits without note contents and skips normalized no-op writes", async () => {
@@ -72,14 +73,14 @@ describe("measurement business rules", () => {
     expect(measurements.remove).not.toHaveBeenCalled();
   });
   it("rejects foreign parent/child rows even if returned by a broken repository", async () => {
-    const { service, goal, measurement, measurements } = fixture();
+    const { service, goal, measurement, measurements, readCurrent } = fixture();
     const foreign = actorFromVerifiedSession("other");
     for (const attempt of [() => service.create(foreign, goal.id, input, context), () => service.get(foreign, measurement.id),
       () => service.update(foreign, measurement.id, { note: null }, context), () => service.remove(foreign, measurement.id, context),
       () => service.current(foreign, goal.id), () => service.history(foreign, goal.id)]) {
       await expect(attempt()).rejects.toBeInstanceOf(NotFoundError);
     }
-    vi.mocked(measurements.latest).mockResolvedValue({ ...measurement, goal_id: randomUUID() });
+    readCurrent.mockResolvedValue({ goal, latest: { ...measurement, goal_id: randomUUID() }, measurementCount: 1, updatedAt: goal.updated_at });
     await expect(service.current(actor, goal.id)).rejects.toBeInstanceOf(NotFoundError);
     expect(measurements.create).not.toHaveBeenCalled();
   });

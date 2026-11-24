@@ -9,6 +9,8 @@ import type {
 import type { Actor } from "./actor.ts";
 import { goalAuditSnapshot, measurementDeletedEvent, measurementSnapshot } from "./events.ts";
 import type { ActivityEventWriter } from "./events.ts";
+import { goalDetailsFromRecord } from "./goals-reader.ts";
+import type { GoalsReadRepository } from "./goals-reader.ts";
 import type { GoalsRepository } from "./goals.ts";
 import { ConflictError, InvalidInputError, NotFoundError } from "./errors.ts";
 import { requireFound, requireOwned } from "./ownership.ts";
@@ -20,7 +22,6 @@ export type GoalMeasurementsRepository = {
   find(actor: Actor, id: string): Promise<GoalMeasurement | null>;
   update(actor: Actor, id: string, input: UpdateGoalMeasurementInput): Promise<GoalMeasurement | null>;
   remove(actor: Actor, id: string): Promise<GoalMeasurement | null>;
-  latest(actor: Actor, goalId: string): Promise<GoalMeasurement | null>;
   list(actor: Actor, goalId: string): Promise<GoalMeasurement[]>;
   /** Deletes the goal's example measurements (LFS-218) and returns them for the audit; called under the goal row lock. */
   removeExamples(actor: Actor, goalId: string): Promise<GoalMeasurement[]>;
@@ -35,7 +36,8 @@ export type MeasurementTransaction = { goals: Pick<GoalsRepository, "find" | "cl
 export type MeasurementCommandOutcome = { kind: "success"; result: MeasurementMutationResult } | { kind: "conflict" | "not_found" };
 export type GoalMeasurementsUnitOfWork = {
   goals: Pick<GoalsRepository, "find">;
-  measurements: Pick<GoalMeasurementsRepository, "find" | "latest" | "list">;
+  measurements: Pick<GoalMeasurementsRepository, "find" | "list">;
+  readCurrent: GoalsReadRepository["find"];
   run(actor: Actor, command: MeasurementCommand, operation: (transaction: MeasurementTransaction) => Promise<MeasurementMutationResult>): Promise<MeasurementCommandOutcome>;
 };
 export type GoalMeasurementsService = {
@@ -65,7 +67,7 @@ const snapshot = measurementSnapshot;
 
 export function createGoalMeasurementsService(unit: GoalMeasurementsUnitOfWork, clock: () => Date = () => new Date()): GoalMeasurementsService {
   function validateValue(goal: NumericGoal, value: string): void {
-    if (!goalValueMatchesUnit(value, goal.unit)) throw new InvalidInputError();
+    if (!goalValueMatchesUnit(value, goal.unit) || (goal.measurement_mode === "contributions" && value === "0")) throw new InvalidInputError();
   }
   function validateTime(value: string): void {
     if (new Date(value).getTime() > clock().getTime() + MEASUREMENT_FUTURE_TOLERANCE_MS) throw new InvalidInputError();
@@ -104,7 +106,7 @@ export function createGoalMeasurementsService(unit: GoalMeasurementsUnitOfWork, 
         }
         const measurement = owned(actor, await measurements.create(actor, goal, parsed.data));
         await events.append({ goal_id: key, domain_key: goal.domain_key, target_type: "goal_measurement", target_id: measurement.id,
-          schema_version: 1, event_type: "goal_measurement.created", payload: { before: null, after: snapshot(measurement) } });
+          schema_version: 1, event_type: "goal_measurement.created", payload: { before: null, after: snapshot(measurement, goal) } });
         return measurement;
       });
       if ("deleted" in result) throw new NotFoundError();
@@ -130,7 +132,7 @@ export function createGoalMeasurementsService(unit: GoalMeasurementsUnitOfWork, 
         if (!changed_fields.length) return before;
         const after = owned(actor, await measurements.update(actor, key, parsed.data));
         await events.append({ goal_id: goal.id, domain_key: goal.domain_key, target_type: "goal_measurement", target_id: key,
-          schema_version: 1, event_type: "goal_measurement.updated", payload: { before: snapshot(before), after: snapshot(after), changed_fields } });
+          schema_version: 1, event_type: "goal_measurement.updated", payload: { before: snapshot(before, goal), after: snapshot(after, goal), changed_fields } });
         return after;
       });
       if ("deleted" in result) throw new NotFoundError();
@@ -143,7 +145,7 @@ export function createGoalMeasurementsService(unit: GoalMeasurementsUnitOfWork, 
         const goal = await writableParent(actor, before.goal_id, goals);
         owned(actor, await measurements.remove(actor, key));
         await events.append({ goal_id: goal.id, domain_key: goal.domain_key, target_type: "goal_measurement", target_id: key,
-          schema_version: 1, event_type: "goal_measurement.deleted", payload: { before: snapshot(before), after: null } });
+          schema_version: 1, event_type: "goal_measurement.deleted", payload: { before: snapshot(before, goal), after: null } });
         return { id: key, goal_id: goal.id, user_id: actor.userId, deleted: true };
       });
       if (!("deleted" in result)) throw new Error("Invalid measurement deletion result.");
@@ -151,10 +153,11 @@ export function createGoalMeasurementsService(unit: GoalMeasurementsUnitOfWork, 
     },
     async current(actor, goalId) {
       const key = identifier(goalId);
-      await parent(actor, key, unit.goals);
-      const measurement = await unit.measurements.latest(actor, key);
-      if (measurement) { owned(actor, measurement); if (measurement.goal_id !== key) throw new NotFoundError(); }
-      return { goal_id: key, current: measurement?.value ?? null, measurement };
+      const record = requireFound(await unit.readCurrent(actor, key));
+      if (record.goal.id !== key) throw new NotFoundError();
+      const { goal, progress } = goalDetailsFromRecord(actor, record);
+      return { goal_id: key, current: progress.current, measurement: record.latest,
+        ...(goal.measurement_mode === "contributions" ? { measurement_mode: goal.measurement_mode } : {}) };
     },
     async history(actor, goalId) {
       const key = identifier(goalId);

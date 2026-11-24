@@ -5,12 +5,14 @@ import type { LifeosDatabase } from "./client.ts";
 import { createActivityEventWriter } from "./activity-event-writer.ts";
 import { commandFingerprint, findGoalDeletionReceipt, findOnboardingReceipt, findStarterPackReceipt, lockCommandKey } from "./command-idempotency.ts";
 import { ownedBy } from "./ownership.ts";
+import { createGoalsReadRepository } from "./repositories/goals-reader.ts";
 import { createGoalsRepository } from "./repositories/goals.ts";
 import { createGoalMeasurementsRepository } from "./repositories/goal-measurements.ts";
 import { goalCommandReceipts } from "./schema/activity-events.ts";
 export function createGoalMeasurementsUnitOfWork(database: LifeosDatabase): GoalMeasurementsUnitOfWork {
   return {
     goals: createGoalsRepository(database), measurements: createGoalMeasurementsRepository(database),
+    readCurrent: createGoalsReadRepository(database).find,
     async run(actor, command, operation) {
       if (!goalCommandOptionsSchema.safeParse({ idempotencyKey: command.idempotencyKey, source: command.source }).success) throw new Error("Invalid command context.");
       const hash = commandFingerprint(command);

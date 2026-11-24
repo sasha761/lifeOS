@@ -1,5 +1,6 @@
 import { goalAuditSnapshotSchema } from "@lifeos/contracts";
 import type { ActivityEvent, ActivityEventDraft, Goal, GoalMeasurement } from "@lifeos/contracts";
+import { contributionKind } from "./goal-progress.ts";
 import type { Actor } from "./actor.ts";
 
 /** Bound to the command's actor, source, key and Drizzle transaction by the infrastructure adapter. */
@@ -14,11 +15,13 @@ export function goalAuditSnapshot(goal: Goal) {
   return goalAuditSnapshotSchema.parse({
     unit: goal.unit, baseline: goal.baseline, target: goal.target,
     direction: goal.direction, status: goal.status, due_at: goal.due_at,
+    ...(goal.measurement_mode ? { measurement_mode: goal.measurement_mode } : {}),
     kind: goal.kind, phase: goal.phase, starts_at: goal.starts_at,
   });
 }
-export function measurementSnapshot(value: GoalMeasurement) {
-  return { value: value.value, measured_at: value.measured_at, source: value.source };
+export function measurementSnapshot(value: GoalMeasurement, goal?: Extract<Goal, { kind: "numeric" }>) {
+  const kind = goal && contributionKind(goal);
+  return { value: value.value, measured_at: value.measured_at, source: value.source, ...(kind ? { contribution_kind: kind } : {}) };
 }
 /** The audit fact of a removed measurement; also used when example measurements give way (LFS-218). */
 export function measurementDeletedEvent(goal: Pick<Goal, "id" | "domain_key">, removed: GoalMeasurement): ActivityEventDraft {

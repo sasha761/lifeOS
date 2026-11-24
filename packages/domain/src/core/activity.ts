@@ -52,6 +52,7 @@ export function toActivityEntry({ event, goal, unitChangedAt = null }: ActivityR
   const phase = edit?.changed_fields.includes("phase") && edit.before.phase && edit.after.phase ? { before: edit.before.phase, after: edit.after.phase } : null;
   // LFS-218: written by loading the example, or about an example value (also when the person removes it).
   const snapshot = event.target_type === "goal_measurement" ? (event.payload.after ?? event.payload.before) : null;
+  if (measurement && snapshot?.contribution_kind) measurement.contributionKind = snapshot.contribution_kind;
   const example = event.source === "starter" || snapshot?.source === "example";
   return {
     id: event.id, type: event.event_type, occurredAt: event.occurred_at, source: event.source, domainKey: event.domain_key,
@@ -63,7 +64,8 @@ export function toActivityEntry({ event, goal, unitChangedAt = null }: ActivityR
 export function toDashboardActivity(record: ActivityRecord): DashboardActivity {
   const { id, type, occurredAt, source, domainKey, goal, measurement, example, phase } = toActivityEntry(record);
   return { id, type, occurredAt, source, domainKey, goal,
-    measurement: measurement && { value: measurement.value, unit: measurement.unit, unitLabel: measurement.unitLabel }, example, phase };
+    measurement: measurement && { value: measurement.value, unit: measurement.unit, unitLabel: measurement.unitLabel,
+      ...(measurement.contributionKind ? { contributionKind: measurement.contributionKind } : {}) }, example, phase };
 }
 
 /** GET /api/v1/activity: the actor's own journal, optionally for one sphere or one goal; foreign ids simply match nothing. */

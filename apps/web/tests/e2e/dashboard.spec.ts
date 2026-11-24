@@ -26,8 +26,8 @@ test("create goal → measurement → dashboard shows the same progress as goal 
   await expect(page).toHaveURL(/\/goals\/[0-9a-f-]{36}\?domain_key=finance$/);
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   await page.getByTestId("measurement-row").first().getByRole("button", { name: "Изменить", exact: true }).click();
-  await page.getByRole("dialog").getByLabel("Значение (NOK)", { exact: true }).fill("15000");
-  await page.getByRole("button", { name: "Подтвердить изменения измерения" }).click();
+  await page.getByRole("dialog").getByLabel("Текущее значение, NOK", { exact: true }).fill("15000");
+  await page.getByRole("button", { name: "Сохранить" }).click();
   await expect(page.getByTestId("goal-percent")).toHaveText("30%");
 
   await page.goto("/dashboard");

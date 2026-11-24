@@ -9,7 +9,7 @@ import { FormAlert } from "../auth/form-parts.tsx";
 import { ModalDialog } from "../ui/modal-dialog.tsx";
 import { StatusChip } from "../ui/status-chip.tsx";
 import { createGoalCommand, getGoalsData, GoalRequestError } from "../../lib/goals-api-client.ts";
-import { formatGoalNumber, formatGoalPercent, formatGoalValue, PHASE_TONES, phaseLabel } from "../../lib/goal-presentation.ts";
+import { formatGoalPercent, formatProgressAmount, PHASE_TONES, phaseLabel } from "../../lib/goal-presentation.ts";
 import { instantToLocalDate, instantToLocalInput, zonedInstantChoices } from "../../lib/goal-time.ts";
 import type { GoalFieldErrors } from "../../lib/goal-form-input.ts";
 
@@ -111,7 +111,7 @@ export function GoalAmount({ value, preferences, percentTestId }: { value: GoalD
   const { goal, progress } = value;
   if (goal.kind !== "numeric" || progress.current === null) return null;
   return <span className="min-w-0 text-xs leading-5 wrap-anywhere tabular-nums">
-    <strong className="font-semibold">{formatGoalNumber(progress.current, preferences.locale)}</strong> из {formatGoalValue(goal.target, goal, preferences.locale)}
+    {formatProgressAmount(goal, progress, preferences.locale, goal.measurement_mode === "contributions")}
     {progress.progressPercent !== null && <> · <span data-testid={percentTestId}>{formatGoalPercent(progress.progressPercent, preferences)}</span></>}
   </span>;
 }

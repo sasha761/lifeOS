@@ -133,7 +133,7 @@ function TodayCard({ dashboard, labels, preferences, now }: { dashboard: Dashboa
 function ActivityRow({ item, labels, preferences }: { item: DashboardActivity; labels: DomainLabels; preferences: UserPreferences }) {
   return <li className="min-w-0 border-b py-2.5 first:pt-0 last:border-b-0 last:pb-0" data-testid="dashboard-activity">
     <p className="text-sm">
-      <span className="font-medium">{activityLabel(item.type, item.phase)}</span>
+      <span className="font-medium">{activityLabel(item.type, item.phase, item.measurement?.contributionKind)}</span>
       {item.measurement && <span className="font-semibold tabular-nums"> {formatLoggedValue(item.measurement.value, item.measurement, preferences.locale)}</span>}
       {item.example && <> <ExampleChip className="ml-1 align-[1px]" /></>}
     </p>

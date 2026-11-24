@@ -1,7 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { calculateGoalProgress, InvalidInputError } from "../src/index.ts";
+import { calculateContributionCurrent, calculateGoalProgress, InvalidInputError } from "../src/index.ts";
 
 const increase = (baseline: string, target: string, current: string | null) => ({ direction: "increase", baseline, target, current });
+describe("contribution progress", () => {
+  it.each([
+    ["decrease", "2000", "0", "800", "1200", 40],
+    ["decrease", "2000", "0", "2100", "0", 100],
+    ["decrease", "9007199254740993.05", "9007199254740993.01", "0.01", "9007199254740993.04", 25],
+    ["increase", "1000", "10000", "2000", "3000", 22.22],
+    ["increase", "9007199254740993.01", "9007199254740993.05", "0.01", "9007199254740993.02", 25],
+    ["increase", "9999999999999999999999.98", "9999999999999999999999.99", "0.02", "10000000000000000000000", 100],
+    ["increase", "0", "100", "101.01", "101.01", 100],
+  ] as const)("calculates %s from %s toward %s with total %s", (direction, baseline, target, total, expected, percent) => {
+    const current = calculateContributionCurrent({ direction, baseline }, total);
+    expect(current).toBe(expected);
+    expect(calculateGoalProgress({ direction, baseline, target, current }).progressPercent).toBe(percent);
+  });
+});
+
 describe("exact manual goal progress", () => {
   it.each([
     ["0", "50000", "12000", 24], ["0", "50000", "0", 0], ["10", "20", "5", 0], ["10", "20", "30", 100],

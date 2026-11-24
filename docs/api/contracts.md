@@ -256,6 +256,12 @@ starts_at?, due_at? }` без единицы и чисел (лишнее пол�
 у цели без измерений не правится — CONFLICT. Мастер, пример и «Новая цель» пользуются
 `createNumericGoalInputSchema`.
 
+**LFS-226 ([ADR-013](../adr/013-goal-kinds-phases.md#дополнение-lfs-226--2026-11-25)).** Числовая цель
+принимает и возвращает `measurement_mode`: `current_value` по умолчанию, `contributions` для взносов.
+У цели без измерений в ответе `null`; поле в её POST отклоняется с 400, попытка задать его в PATCH — с 409.
+До первого собственного измерения режим можно менять отдельным PATCH или вместе с обычной правкой. После первой
+записи смена режима даёт 409, даже если запись была удалена.
+
 Публичные endpoints целей в LFS-205 не создаются. `GoalsService` проверяет
 unknown input, Actor/ownership; ошибки VALIDATION_ERROR, NOT_FOUND,
 CONFLICT совместимы с HTTP mapper. Политики — [ADR-007](../adr/007-goals.md).
@@ -277,11 +283,9 @@ user_id, не добавляются в goal body. Будущий HTTP adapter L
 `ActivityEventDraft` — discriminated contract по шести event_type с
 schema_version=1. Server добавляет owner, source, key и UTC timestamps.
 Before/after whitelist исключает title/description/custom labels и auth PII;
-изменение текста отмечается только в changed_fields. С LFS-217 `changed_fields`
-у `goal.updated` — до 8 значений из `GOAL_CHANGED_FIELDS`: `title`,
-`description`, `due_at`, `unit`, `unit_label`, `baseline`, `target`,
-`direction`; значения определения — в before/after snapshot, своя единица
-(`unit_label`) — только фактом. Measurement event types
+изменение текста отмечается только в `changed_fields`. У `goal.updated` список ограничен `GOAL_CHANGED_FIELDS`.
+Значения числового определения, статуса, дат и режима измерений фиксируются в before/after; для `unit_label`
+записывается только факт изменения. Measurement event types
 реализованы в LFS-206. Детали — [ADR-008](../adr/008-transactional-audit.md)
 и [ADR-009](../adr/009-goal-measurements.md).
 
@@ -299,8 +303,9 @@ id/owner/goal/unit/timestamps клиент не назначает.
 
 `GoalMeasurement` включает server id/goal_id/user_id/unit/source/timestamps.
 `GoalMeasurementCurrent` — `{ goal_id, current, measurement }`, где current
-равен value последней записи по measured_at/created_at/id DESC, или оба
-значения null. Baseline не считается измерением. History — до 100 последних.
+вычисляется по режиму цели. `measurement` — последняя запись по measured_at/created_at/id DESC. При
+`measurement_mode: "contributions"` current — результат пересчёта по всем взносам, а value — сумма отдельного взноса.
+Для взноса требуется value > 0 при создании и исправлении. Без записей оба значения null. History — до 100 последних.
 Archived parent доступен для чтения, новые write-команды дают CONFLICT.
 
 Сервис требует тот же server options; namespace ключей общий с goal commands.
@@ -336,7 +341,7 @@ headers. Неподдерживаемый метод обрабатываетс�
 | `GET /api/v1/goals` | optional query limit/cursor/domain_key/status; `GoalsPage { items: GoalDetails[], nextCursor }` |
 | `POST /api/v1/goals` | CreateGoalInput; `GoalDetails` |
 | `GET /api/v1/goals/:goalId` | `GoalDetails { goal: Goal, progress: GoalProgress }` |
-| `PATCH /api/v1/goals/:goalId` | UpdateGoalInput (metadata, в том числе `starts_at`, и/или определение целиком, LFS-217) **либо** `{status:"archived"}` **либо** `{phase}` (LFS-225: смена статуса, тот же статус — без изменений, архивная цель — 409); `GoalDetails` |
+| `PATCH /api/v1/goals/:goalId` | UpdateGoalInput (metadata, в том числе `starts_at`, определение целиком из LFS-217 и/или `measurement_mode` из LFS-226) **либо** `{status:"archived"}` **либо** `{phase}` (LFS-225: смена статуса, тот же статус — без изменений, архивная цель — 409); `GoalDetails` |
 | `DELETE /api/v1/goals/:goalId` (LFS-216) | без body; `GoalDeletion { id, user_id, deleted:true }` |
 | `POST /api/v1/starter-pack` (LFS-218) | без body; `StarterPackApplied { version:1, created_goals, created_measurements }`; пример уже в аккаунте — 409 |
 | `DELETE /api/v1/starter-pack` (LFS-218) | без body; `StarterPackRemoved { deleted_goals }` |
@@ -389,16 +394,20 @@ metadata) остаётся для успешного повтора с тем ж
 | `progressPercent`, `status`, `explanation` | число 0..100 / measured / null либо null / insufficient_data / «Недостаточно данных»; у цели без измерений (LFS-225) null / unmeasured / слово статуса («В процессе», «Достигнута»…) |
 | `source` | manual — способ задания цели; само по себе не подтверждает current |
 | `provenance` | null без замера; иначе kind=self_report и source=manual (своё значение) или kind=example и source=example (LFS-218), measurementId, measuredAt, recordedAt, updatedAt |
+| `contributionTotal` | точная сумма оставшихся записей при взносах; поле есть только при наличии взносов |
+| `measurementModeLocked` | `true`, если есть или было собственное измерение; иначе поля нет |
 | `measurementCount` | все существующие замеры этой цели, не длина страницы и не количество событий |
 | `updatedAt` | max goal.updated_at и последнего audit occurred_at; включает правку/удаление/backdated insert |
 
-Current — последняя запись по measured_at/created_at/id DESC. Baseline
-никогда не становится замером. Increase `(current-baseline)/(target-baseline)`,
+В режиме `current_value` current — значение последней записи по measured_at/created_at/id DESC. В режиме
+`contributions` это старт плюс сумма взносов при increase и max(0, старт минус сумма) при decrease. Provenance
+указывает на последнюю запись в обоих режимах. Increase `(current-baseline)/(target-baseline)`,
 decrease `(baseline-current)/(baseline-target)`; затем ×100, clamp и half-up
 до двух знаков. Все суммы/разности/деление считаются BigInt; Number только
 для ограниченного UI-процента. Current за пределами target остаётся исходным.
-0→50000 NOK при 12000 — 24%; долг 100000→0 при 80000 — 20%.
-Без данных current/progressPercent null; измерение 0 — реальные данные.
+Взнос 800 USD при долге 2000 USD даёт current 1200 и прогресс 40%. При переплате остаток и долг не ниже нуля,
+накопленная сумма может превышать цель. Сумма и вычисленный current могут иметь больше целых разрядов, чем отдельное
+измерение. Без записей current/progressPercent null; в режиме `current_value` измерение 0 остаётся допустимым.
 Baseline==target и обратное направление запрещены input contract. Защитный
 calculator при неположительном знаменателе возвращает invalid_definition /
 null / «Некорректное определение цели», не делит на ноль.
@@ -446,7 +455,7 @@ no-store в общем envelope. Владелец берётся только и
 |---|---|
 | `domains` | ровно 6 сфер в порядке `DOMAIN_KEYS`: `{ key, activeCount, archivedCount, goals }`. `goals` — до 5 (`DASHBOARD_GOALS_PER_DOMAIN`) новейших **активных** целей сферы в формате `GoalDetails`, тот же DTO и расчёт, что `GET /api/v1/goals/:goalId`. Счётчики точные, даже если целей больше лимита. Процента сферы, Life Score или «уровня» нет |
 | `today.dueGoals` | до 8 (`DASHBOARD_DUE_GOALS_LIMIT`) активных целей со сроком, ближайшие первыми (включая просроченные), `GoalDetails` |
-| `activity` | до 10 (`DASHBOARD_ACTIVITY_LIMIT`) новейших событий `activity_events` владельца: `{ id, type, occurredAt, source, domainKey, goal: { id, title, status }, measurement }`. `measurement` — `{ value, unit, unitLabel }` только у `goal_measurement.*` (для удаления — значение до удаления), иначе null. Title — текущий из goals: audit не хранит названия (ADR-008); заметки и before/after цели не выдаются, кроме `phase` — `{ before, after }` у смены статуса (LFS-225), иначе null |
+| `activity` | до 10 (`DASHBOARD_ACTIVITY_LIMIT`) новейших событий `activity_events` владельца: `{ id, type, occurredAt, source, domainKey, goal: { id, title, status }, measurement }`. `measurement` — `{ value, unit, unitLabel, contributionKind? }` только у `goal_measurement.*` (для удаления — значение до удаления), иначе null. Title — текущий из goals: audit не хранит названия (ADR-008); заметки и before/after цели не выдаются, кроме `phase` — `{ before, after }` у смены статуса (LFS-225), иначе null |
 | `examples` | LFS-218: `{ goals, measurements }` — цели с `origin = starter` (активные и архивные) и измерения с `source = example`; для баннера «Это пример». Два счётчика в том же snapshot, без запроса на цель |
 | `focus_domains` | LFS-219: сферы в фокусе из мастера, в порядке реестра; `[]`, если мастер не пройден. Порядок `domains` не меняется |
 
@@ -487,6 +496,7 @@ VALIDATION_ERROR. Курсора пока нет: панель и страниц
 | `startsAt` | у `goal.updated` с изменённой датой начала (LFS-225) — `{ before, after }` (UTC instant или null), иначе null |
 | `dueAt` | у `goal.updated` с изменённым сроком — `{ before, after }` (UTC instant или null), иначе null |
 | `phase` | у смены статуса (`changed_fields: ["phase"]`, LFS-225) — `{ before, after }`, иначе null |
+| `measurement.contributionKind` | `payment` или `deposit` для события взноса, иначе поля нет |
 | `definition` | у `goal.updated` с изменёнными `unit`/`baseline`/`target`/`direction` — `{ before, after }` с этими четырьмя полями (LFS-217), иначе null |
 
 Чтение — один owner-scoped SQL-запрос с join на `goals` по составному ключу

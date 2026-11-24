@@ -10,6 +10,8 @@ export const GOAL_UNITS = Object.freeze(["NOK", "USD", "count", "minutes", "perc
 /** Money units: two decimal places (LFS-218 adds USD); no conversion between currencies. */
 export const GOAL_CURRENCY_UNITS = Object.freeze(["NOK", "USD"] as const);
 export const GOAL_DIRECTIONS = Object.freeze(["increase", "decrease"] as const);
+export const GOAL_MEASUREMENT_MODES = Object.freeze(["current_value", "contributions"] as const);
+export const goalMeasurementModeSchema = z.enum(GOAL_MEASUREMENT_MODES);
 export const GOAL_STATUSES = Object.freeze(["active", "archived"] as const);
 /**
  * LFS-225 (ADR-013): a goal is `numeric` (unit, start, target and direction, progress from measurements) or `unmeasured`
@@ -38,15 +40,25 @@ export const goalOriginSchema = z.enum(GOAL_ORIGINS);
 export const goalCalculationModeSchema = z.enum(["manual", "computed"]);
 
 /** Exact nonnegative decimal strings, never JSON numbers, exponent notation or implicit rounding. */
-export const goalDecimalSchema = z.string()
-  .max(GOAL_DECIMAL_INTEGER_DIGITS + GOAL_DECIMAL_SCALE + 1)
-  .regex(new RegExp(`^(?:0|[1-9][0-9]{0,${GOAL_DECIMAL_INTEGER_DIGITS - 1}})(?:\\.[0-9]{1,${GOAL_DECIMAL_SCALE}})?$`))
-  .transform((value) => value.includes(".") ? value.replace(/0+$/, "").replace(/\.$/, "") : value);
+function exactDecimal(integerDigits: number) {
+  return z.string().max(integerDigits + GOAL_DECIMAL_SCALE + 1)
+    .regex(new RegExp(`^(?:0|[1-9][0-9]{0,${integerDigits - 1}})(?:\\.[0-9]{1,${GOAL_DECIMAL_SCALE}})?$`))
+    .transform((value) => value.includes(".") ? value.replace(/0+$/, "").replace(/\.$/, "") : value);
+}
+export const goalDecimalSchema = exactDecimal(GOAL_DECIMAL_INTEGER_DIGITS);
+/** A read-only sum can exceed the size of one input. 19 extra digits cover PostgreSQL's bigint count plus the baseline. */
+export const goalAggregateDecimalSchema = exactDecimal(GOAL_DECIMAL_INTEGER_DIGITS + 19);
 
 /** Scale to integer units for exact comparison. Deliberately does not implement goal progress (LFS-207). */
 export function goalDecimalToScaledInteger(value: string): bigint {
-  const [integer, fraction = ""] = goalDecimalSchema.parse(value).split(".");
+  const [integer, fraction = ""] = goalAggregateDecimalSchema.parse(value).split(".");
   return BigInt(`${integer}${fraction.padEnd(GOAL_DECIMAL_SCALE, "0")}`);
+}
+
+export function scaledIntegerToGoalDecimal(value: bigint): string {
+  const scale = 10n ** BigInt(GOAL_DECIMAL_SCALE);
+  const fraction = (value % scale).toString().padStart(GOAL_DECIMAL_SCALE, "0").replace(/0+$/, "");
+  return `${value / scale}${fraction ? `.${fraction}` : ""}`;
 }
 
 /** Shared value policy for a goal definition and its manual measurements; no unit conversion. */
@@ -125,7 +137,7 @@ function validateDates(value: { starts_at?: string | null; due_at?: string | nul
  * Owner, status, phase, identity and timestamps are supplied by the server, never the public input. Without `kind` the
  * goal is numeric, as before LFS-225; a goal without measurements sends no numbers at all.
  */
-export const createNumericGoalInputSchema = z.strictObject({ kind: z.literal("numeric").default("numeric"), ...common, ...numeric })
+export const createNumericGoalInputSchema = z.strictObject({ kind: z.literal("numeric").default("numeric"), ...common, ...numeric, measurement_mode: goalMeasurementModeSchema.optional() })
   .superRefine(validateDefinition).superRefine(validateDates);
 export const createUnmeasuredGoalInputSchema = z.strictObject({ kind: z.literal("unmeasured"), ...common }).superRefine(validateDates);
 export const createGoalInputSchema = z.union([createNumericGoalInputSchema, createUnmeasuredGoalInputSchema]);
@@ -152,6 +164,7 @@ export const updateGoalInputSchema = z.strictObject({
   baseline: goalDecimalSchema.optional(),
   target: goalDecimalSchema.optional(),
   direction: goalDirectionSchema.optional(),
+  measurement_mode: goalMeasurementModeSchema.optional(),
 }).superRefine((input, context) => {
   const missing = GOAL_DEFINITION_FIELDS.filter((field) => input[field] === undefined);
   if (missing.length === GOAL_DEFINITION_FIELDS.length) return;
@@ -160,7 +173,7 @@ export const updateGoalInputSchema = z.strictObject({
     return;
   }
   validateDefinition(input as NumericDefinition, context);
-}).superRefine(validateDates).refine((input) => [...GOAL_METADATA_FIELDS, ...GOAL_DEFINITION_FIELDS].some((field) => input[field] !== undefined), { message: "Nothing to update." });
+}).superRefine(validateDates).refine((input) => [...GOAL_METADATA_FIELDS, ...GOAL_DEFINITION_FIELDS, "measurement_mode" as const].some((field) => input[field] !== undefined), { message: "Nothing to update." });
 export type UpdateGoalInput = z.infer<typeof updateGoalInputSchema>;
 
 /** A phase change (LFS-225) is a command of its own: `PATCH { phase }` with nothing else. */
@@ -189,8 +202,8 @@ function storedDefaults(value: unknown): unknown {
   return { kind: "numeric", origin: "manual", phase: "in_progress", starts_at: null, ...record, phase_changed_at: record.phase_changed_at ?? record.created_at };
 }
 export const goalSchema = z.preprocess(storedDefaults, z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("numeric"), ...common, ...numeric, ...stored }).superRefine(validateDefinition).superRefine(validateDates),
-  z.strictObject({ kind: z.literal("unmeasured"), ...common, ...unmeasured, ...stored }).superRefine(validateDates),
+  z.strictObject({ kind: z.literal("numeric"), ...common, ...numeric, ...stored, measurement_mode: goalMeasurementModeSchema.default("current_value") }).superRefine(validateDefinition).superRefine(validateDates),
+  z.strictObject({ kind: z.literal("unmeasured"), ...common, ...unmeasured, ...stored, measurement_mode: z.null().default(null) }).superRefine(validateDates),
 ]));
 export type Goal = z.infer<typeof goalSchema>;
 export type NumericGoal = Extract<Goal, { kind: "numeric" }>;

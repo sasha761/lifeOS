@@ -20,6 +20,7 @@ function memory() {
   const rows = new Map<string, Goal>();
   const commands: GoalCommand[] = [];
   const repository: GoalsRepository = {
+    hasMeasurementHistory: vi.fn(async () => false),
     hasOwnMeasurements: vi.fn(async () => false),
     claimExample: vi.fn(async () => null),
     deleteGoal: vi.fn(async () => null),
@@ -138,9 +139,9 @@ describe("reading and measuring a goal without measurements (LFS-225)", () => {
       source: "manual", note: null, created_at: time, updated_at: time });
     expect(() => goalDetailsFromRecord(owner, { goal, latest: measurement, measurementCount: 1, updatedAt: time })).toThrow();
     const create = vi.fn<GoalMeasurementsRepository["create"]>();
-    const unit = { goals: { find: vi.fn(async () => goal) }, measurements: { find: vi.fn(), latest: vi.fn(), list: vi.fn() },
+    const unit = { goals: { find: vi.fn(async () => goal) }, measurements: { find: vi.fn(), list: vi.fn() }, readCurrent: vi.fn(),
       run: vi.fn(async (_actor, _command, operation) => ({ kind: "success" as const, result: await operation({ goals: { find: async () => goal, claimExample: vi.fn() },
-        measurements: { create, find: vi.fn(), update: vi.fn(), remove: vi.fn(), latest: vi.fn(), list: vi.fn(), removeExamples: vi.fn() }, events: { append: vi.fn() } }) })) };
+        measurements: { create, find: vi.fn(), update: vi.fn(), remove: vi.fn(), list: vi.fn(), removeExamples: vi.fn() }, events: { append: vi.fn() } }) })) };
     const service = createGoalMeasurementsService(unit, () => new Date(time));
     await expect(service.create(owner, goal.id, { value: "1", measured_at: time }, options)).rejects.toBeInstanceOf(ConflictError);
     expect(create).not.toHaveBeenCalled();

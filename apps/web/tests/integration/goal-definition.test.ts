@@ -61,6 +61,62 @@ async function journal(goalId: string) {
 const rows = (goalId: string) => databaseOperation(async () => (await harness.database.pool.query<{ unit: string; goal_unit: string }>(
   "SELECT m.unit, g.unit AS goal_unit FROM goal_measurements m JOIN goals g ON g.id = m.goal_id WHERE m.goal_id = $1", [goalId])).rows);
 
+describe("contribution measurements (LFS-226)", () => {
+  it("sums owned payments, including backdated entries, and recomputes progress on correction and deletion", async () => {
+    const { goal } = await createGoal({ title: "Pay off USD debt", unit: "USD", baseline: "2000", target: "0", direction: "decrease" });
+    const id = goal.id;
+    const mode = { measurement_mode: "contributions" };
+    expect(goal.measurement_mode).toBe("current_value");
+    expect((await patch(id, mode, other.cookie)).status).toBe(404);
+    expect((await details(await patch(id, mode))).goal.measurement_mode).toBe("contributions");
+    const measure = (value: string, measured_at: string, cookie?: string) =>
+      routes.measurements.POST(call("POST", `/goals/${id}/measurements`, { value, measured_at }, cookie), params(id));
+    const get = async () => details(await routes.goal.GET(new Request(`${TEST_ORIGIN}/api/v1/goals/${id}`, { headers: { cookie: owner.cookie } }), params(id)));
+    const edit = (entry: string, value: string, cookie?: string) =>
+      routes.measurement.PATCH(call("PATCH", `/goal-measurements/${entry}`, { value }, cookie), params(entry));
+    const remove = (entry: string) =>
+      routes.measurement.DELETE(call("DELETE", `/goal-measurements/${entry}`, undefined), params(entry));
+    const latest = "2026-01-04T12:00:00.000Z";
+    expect((await measure("0", latest)).status).toBe(400);
+    expect((await measure("800", latest, other.cookie)).status).toBe(404);
+    const first = goalMeasurementResponseSchema.parse(await (await measure("800", latest)).json()).data!.id;
+    expect((await get()).progress).toMatchObject({ current: "1200", progressPercent: 40, contributionTotal: "800", measurementModeLocked: true });
+    await conflict(await patch(id, { measurement_mode: "current_value" }));
+    const older = goalMeasurementResponseSchema.parse(await (await measure("0.01", "2026-01-01T12:00:00.000Z")).json()).data!.id;
+    expect((await edit(older, "10", other.cookie)).status).toBe(404);
+    expect((await edit(older, "0.000")).status).toBe(400);
+    const reader = createGoalsReader(createGoalsReadRepository(harness.database.db));
+    const dashboard = createDashboardReader(createDashboardReadRepository(harness.database.db));
+    const listed = (await reader.list(owner.actor, { domain_key: "finance" })).items.find((item) => item.goal.id === id);
+    const overview = (await dashboard.get(owner.actor)).domains.find(({ key }) => key === "finance")?.goals.find((item) => item.goal.id === id);
+    expect(listed?.progress).toMatchObject({ current: "1199.99", contributionTotal: "800.01", provenance: { measurementId: first } });
+    expect(overview?.progress).toEqual(listed?.progress);
+    expect((await reader.history(owner.actor, id, {})).items.map((entry) => entry.id)).toEqual([first, older]);
+    expect((await edit(older, "1200.01")).status).toBe(200);
+    expect((await get()).progress).toMatchObject({ current: "0", progressPercent: 100, contributionTotal: "2000.01" });
+    expect((await remove(first)).status).toBe(200);
+    expect((await get()).progress).toMatchObject({ current: "799.99", progressPercent: 60 });
+    expect((await remove(older)).status).toBe(200);
+    expect((await get()).progress).toMatchObject({ current: null, measurementCount: 0, measurementModeLocked: true });
+    await conflict(await patch(id, { measurement_mode: "current_value" }));
+    const entries = (await journal(id)).filter((entry) => entry.measurement !== null);
+    expect(entries).toHaveLength(5);
+    expect(entries.every((entry) => entry.measurement?.contributionKind === "payment")).toBe(true);
+  });
+
+  it("adds exact NOK deposits to a nonzero baseline and can report a sum larger than one input", async () => {
+    const { goal } = await createGoal({ title: "NOK accumulation", baseline: "9007199254740993.01", target: "9007199254740993.05", measurement_mode: "contributions" });
+    expect((await addMeasurement(goal.id, "0.01")).status).toBe(200);
+    expect((await addMeasurement(goal.id, "0.02")).status).toBe(200);
+    const reader = createGoalsReader(createGoalsReadRepository(harness.database.db));
+    expect((await reader.get(owner.actor, goal.id)).progress).toMatchObject({ current: "9007199254740993.04", progressPercent: 75 });
+    expect((await addMeasurement(goal.id, "9999999999999999999999.99")).status).toBe(200);
+    const response = await routes.goal.GET(new Request(`${TEST_ORIGIN}/api/v1/goals/${goal.id}`, { headers: { cookie: owner.cookie } }), params(goal.id));
+    expect((await details(response)).progress).toMatchObject({ current: "10000009007199254740993.03", progressPercent: 100 });
+    expect((await journal(goal.id))[0]?.measurement).toMatchObject({ contributionKind: "deposit" });
+  });
+});
+
 describe("goal definition edits before the first measurement (LFS-217)", () => {
   it("redefines an unmeasured goal with progress recomputed and the old and new values in the journal", async () => {
     const created = await createGoal();
