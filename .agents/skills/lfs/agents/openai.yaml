@@ -1,0 +1,8 @@
+interface:
+  display_name: "LFS: задача с планом"
+  short_description: "Задача LifeOS по LFS-ID: план, «ОК» владельца, код, проверки, отчёт"
+  default_prompt: "$lfs"
+
+# Только по явной команде владельца: Codex не запускает эту процедуру сам по смыслу запроса.
+policy:
+  allow_implicit_invocation: false

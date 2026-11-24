@@ -1,0 +1,8 @@
+interface:
+  display_name: "LFS: следующая задача без остановок"
+  short_description: "Сам берёт следующую задачу LifeOS и делает её до коммита и пуша"
+  default_prompt: "$lfs-auto"
+
+# Режим без подтверждений запускается только явной командой владельца, никогда по смыслу запроса.
+policy:
+  allow_implicit_invocation: false

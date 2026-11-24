@@ -1,0 +1,8 @@
+interface:
+  display_name: "LFS: ревью задачи"
+  short_description: "Проверка чужой задачи LifeOS без правок: замечания и вердикт"
+  default_prompt: "$lfs-review LFS-"
+
+# Только по явной команде владельца.
+policy:
+  allow_implicit_invocation: false
